@@ -257,6 +257,24 @@ try {
     await n.close();
   }
 
+  // The visitor's murmuring: `mutter=2` makes it every 2 s so we need not wait minutes.
+  {
+    const m = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    m.on('pageerror', (e) => errors.push(String(e)));
+    await m.goto(`${URL}&mutter=2`);
+    await m.click('#enter');
+    await m.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await m.waitForFunction(() => document.getElementById('log').textContent.includes('You murmur:'), null, { timeout: 30000 });
+    check(true, 'the visitor murmurs now and then, and it is written in the log');
+    await m.click('#open-settings');
+    await m.uncheck('#s-mutter');
+    await m.click('#s-save');
+    const n0 = await m.locator('.mutter').count();
+    await m.waitForTimeout(6000);
+    check((await m.locator('.mutter').count()) === n0, 'with the setting off, there is no more murmuring');
+    await m.close();
+  }
+
   check(errors.length === 0, `no console or page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await browser.close();
 } catch (e) {

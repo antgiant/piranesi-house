@@ -10,6 +10,7 @@ import { mapView, type MapCell, type MapView } from '../game/mapdata';
 import type { Level } from '../world/layout';
 import { MapPanel } from './map';
 import { Narrator } from './speech';
+import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
 
 interface Settings {
@@ -21,6 +22,9 @@ interface Settings {
   relics: boolean;
   outside: boolean;
   /** Read descriptions aloud with the browser's voices. Off until chosen. */
+  /** The visitor's own quiet muttering, heard through the hall's acoustics. */
+  mutter: boolean;
+  mutterCaptions: boolean;
   narrate: boolean;
   voiceURI: string;
   narrateRate: number;
@@ -28,7 +32,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -258,6 +262,8 @@ function fillSettings(): void {
   $<HTMLInputElement>('s-relics').checked = settings.relics;
   $<HTMLInputElement>('s-outside').checked = settings.outside;
   $<HTMLInputElement>('s-narrate').checked = settings.narrate;
+  $<HTMLInputElement>('s-mutter').checked = settings.mutter;
+  $<HTMLInputElement>('s-mutter-captions').checked = settings.mutterCaptions;
   fillVoices();
   $<HTMLInputElement>('s-rate').value = String(settings.narrateRate);
   $('s-rate-out').textContent = `${settings.narrateRate.toFixed(1)}×`;
@@ -286,6 +292,8 @@ $('s-save').addEventListener('click', (e) => {
     relics: $<HTMLInputElement>('s-relics').checked,
     outside: $<HTMLInputElement>('s-outside').checked,
     narrate: $<HTMLInputElement>('s-narrate').checked,
+    mutter: $<HTMLInputElement>('s-mutter').checked,
+    mutterCaptions: $<HTMLInputElement>('s-mutter-captions').checked,
     voiceURI: $<HTMLSelectElement>('s-voice').value,
     narrateRate: Number($<HTMLInputElement>('s-rate').value) || 1,
     timeScale: Number($<HTMLSelectElement>('s-scale').value) || 1,
@@ -344,6 +352,30 @@ setInterval(() => {
   } else if (Date.now() - lastPrintMs < dwellMs(lastPrintChars)) return;
   submit(chooseWander(game, Math.random), true);
 }, 500);
+
+// The visitor mutters now and then, quietly, rarely, never during a tide, under water or in the dark. The sound goes through
+// the same reverb and muffling as the rest of the House. With captions on, what was murmured is also written in the log
+// (never read out by the narrator, which would only talk over it).
+// `#mutter=5` is a developer override: mutter every 5 seconds, so tests do not have to wait minutes.
+const mutterEveryS = Number(hashParams().get('mutter')) || 0;
+let nextMutterMs = Date.now() + (mutterEveryS ? mutterEveryS * 1000 : mutterDelayS(Math.random) * 1000);
+setInterval(() => {
+  if (!game || !engine.started || Date.now() < nextMutterMs) return;
+  const gap = (mutterEveryS || mutterDelayS(Math.random)) * 1000;
+  nextMutterMs = Date.now() + gap;
+  if (!settings.mutter) return;
+  const a = audioFor(game.world, sceneNow(game, Date.now()), { facing: game.facing });
+  if (!mutterAllowed(a)) return;
+  const line = mutterLine(Math.random);
+  const secs = engine.mutter(line);
+  if (secs > 0 && settings.mutterCaptions) {
+    const p = document.createElement('p');
+    p.className = 'event mutter';
+    p.textContent = `You murmur: ${line}`;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}, 1000);
 
 paintMute();
 setInterval(() => {

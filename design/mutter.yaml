@@ -1,8 +1,15 @@
 # Design (not canon): occasional incoherent muttering from the visitor's character.
 # STATUS: planned for milestone 6, after the unread book sections are properly read (milestone 5).
 version: 0
-status: planned
-config: {mutter: true, mutterCaptions: false}   # on by default like everything else; visitors can turn it off
+status: IMPLEMENTED (milestone 6)
+implemented:
+  - "Text: src/game/mutter.ts. A word-pair chain over our own 40-phrase corpus, with repeats, lost threads and trailing off; 3 to 9 words; every word comes from the corpus (tested)."
+  - "Sound: src/audio/babble.ts plans a rhythm of vowel-like formants and breathy consonants from the words; src/audio/engine.ts plays it into the main bus, so it gets the hall reverb, doorway muffling and water hush. Our own synthesiser: no third-party engine or licence."
+  - "Rare: every 75 to 300 s at random; silent while a tide booms or is submerged, in the Drowned Halls and in the dark hall."
+  - "Settings: mutter (on) and mutterCaptions (on; writes 'You murmur: ...' in the log, never read out by the narrator)."
+  - "Checked against the book: 20,000 generated lines, zero runs of 6 or more words in common (5-word runs only in everyday phrases). Re-run this check if the corpus changes."
+  - "Still to do (milestone 8): other visitors hear it only if close."
+config: {mutter: true, mutterCaptions: true}   # on by default like everything else; visitors can turn it off
 intent: "A rare, quiet, half-sensible murmur that makes the House feel inhabited. Heard through the hall's own reverb and muffling."
 requirements:
   audio: "Must go through the Web Audio graph so it gets hall reverb, doorway muffling and the underwater hush. The browser's built-in speech engine (Web Speech API) cannot be routed through Web Audio effects, so it is NOT the engine."

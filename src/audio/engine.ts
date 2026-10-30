@@ -2,6 +2,7 @@
 // Everything audible comes through one reverb whose length follows the hall, then one low-pass for cloud and water.
 // Randomness here (bird timing, drips) is cosmetic and deliberately not part of the deterministic world.
 
+import { babblePlan, type BabbleEvent } from './babble';
 import type { AudioScene, Portal, Surface } from './director';
 
 type Species = 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle';
@@ -559,6 +560,43 @@ export class AudioEngine {
       case 'rustle':
         this.burst(t, rand(0.1, 0.25), 'highpass', 3500, 0.7, v * 0.7, pan, 0.02, out);
         break;
+    }
+  }
+
+  /**
+   * The visitor's own muttering: a quiet murmur placed in the room, so it gets this hall's reverb, the doorway
+   * muffling and the water hush like everything else. Returns how many seconds it lasts, or 0 if nothing was played.
+   */
+  mutter(text: string): number {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running') return 0;
+    const plan = babblePlan(text, 108 + Math.random() * 24);
+    const t0 = ctx.currentTime + 0.05;
+    let end = 0;
+    for (const e of plan) { this.murmurEvent(t0, e); end = Math.max(end, e.t + e.dur); }
+    return end;
+  }
+
+  private murmurEvent(t0: number, e: BabbleEvent): void {
+    const ctx = this.ctx as AudioContext;
+    const t = t0 + e.t;
+    const loud = 0.11 * e.level; // quiet: this is a person under their breath
+    if (e.kind === 'vowel') {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(e.f0, t);
+      o.frequency.linearRampToValueAtTime(e.f0 * 0.97, t + e.dur);
+      const a = ctx.createBiquadFilter(); a.type = 'bandpass'; a.frequency.value = e.f1; a.Q.value = 6;
+      const b = ctx.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = e.f2; b.Q.value = 8;
+      const g = ctx.createGain();
+      this.env(g, t, 0.025, e.dur * 0.55, e.dur * 0.35, loud);
+      o.connect(a).connect(g);
+      o.connect(b).connect(g);
+      g.connect(this.bus);
+      o.start(t);
+      o.stop(t + e.dur + 0.1);
+    } else {
+      this.burst(t, e.dur, 'bandpass', e.f1, 1.2, loud * (e.kind === 'stop' ? 0.9 : 0.6), 0, 0.006, this.bus);
     }
   }
 

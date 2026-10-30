@@ -16,4 +16,5 @@ questions:
   - {id: Q-015, q: "Witness rule: a visitor counts as a witness if they were in the hall or in one of its doorways.", decision: "Confirmed.", status: done}
   - {id: Q-016, q: "Do visitors need to eat and drink?", decision: "No survival. Food is flavour and craft material only.", status: done}
   - {id: Q-017, q: "Occasional incoherent muttering from the visitor's character.", decision: "Yes. Planned as milestone 6, after the unread book sections are read (milestone 5). Needs reverb and effects, so it goes through Web Audio. See design/mutter.yaml.", status: planned}
+  - {id: Q-018, q: "Line-by-line read of Part 5 and the middle of Part 7.", status: done, result: "Read in full. The statues in Part 7 were already in statues.yaml (ST-KNEELING-SPHERE, ST-HERETIC-POPE, ST-QUEEN-CHARIOT, ST-LANTERN-WALKER, ST-KING-CITY, ST-CHILDREN-FLUTE, ST-RECLINING-SNAKES). New: arrival sensations ARR-001 to ARR-006 in senses.yaml. Everything else in these parts is plot and stays excluded."}
   - {id: Q-012, q: "Are the Dead on by default?", decision: "Yes. All settings default to on, including showDead; visitors choose to turn things off.", status: done}

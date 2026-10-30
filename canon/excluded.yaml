@@ -10,7 +10,7 @@ excluded:
   - {id: X-004, what: "The glimpse of the outside world through the shadows between the south-east minotaurs in the First Vestibule (draught, smell of rain and metal, faint foreign voices)", decision: included_as_pack, pack: outside_traces, why: "Rare, ambient, no characters."}
   - {id: X-005, what: "The coordinated Flood", decision: split, why: "As a story event with a trap, excluded. As a natural rare conjunction of tides it is already canon (T-015, T-018, T-019); the sim may produce one."}
   - {id: X-006, what: "Messages left in chalk or pebbles", decision: included_as_pack, pack: visitor_marks, why: "Visitors can leave preset generic marks (never free text). The story's own messages and the torn-paper scraps in gull nests stay out."}
-  - {id: X-007, what: "Real-world scenes (Part 5 and most of Part 7)", decision: excluded, why: "Story; the 'outside' is only ever hinted at (outside_traces)."}
+  - {id: X-007, what: "Real-world scenes (Part 5 and most of Part 7), read in full in milestone 5", decision: excluded, why: "Story; the 'outside' is only ever hinted at (outside_traces)."}
   - {id: X-008, what: "Gifts brought in by the other inhabitant (sleeping bag, bowls, nets, shoes, camera, etc.)", decision: excluded, why: "Character piece."}
   - {id: X-009, what: "Crisp packets, fish-finger wrappers, an old sleeping bag and similar litter in and near the First Vestibule", decision: included_as_pack, pack: outside_traces, why: "Rare drifting traces of the outside; no authorship implied."}
   - {id: X-010, what: "The inhabitant's personal named constellations and year names", decision: excluded, why: "Character piece. The engine ships neutral sky names."}

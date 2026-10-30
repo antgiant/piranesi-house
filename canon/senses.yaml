@@ -45,3 +45,12 @@ visual_textures:
   - {id: VIS-WATER-COLOURS, what: "Tide waters differ in colour: colourless, pewter, ice-white, blue-green; foam white as fish bones or milky", src: [75-79, 745], confidence: stated}
   - {id: VIS-SEA-STATUES, what: "Seaweed rags and mussel crusts on statues in flooded halls; coral in the Coral Halls", src: [483, 839, 3495], confidence: stated}
   - {id: VIS-DEEP-WATER, what: "Drowned Halls: dark still water, white lilies, half-submerged windows, gloom", src: [467, 471], confidence: stated}
+
+# Added in milestone 5 (Part 5, first sight of the House as seen by a newcomer)
+arrival:
+  - {id: ARR-001, what: "Seen from outside the House, the first sign of it is a smell of rain, cloud, open air and sea that seems far too large for the room it is in.", src: 2574, confidence: stated, scope: optional, use: "outside_traces draught"}
+  - {id: ARR-002, what: "Crossing in, the ordinary hum of a city stops at once. The dark turns greyer and cooler, the air colder and damp like fog, and what replaces the city is a sound of vast emptiness with waves thudding dully against walls.", src: 2754, confidence: stated, use: "first moments in the First Vestibule; outside layer should end with this same quality, not begin with it"}
+  - {id: ARR-003, what: "On opening the eyes the first thing seen is a very large room with minotaurs towering over you, darkening it with their bulk.", src: 2756, confidence: stated}
+  - {id: ARR-004, what: "A newcomer's secondhand impression of the whole place: an unending run of classical buildings knitted together, immensely tall as well as wide.", src: 2679, confidence: stated}
+  - {id: ARR-005, what: "A past visitor made a habit of sleeping beneath the First Vestibule staircase, who listens to the tides there; this matches the sleeping bag already in RC-003.", src: 3631, confidence: stated}
+  - {id: ARR-006, what: "A person who knows the House well can walk it in memory: name a vestibule, name a hall, then recall each door, left and right, in order. Useful for the map and for narration of known routes.", src: 3722, confidence: stated}

@@ -9,7 +9,7 @@ from the book. If you need the original wording, open your own copy at the cited
 Set before the events of the book; the story's characters and their actions are out of scope (see
 `excluded.yaml`). Opt-in packs for rare outside hints and visitor marks live in `design/packs.yaml`, not here.
 
-## Status: DRAFT v1 — full pass complete, needs your review
+## Status: DRAFT v2 — all parts read in full, needs your review
 
 ### Coverage
 | Source section | Lines (approx.) | How it was read |
@@ -18,13 +18,11 @@ Set before the events of the book; the story's characters and their actions are 
 | Part 2 (The Other) | 258-1218 | read in full |
 | Part 3 (The Prophet) | 1219-1755 | read in full |
 | Part 4 (16) | 1756-2540 | read in full |
-| Part 5 (Ketterley, real world) | 2541-2787 | keyword search only; real-world scenes, no House description beyond the First Vestibule glimpse (excluded) |
+| Part 5 (Ketterley, real world) | 2541-2787 | read in full (milestone 5); real-world scene plus the crossing; arrival sensations added as ARR-001 to ARR-004 |
 | Part 6 (Wave) | 2788-3538 | read in full |
-| Part 7 (real world, later reflections) | 3539-3755 | statue and tide passages read; the rest is real-world and was searched, not read |
+| Part 7 (real world, later reflections) | 3539-3755 | read in full (milestone 5); every statue already recorded; walking-in-memory and sleeping-place notes added as ARR-005, ARR-006 |
 
-Remaining risk: Part 5 and the unread middle of Part 7 could still hide a stray statue mention, but searches for
-"statue", "hall", "vestibule", "tide", "labyrinth" found nothing not already recorded. Milestone 0 coverage is
-considered complete for Parts 1-4 and 6.
+Every part of the source has now been read in full. Nothing further is pending for coverage.
 
 ### Line references
 `src: 267` is a line number in the plain-text export the project owner supplied (the numbering the

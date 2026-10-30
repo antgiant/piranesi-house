@@ -275,6 +275,17 @@ try {
     await m.close();
   }
 
+  // Phone width: the header must not squeeze the place name into a column of single letters.
+  {
+    const ph = await browser.newPage({ viewport: { width: 360, height: 700 } });
+    await ph.goto(URL);
+    await ph.click('#enter');
+    await ph.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    const m = await ph.evaluate(() => ({ placeW: document.getElementById('place').offsetWidth, barH: document.getElementById('bar').offsetHeight, sw: document.documentElement.scrollWidth }));
+    check(m.placeW > 200 && m.barH < 160 && m.sw <= 360, `[phone] the header is laid out sensibly (place ${m.placeW}px wide, bar ${m.barH}px tall, no sideways scroll)`);
+    await ph.close();
+  }
+
   check(errors.length === 0, `no console or page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await browser.close();
 } catch (e) {

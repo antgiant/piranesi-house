@@ -21,3 +21,12 @@
 * It uses your walking speed setting, so a slow walker takes real time between halls.
 * The random source is passed in (`Math.random` in the page), so the chooser is tested with a seeded generator
   (`tests/wander.test.ts`). The browser test checks narration with a stubbed speech engine and that wander moves on and stops.
+
+## Choosing the voice
+The aim is a peaceful, unhurried, thoughtful reading with a British accent, like a good audiobook. We cannot copy any
+real person's voice (there is no server, and it would not be right to), so the page ranks the voices your device offers
+(`voiceScore` in `src/web/speech.ts`): British English first, then other English; "natural/neural/premium" voices up;
+warm male-sounding names up; robotic or novelty voices down. The default speed is 0.9× with a slightly lower pitch, and
+speech goes sentence by sentence so each gets a natural pause. You can still pick any voice by hand in Settings.
+Quality varies by device: Chrome and Edge offer online "natural" voices, Safari and macOS offer good "Daniel" and
+"Enhanced" voices, and a bare Linux machine may only have a robotic one.

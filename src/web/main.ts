@@ -28,7 +28,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, narrate: false, voiceURI: '', narrateRate: 1, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -305,7 +305,7 @@ $('s-save').addEventListener('click', (e) => {
 
 function fillVoices(): void {
   const sel = $<HTMLSelectElement>('s-voice');
-  sel.replaceChildren(new Option('Default voice', ''));
+  sel.replaceChildren(new Option('Automatic: calm, British where available', ''));
   for (const v of narrator.voices()) sel.add(new Option(`${v.name} (${v.lang})`, v.voiceURI));
   sel.value = settings.voiceURI;
 }

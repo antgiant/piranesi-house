@@ -13,6 +13,7 @@
     <header class="bar" id="bar" hidden>
       <div class="place"><span id="place">The House</span><span id="clock" class="clock"></span></div>
       <div class="tools">
+        <button id="wander" type="button" aria-pressed="false" title="Let the House carry you: wander for ever, reading as you go">Wander</button>
         <button id="open-map" type="button" aria-expanded="false" aria-controls="map-panel" title="Show the map of what you have explored">Map</button>
         <button id="mute" type="button" aria-pressed="false" title="Mute or unmute the sound">Sound on</button>
         <button id="open-settings" type="button" title="Settings">Settings</button>
@@ -65,6 +66,9 @@
         <label class="row check"><input id="s-dead" type="checkbox" /> <span>Show the remains of the dead (restarts the walk)</span></label>
         <label class="row check"><input id="s-relics" type="checkbox" /> <span>Traces of earlier visitors lying about (restarts the walk)</span></label>
         <label class="row check"><input id="s-outside" type="checkbox" /> <span>Rare hints of a world outside the House (restarts the walk)</span></label>
+        <label class="row check"><input id="s-narrate" type="checkbox" /> <span>Read descriptions aloud <span class="small" id="s-narrate-note"></span></span></label>
+        <label class="row"><span>Narrator voice</span><select id="s-voice"><option value="">Default voice</option></select></label>
+        <label class="row"><span>Narration speed: <output id="s-rate-out">1.0×</output></span><input id="s-rate" type="range" min="0.6" max="1.6" step="0.1" /></label>
         <label class="row check"><input id="s-diary" type="checkbox" /> <span>Capitalise the House's nouns, like a diary</span></label>
         <label class="row"><span>Speed of time</span>
           <select id="s-scale">

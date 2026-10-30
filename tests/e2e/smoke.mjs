@@ -223,6 +223,40 @@ try {
     await w.close();
   }
 
+  // Narration and wander, with the browser's speech stubbed so we can see what would be spoken.
+  {
+    const n = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    await n.addInitScript(() => {
+      window.__spoken = [];
+      window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+      Object.defineProperty(window, 'speechSynthesis', { value: {
+        speaking: false, getVoices: () => [], addEventListener() {}, cancel() { window.__spoken.push('<cancel>'); },
+        speak(u) { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend(), 10); },
+      } });
+    });
+    n.on('pageerror', (e) => errors.push(String(e)));
+    await n.goto(URL);
+    await n.click('#enter');
+    await n.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    check((await n.evaluate(() => window.__spoken.filter((s) => s !== '<cancel>').length)) === 0, 'narration is off until chosen: nothing is spoken');
+    await n.click('#open-settings');
+    await n.check('#s-narrate');
+    await n.click('#s-save');
+    await n.fill('#input', 'look');
+    await n.press('#input', 'Enter');
+    await n.waitForTimeout(300);
+    const said = await n.evaluate(() => window.__spoken.join(' | '));
+    check(said.includes('First Vestibule') && said.includes('Number 1,'), 'with narration on, the description is read aloud, door numbers as words');
+    const startPlace = await n.locator('#place').textContent();
+    await n.click('#wander');
+    check((await n.locator('#wander').getAttribute('aria-pressed')) === 'true', 'wander starts');
+    await n.waitForFunction((p) => document.getElementById('place').textContent !== p, startPlace, { timeout: 15000 });
+    check(true, 'wander moved to another hall by itself');
+    await n.fill('#input', 'x');
+    check((await n.locator('#wander').getAttribute('aria-pressed')) === 'false', 'typing anything stops wandering');
+    await n.close();
+  }
+
   check(errors.length === 0, `no console or page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await browser.close();
 } catch (e) {

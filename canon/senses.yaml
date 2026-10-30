@@ -21,6 +21,9 @@ sound:
   - {id: SND-DARK-HALL, what: "A faint draught like cold breath from the windowless hall; very quiet", driver: "192nd Western Hall", src: 847, confidence: stated}
   - {id: SND-ICICLES-SNOW, what: "Muffled snow, creaking cold", driver: "winter", src: 391, confidence: inferred}
   - {id: SND-STATUES-SING, what: "Wind makes statues whistle, hum and sing", driver: "wind", src: 399, confidence: stated}
+  - {id: SND-SPRAY, what: "Waves crashing against a wall with explosions of spray; deafening roar when a large tide arrives", driver: "tide event", src: [3041, 3095], confidence: stated}
+  - {id: SND-WADING, what: "Splash and drag of wading through knee-deep water; ripples racing past the feet", driver: "water depth in hall", src: [3023, 3133], confidence: stated}
+  - {id: SND-SILENCE-CHARGED, what: "Between events the House is very quiet; the silence can feel expectant", driver: "quiet moments", src: 2423, confidence: stated}
 
 smell:
   - {id: SMELL-TIDE-AIR, what: "Salt-laden air that corrodes plastic; the sharp salty wild tang of far-off tides and winds", driver: "tide proximity", src: [357, 423], confidence: stated}
@@ -38,6 +41,7 @@ touch_and_temperature:
 
 visual_textures:
   - {id: VIS-MARBLE, what: "Everything is marble and stone; pavements of large stones; white, pewter, grey tones; the statues are pale and read as white shapes in mist", src: [457, 783], confidence: stated}
+  - {id: VIS-SPRAY-LIGHT, what: "Spray flung up in sunlight glitters like diamonds; waters at peak flood are stormy grey over black depths", src: [3083, 3095], confidence: stated}
   - {id: VIS-WATER-COLOURS, what: "Tide waters differ in colour: colourless, pewter, ice-white, blue-green; foam white as fish bones or milky", src: [75-79, 745], confidence: stated}
   - {id: VIS-SEA-STATUES, what: "Seaweed rags and mussel crusts on statues in flooded halls; coral in the Coral Halls", src: [483, 839, 3495], confidence: stated}
   - {id: VIS-DEEP-WATER, what: "Drowned Halls: dark still water, white lilies, half-submerged windows, gloom", src: [467, 471], confidence: stated}

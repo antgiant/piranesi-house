@@ -10,4 +10,7 @@ excluded:
   - {id: X-007, what: "All of Part 5, most of Part 3 and Part 4, Part 7 (real-world scenes)", why: "Outside the House or about the plot"}
   - {id: X-008, what: "Gifts the world supposedly gives (sleeping bags, plastic bowls, tinned food, camera)", why: "Items from the other world; modern objects violate S-R09"}
   - {id: X-009, what: "Crisp packets, biro and other litter from visitors", why: "Modern objects; plot flavour"}
+  - {id: X-011, what: "In-world explanations of why the statues exist (that they embody ideas from another world), and all talk of 'forgetting' or the House causing memory loss", why: "Plot / lore. Keep the statues' origin unexplained."}
+  - {id: X-012, what: "Perfumes, a rescuer's torch/phone, a kayak-type boat, a firearm", why: "Modern objects / plot"}
+  - {id: X-013, what: "The body of the antagonist placed in the lower halls and later set among the Dead", why: "Plot"}
   - {id: X-010, what: "The inhabitant's personal named constellations and year names", why: "Personal flavour. Players may invent their own; the engine ships neutral names."}

@@ -16,7 +16,11 @@ tides:
   - {id: T-012, fact: "Storms from the west disturb the tides, drive fish far out to sea for a couple of days.", src: 535, confidence: stated}
   - {id: T-013, fact: "A strong wind (from the south, in midwinter) makes high tides higher and low tides lower; at an extreme low tide a lower hall can be completely dry.", src: [397, 407], confidence: stated}
   - {id: T-014, fact: "Constantly: the sea can be heard lapping the walls in thousands of chambers beneath, day and night.", src: 871, confidence: stated}
-  - {id: T-015, fact: "A very large coordinated flood (all four of the 9th, 22nd, 10th and 24th Vestibule tides at once, between about 11:30 and noon) is possible. Its flood fills a hall to above knee height, spray reaching ceiling height; afterward water falls over an hour or so (knee- then ankle-high) and drains down staircases. This is the 'extreme event' ceiling for the sim.", src: [2979, 2987, 3055, 3041-3085, 3099, 3135], confidence: stated, note: "story event, but the physics are canon"}
+  - {id: T-015, fact: "Extreme coordinated flood (four tides at once, e.g. via the 9th, 22nd, 10th and 24th Vestibules, arriving between about 11:30 and noon): the dangerous region is around 40-100 halls, deeper than a person's height, with strong currents; it lasts 3-4 hours before subsiding. At its peak waves cover the bottom tier of statues, throw spray as high as the ceiling and can smash a person against a wall 15 m up. Afterwards water falls: thigh-high, then knee-high, then ankle-deep by next morning (about half a metre in the Third Northern Hall by evening). Statues are the refuge.", src: [2241, 2259, 2341, 2353, 2979, 2987, 3055, 3041-3085, 3095-3099, 3133, 3135, 3283, 3297], confidence: stated, note: "story event, but the physics are canon"}
+  - {id: T-018, fact: "Tides can be forecast: a table of times and volumes plus hand-derived equations lets one predict every tide, including rare conjunctions of several tides; checking every few months catches an extraordinary one. Estimates of 'how many halls flood' are loose (40 to 100).", src: [201, 2235, 2241], confidence: stated}
+  - {id: T-019, fact: "A conjunction centred about 0.8 km north-west of the First Vestibule is the worst case on record; perilous reach measured from the Sixth North-Western Hall was about 6 halls west, 4 north, 5 east, 6 south.", src: [2259, 2343-2351], confidence: stated}
+  - {id: T-020, fact: "Past floods exist; the first-tier plinths and high steps in the First Vestibule stay dry in an ordinary tide.", src: [2951, 3285], confidence: inferred}
+
   - {id: T-016, fact: "Drowned Halls are not touched by tides; they are fresh rain-fed lakes.", src: 467, confidence: stated}
   - {id: T-017, fact: "Three or more named recurring tide sources are mentioned: far-eastern, western, northern; the southern halls' tides are blue-green.", src: [75-79, 745], confidence: inferred}
 
@@ -29,6 +33,8 @@ weather:
   - {id: WX-006, fact: "Storms from the west happen; they bring unexpected strong winds and turbulent tides.", src: 535, confidence: stated}
   - {id: WX-007, fact: "Moisture condenses: fresh drinking water is caught from the dripping of cloud water.", src: [783, ~2429], confidence: stated}
   - {id: WX-008, fact: "Fog or mist can blur the door frames and haze the long vistas of receding halls.", src: ~1807, confidence: inferred}
+  - {id: WX-009, fact: "Steady, grey, drenching rain can fall for days in all vestibules; puddles form at vestibule doorways and birds shelter in the halls, chattering.", src: 1857, confidence: stated}
+  - {id: WX-010, fact: "Moon phases are tracked: new moon, a quarter moon about six days later.", src: 2363, confidence: stated}
 
 seasons:
   - {id: SEA-001, fact: "The calendar has twelve months. Winter spans roughly the twelfth to the second month. The book's own coastal climate otherwise mirrors a temperate northern year with a cold, wet winter.", src: [389-395, 397], confidence: inferred}
@@ -45,6 +51,8 @@ light:
   - {id: LT-004, fact: "At dawn the pale golden sky is reflected in some courtyard windows.", src: 409, confidence: stated}
   - {id: LT-005, fact: "The full moon rises centred in a particular doorway in the 192nd Western Hall and floods the hall; as it sinks west the light fades and the constellations grow brighter in the window opposite.", src: [873, 881], confidence: stated}
   - {id: LT-006, fact: "The moon is seen to rise in particular halls' windows (e.g. the Third Northern Hall) and its position is a usable clock.", src: 69, confidence: inferred}
+  - {id: LT-008, fact: "Large dark objects create atmosphere: the minotaurs of the First Vestibule fill it with velvety shadow broken by golden slivers of light.", src: 1815, confidence: stated}
+  - {id: LT-009, fact: "Tide spray thrown up in sunlight looks like thrown diamonds.", src: 3083, confidence: stated}
   - {id: LT-007, fact: "A torch or lamp is never needed in ordinary use; lighting is solar/lunar/stellar.", src: 849, confidence: inferred}
 
 sky:

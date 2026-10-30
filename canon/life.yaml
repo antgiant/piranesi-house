@@ -11,6 +11,8 @@ birds:
   - {id: B-007, kind: "buzzard", fact: "Hunts small birds inside halls; perches on high statues for long periods.", src: 1518, confidence: stated}
   - {id: B-008, kind: "blackbirds", fact: "Seen in vestibules with other birds.", src: ~3147, confidence: stated}
   - {id: B-009, kind: "silence of birds", fact: "In cloudy cold weather birds fall silent and gather in one hall, perched on every statue. In pitch darkness halls they avoid entirely.", src: [461, 869], confidence: stated}
+  - {id: B-011, kind: "owl", fact: "Rare. Owls are common as statues; a living pale owl was seen once gliding out of the First Eastern Hall and settling high on a statue in the First Vestibule.", src: 3351, confidence: stated, scope: optional}
+  - {id: B-012, kind: "birds in floods", fact: "After a flood, gulls, rooks, blackbirds and sparrows gather on statues and balustrades to complain; birds also shelter indoors during multi-day rain.", src: [1857, 3139], confidence: stated}
   - {id: B-010, kind: "droppings", fact: "Bird droppings coat statues in places favoured by birds (and in gull nesting halls).", src: [665, ~1769], confidence: stated}
 
 sea_life:
@@ -22,12 +24,14 @@ sea_life:
   - {id: A-006, fact: "White water lilies carpet the shallow edge of the Drowned Halls.", src: [91, 471], confidence: stated}
   - {id: A-007, fact: "Coral grew in the Coral Halls when they were long flooded and persists now they are dry.", src: 3495, confidence: stated}
   - {id: A-008, fact: "No land mammals live in the House. (A single monkey skeleton exists among the optional Dead; no live monkeys are known.)", src: 179, confidence: stated}
+  - {id: A-010, fact: "A flute can be made from a swan bone, so swans have passed through or died here.", src: 1670, confidence: inferred, scope: optional}
   - {id: A-009, fact: "Trees and leaves are not native; one drifting leaf was seen once and could not be explained.", src: 251, confidence: stated, scope: optional, note: "tiny easter egg possibility"}
 
 food_and_materials:
   - {id: F-001, fact: "Food: fish, crustaceans, shellfish, sea vegetation (seaweed soup).", src: [105, 459], confidence: stated}
   - {id: F-002, fact: "Dry seaweed can be burned as fuel; twisted into twine; used as nesting material.", src: [393, 403, 443], confidence: stated}
   - {id: F-003, fact: "Fish skin can be cured to leather and used with fish glue for repairs and thongs.", src: [159, 357], confidence: stated}
+  - {id: F-005, fact: "Seaweed fuel soaked by floodwater cannot burn until it dries again.", src: 3283, confidence: stated}
   - {id: F-004, fact: "Fresh water is caught from streams, falls, and dripping cloud; it runs down walls and statue faces.", src: [107, 483, 783], confidence: stated}
 
 dead:
@@ -40,5 +44,8 @@ dead:
     - {id: DEAD-ALCOVE, name: "ten skeletons arranged in a row on a vacant plinth, plus a small long-tailed monkey skeleton beside them", location: "northernmost alcove of the Fourteenth South-Western Hall; room for about four more adults on the plinth", note: "one skeleton (very old, worn to pebbles) once threaded on fish leather", src: [167-179]}
     - {id: DEAD-CHILD, name: "child's skeleton in a folded-up posture with a coral and fishbone necklace", location: "empty plinth, Sixth South-Eastern Hall", src: 183}
   offerings: "A visitor can leave water, food and lilies gathered in the Drowned Halls. Optional ritual flavour only; there is no reward mechanic."
+  count_note: "Thirteen individuals across the four sites (1 biscuit-tin skeleton, 1 concealed, 10 in the alcove, 1 child) plus one monkey skeleton."
+  weight_note: "Each skeleton weighs about 2.5-4.5 kg."
+  src_weight: 2923
   distance_note: "The Dead lie several kilometres apart; visiting all in a day is arduous."
   src_distance: 827

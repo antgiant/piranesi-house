@@ -9,6 +9,6 @@ questions:
   - {id: Q-007, q: "Should the 'bird messages' be a playable mechanic or just flavour?", proposal: "Flavour first (flocks perch on thematically related statues); optional puzzle later."}
   - {id: Q-008, q: "Do people exist in this version? The book has two inhabitants.", proposal: "No NPCs. Players are the only people. Footprints and traces only."}
   - {id: Q-009, q: "Are 'repeated statue' rules strict?", evidence: "The book says unique, or repeats only at vast distances.", proposal: "Strict uniqueness within 5 km; allow repeats beyond; test RL-005."}
-  - {id: Q-010, q: "Finish a line-by-line read of Parts 3, 4 and 6 for missed statues and places.", status: open, owner: assistant}
+  - {id: Q-010, q: "Line-by-line read of Parts 3, 4 and 6 for missed statues and places.", status: done, result: "Read in full; 5 new statues, 7 landmarks, flood-forecast figures, owl, swan, hiding/climbing rules added. Part 5 and the rest of Part 7 are real-world scenes with no new House facts."}
   - {id: Q-011, q: "Explored extents reach 960 halls west with no edge in sight: is the world bounded?", proposal: "World is unbounded; the generator never says 'edge'."}
   - {id: Q-012, q: "Should the Dead be included in the first public release even when the toggle exists?", proposal: "Ship the toggle but default off; it can be flipped in config or URL."}

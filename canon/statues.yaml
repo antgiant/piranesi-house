@@ -22,6 +22,11 @@ rules:
   - {id: S-R15, fact: "Statues use small details heavily: tiny marble bees, expressions that mean more than one thing, a carved shield with clouds on it.", src: [73, 241, 555], confidence: stated}
   - {id: S-R16, fact: "Some statues bridge between floor and wall by emerging from it at the waist or back, forming a platform, pocket, or ledge that a person can use for climbing, sitting or fishing.", src: [243, 473, 3071], confidence: stated}
   - {id: S-R17, fact: "Statues lining staircases exist; steps are on a giant scale.", src: 839, confidence: stated}
+  - {id: S-R18, fact: "Plants and landscapes appear only as statue motifs: figures amid roses or ivy, sheltering under canopies of trees, gardeners tending beds. Likewise scholars with books and papers, rivers and mountains are present only as depicted things.", src: [1746, 3393], confidence: stated}
+  - {id: S-R19, fact: "Many statues incorporate owls.", src: 3351, confidence: stated}
+  - {id: S-R20, fact: "Gaps between neighbouring statues are deep enough for a person to hide in; statues offer holds: plinths, laps, arms, shoulders and heads serve as footholds, columns as handholds.", src: [1518, 1620, 3053], confidence: stated}
+  - {id: S-R21, fact: "A statue can be embraced and climbed; its arms, neck and hands can be gripped by a person seeking comfort.", src: 1620, confidence: stated}
+  - {id: S-R22, fact: "Statues can protect in a flood: climbing onto them is the standard refuge.", src: [2355, 3071], confidence: stated}
 
 size_classes:
   # derived from S-R04 / S-R05 and named statues; values are a design starting point
@@ -197,7 +202,7 @@ named:
     confidence: stated
   - id: ST-MAN-BOY-STARS
     label: "Man and boy mapping the stars"
-    location: {hall: unknown, note: "a buzzard once perched here"}
+    location: {hall: "Twenty-Third South-Eastern Hall", note: "a buzzard once perched here for half an hour"}
     src: 1518
     confidence: stated
   - id: ST-SHEPHERDESS
@@ -255,9 +260,26 @@ named:
     location: {hall: unknown}
     src: ~1747
     confidence: inferred
+  - id: ST-GARDENER-ROSE
+    label: "Gardener pruning a rose bush"
+    location: {hall: "Nineteenth South-Eastern Hall"}
+    meaning: industriousness
+    src: 1746
+    confidence: stated
+  - id: ST-RECLINING-SNAKES
+    label: "Half-reclining man, eyes closed as if asleep, thick snakes and serpents coiled heavily around his limbs"
+    location: {hall: "a lower hall reached from the Eighth Vestibule"}
+    src: 3680
+    confidence: stated
+  - id: ST-OWL-SET
+    label: "Statues that incorporate owls (several, unlocated)"
+    location: {hall: unknown}
+    src: 3351
+    confidence: stated
+
 
 # Statue subjects the book mentions in passing (for the generator's vocabulary)
 vocabulary_hints:
   animals: [gorilla, elephant, minotaur, centaur, satyr, faun, squirrel, bear cub, lion, monkey, winged horse, mice, octopus, dog, fox, birds]
-  trades_and_figures: [gardener, beekeeper, shepherdess, scholar, king, queen, pope, hierophant, angel, child, flute-player, cymbal-player, chess-player, star-mapper, reader]
-  motifs: [ship, castle, beehive, book, flower, clouds on a shield, lantern, sphere and sword, throne, chariot, banner, crown, walled city model]
+  trades_and_figures: [gardener, owl-bearer, snake-entwined sleeper, beekeeper, shepherdess, scholar, king, queen, pope, hierophant, angel, child, flute-player, cymbal-player, chess-player, star-mapper, reader]
+  motifs: [roses, ivy, tree canopies, river, mountain, owl, snake, ship, castle, beehive, book, flower, clouds on a shield, lantern, sphere and sword, throne, chariot, banner, crown, walled city model]

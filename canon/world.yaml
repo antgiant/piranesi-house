@@ -139,6 +139,37 @@ landmarks:
     src: [167]
     confidence: stated
 
+  - id: L-FV-LAYOUT
+    name: First Vestibule (doors and staircase)
+    fact: "Doorways lead directly to the First Northern, First Western and First Eastern Halls, and a corridor leads to the First South-Western Hall. The Great Staircase has balustrades and high, dry steps that stay above ordinary floods and runs down to the Lower Halls. Minotaurs cast deep velvety shadows with slivers of golden light between them. From the doorways a long vista of receding halls is visible."
+    src: [1801, 1807, 1815, 2953, 3137, 3285, 3351]
+    confidence: stated
+  - id: L-FIRST-NE
+    name: First North-Eastern Hall
+    fact: "Tall windows send great shafts of light down onto a wall of statues; reached through western doors, with an exit toward the Second Eastern Hall."
+    src: [1230, 1236, 1342]
+    confidence: stated
+  - id: L-24V-CORRIDOR
+    name: Twenty-Fourth Vestibule and its neighbours
+    fact: "The Twenty-Fourth Vestibule sits between the Sixth North-Western Hall and the Eighteenth North-Western Hall. In the 18th North-Western Hall a catchment of fresh water collects, a few hours old as cloud."
+    src: [2367, 2429, 2897]
+    confidence: stated
+  - id: L-8TH-VESTIBULE
+    name: Eighth Vestibule
+    fact: "Has a Lower Staircase whose waters are good for fishing; in the evening sun, golden ripples of light play across the stair ceiling and the statues' faces. An angle of its staircase with a balustrade can snag debris. Lower halls reached from it contain, among others, a half-reclining figure entwined with snakes."
+    src: [383, 1031, 3293, 3680]
+    confidence: stated
+  - id: L-23SE
+    name: Twenty-Third South-Eastern Hall
+    fact: "Gaps between neighbouring statues are deep enough for a person to press into and hide; a buzzard perches on the man-and-boy star-mapping statue here."
+    src: [1516, 1518]
+    confidence: stated
+  - id: L-2ND-SW
+    name: Second South-Western Hall
+    fact: "Contains a plain empty plinth; sea tides can be felt booming through the floor from the halls below."
+    src: [269, 361]
+    confidence: stated
+
 relative_positions:
   # facts about which hall is next to which; used as layout constraints and route tests
   - {id: P-001, fact: "Ninth Vestibule is two halls west and north of the First Vestibule.", src: 2979}
@@ -150,6 +181,10 @@ relative_positions:
   - {id: P-007, fact: "Coral Halls extend south and west from the Thirty-Eighth Southern Hall.", src: 3457}
   - {id: P-008, fact: "Eighteenth Vestibule has lower halls where octopuses swim.", src: ~1488}
   - {id: P-009, fact: "The hall directly above the Eighteenth North-Eastern Hall is an upper hall that holds the Concealed Person (optional).", src: 163}
+  - {id: P-010, fact: "The Sixth North-Western Hall is thirteen halls from the First Vestibule along a winding route.", src: 1875-1881}
+  - {id: P-011, fact: "Between the Sixth North-Western Hall and the Eighteenth North-Western Hall lies the Twenty-Fourth Vestibule.", src: [2367, 2897]}
+  - {id: P-012, fact: "The First Northern, First Western and First Eastern Halls open directly off the First Vestibule; a corridor links it to the First South-Western Hall.", src: [1801, 1807, 3351]}
+  - {id: P-013, fact: "The Great Staircase of the First Vestibule descends to the Lower Halls.", src: 2953}
 
 routes:
   - id: ROUTE-DOGFOX

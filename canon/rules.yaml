@@ -28,9 +28,16 @@ rules:
   - {id: RL-027, kind: fixture, test: "The 43rd Vestibule has the albatross nest.", from: [L-43RD-VESTIBULE]}
   - {id: RL-030, kind: sim, test: "Tide join: the three named tides coincide at the Ninth Vestibule exactly once per 8 in-world years (at timeScale 1 this is 8 real years).", from: [T-006]}
   - {id: RL-031, kind: sim, test: "An ordinary tide floods a typical hall to ankle depth for about an hour.", from: [T-010]}
-  - {id: RL-032, kind: sim, test: "Extreme coordinated flood never exceeds the 'thigh-high with ceiling-height spray' envelope.", from: [T-015]}
+  - {id: RL-032, kind: sim, test: "The extreme coordinated flood covers 40-100 halls, lasts 3-4 hours, exceeds human height at its peak, then recedes to thigh, knee, ankle depth; statues above 15 m are never submerged.", from: [T-015, T-019]}
   - {id: RL-033, kind: sim, test: "Under strong south wind high tides rise above normal and lows fall below; at extreme low a lower hall can be completely dry.", from: [T-013]}
   - {id: RL-034, kind: sim, test: "Full moon stands centred in the 192nd Western Hall doorway on its night.", from: [LT-005]}
   - {id: RL-035, kind: sim, test: "Gull nests are present spring-summer and abandoned by early autumn; murmurations only in autumn evenings.", from: [SEA-004, SEA-005]}
+  - {id: RL-017, kind: property, test: "Every wall tier offers climbable holds and gaps between adjacent statues large enough to hide a person.", from: [S-R20]}
+  - {id: RL-018, kind: property, test: "Owl motifs occur on some statues; a live owl is a rare event (< 1 sighting per in-world year per region).", from: [S-R19, B-011]}
+  - {id: RL-019, kind: property, test: "Plants, rivers, mountains and scholars appear only as statue motifs; no living vegetation exists in the world.", from: [S-R18, A-009]}
+  - {id: RL-028, kind: fixture, test: "The Sixth North-Western Hall is 13 halls from the First Vestibule by path and lies two vestibule-steps from the Twenty-Fourth Vestibule.", from: [P-010, P-011]}
+  - {id: RL-029, kind: fixture, test: "The First Vestibule opens to the First Northern, Western and Eastern Halls and a corridor to the First South-Western Hall.", from: [P-012]}
+  - {id: RL-036, kind: sim, test: "The tide table is deterministic: given (seed, UTC time) the next conjunction can be computed years ahead.", from: [T-018]}
+  - {id: RL-042, kind: consistency, test: "With showDead=true the four bone sites hold 13 individual skeletons plus one monkey; with showDead=false none.", from: [dead-sites]}
   - {id: RL-040, kind: consistency, test: "Text, side-scroller and 3D builders yield the same statue list for the same hall, viewpoint and time.", from: [project-plan]}
   - {id: RL-041, kind: consistency, test: "With showDead=false, the hall layout and all statue ids are identical to showDead=true; only the contents of the four bone sites differ.", from: [config]}

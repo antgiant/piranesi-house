@@ -5,22 +5,22 @@ The source text is copyrighted and is never stored in this repo (see `scripts/ch
 Entries are short factual descriptors with a line reference; there are no quotations and no prose borrowed
 from the book. If you need the original wording, open your own copy at the cited line.
 
-## Status: DRAFT v0 — needs your review
+## Status: DRAFT v1 — full pass complete, needs your review
 
-### Coverage (be aware of what this does and does not rest on)
+### Coverage
 | Source section | Lines (approx.) | How it was read |
 |---|---|---|
-| Part 1 (first journal entries) | 59–256 | read in full |
-| Part 2 (The Other) | 258–1218 | read in full |
-| Part 3 (The Prophet) | 1219–1755 | keyword sweep + a few passages; **not** read in full |
-| Part 4 (16) | 1756–2540 | keyword sweep + one passage; **not** read in full |
-| Part 5 (Ketterley, real world) | 2541–2787 | not read (outside the House) |
-| Part 6 (Wave) | 2788–3538 | the Flood chapter and aftermath read; remainder swept |
-| Part 7 (real world) | 3539–3755 | the "Statues again" and "tides" entries read |
+| Part 1 (first journal entries) | 59-256 | read in full |
+| Part 2 (The Other) | 258-1218 | read in full |
+| Part 3 (The Prophet) | 1219-1755 | read in full |
+| Part 4 (16) | 1756-2540 | read in full |
+| Part 5 (Ketterley, real world) | 2541-2787 | keyword search only; real-world scenes, no House description beyond the First Vestibule glimpse (excluded) |
+| Part 6 (Wave) | 2788-3538 | read in full |
+| Part 7 (real world, later reflections) | 3539-3755 | statue and tide passages read; the rest is real-world and was searched, not read |
 
-Statue and place facts hidden in the unread stretches of Parts 3–6 are the most likely gaps.
-**Next step in milestone 0:** finish a line-by-line pass over Parts 3, 4 and 6 and fold in anything new
-(tracked as `Q-010` in `open_questions.yaml`).
+Remaining risk: Part 5 and the unread middle of Part 7 could still hide a stray statue mention, but searches for
+"statue", "hall", "vestibule", "tide", "labyrinth" found nothing not already recorded. Milestone 0 coverage is
+considered complete for Parts 1-4 and 6.
 
 ### Line references
 `src: 267` is a line number in the plain-text export the project owner supplied (the numbering the

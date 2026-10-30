@@ -22,6 +22,14 @@ describe('audio director', () => {
     expect(a.tide.kind).toBe('none');
     expect(a.birds.perMinute).toBe(0);
   });
+  it('the Drowned Halls are hushed against weather too: little wind, no whistling, a muffled rain', () => {
+    for (let t = 0; t < 60 * MS.day; t += 5 * MS.hour) {
+      const a = audioFor(w, scene({ x: 6, y: 0, level: 1 }, t));
+      expect(a.wind.gain).toBeLessThanOrEqual(0.03);
+      expect(a.wind.whistle).toBe(0);
+      expect(a.rain.gain).toBeLessThanOrEqual(0.2);
+    }
+  });
   it('the sea is loudest in the lower halls and faintest in the upper ones', () => {
     const p = here('Second Southern Hall');
     const lower = audioFor(w, scene({ ...p, level: 0 }, 5 * MS.hour));

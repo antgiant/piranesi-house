@@ -1,0 +1,105 @@
+// End-to-end smoke test in a real browser (Chromium via Playwright). Run: npm run build && npm run test:e2e
+// Checks the page loads without errors, the game plays, sound is actually produced, and sound differs by place.
+import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { mkdirSync } from 'node:fs';
+
+const require = createRequire(import.meta.url);
+const { chromium } = require('playwright');
+const PORT = 4173;
+const URL = `http://localhost:${PORT}/#debug&at=2026-06-10T09:00:00Z`;
+
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
+const stop = () => { try { server.kill(); } catch { /* ignore */ } };
+process.on('exit', stop);
+
+async function waitUp() {
+  for (let i = 0; i < 60; i++) {
+    try { const r = await fetch(`http://localhost:${PORT}/`); if (r.ok) return; } catch { /* not yet */ }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error('preview server did not start');
+}
+
+let failures = 0;
+const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if (!ok) failures++; };
+
+try {
+  await waitUp();
+  const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
+  const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  await page.goto(URL);
+
+  check(await page.locator('#title').isVisible(), 'title screen is shown first');
+  check((await page.locator('#log').textContent()) === '', 'nothing plays or prints before the visitor chooses to enter');
+  await page.click('#enter');
+  await page.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+  check(!(await page.locator('#title').isVisible()), 'title hides after entering');
+  check((await page.locator('#log').textContent()).includes('Ways out'), 'the arrival description lists the ways out');
+
+  await page.fill('#input', 'go west');
+  await page.press('#input', 'Enter');
+  await page.waitForFunction(() => document.getElementById('log').textContent.includes('First Western Hall'));
+  check((await page.locator('#place').textContent()) === 'First Western Hall', 'the header follows you');
+
+  await page.locator('.links button', { hasText: 'listen' }).last().click();
+  await page.waitForTimeout(200);
+  check((await page.locator('#log').textContent()).length > 1500, 'clicking a link runs the command');
+
+  await page.fill('#input', 'go north 3');
+  await page.press('#input', 'Enter');
+  await page.fill('#input', 'go south 1');
+  await page.press('#input', 'Enter');
+  await page.waitForFunction(() => document.getElementById('place').textContent === 'Fourth Western Hall');
+  check((await page.locator('#log').textContent()).toLowerCase().includes('dog-fox'), 'the dog-fox route works from the page');
+
+  // --- sound ---
+  const sample = async (n = 40) => {
+    let sum = 0;
+    for (let i = 0; i < n; i++) { sum += await page.evaluate(() => window.__house.engine.level()); await page.waitForTimeout(60); }
+    return sum / n;
+  };
+  await page.evaluate(() => window.__house.teleport(0, 0, 1));
+  await page.waitForTimeout(3500);
+  const vestibule = await sample();
+  check(vestibule > 0.001, `sound is produced in the First Vestibule (rms ${vestibule.toFixed(4)})`);
+  await page.evaluate(() => window.__house.teleport(6, 0, 1));
+  await page.waitForTimeout(4500);
+  const drowned = await sample();
+  check(drowned < vestibule * 0.5, `a Drowned Hall is much quieter than a vestibule (${drowned.toFixed(4)} vs ${vestibule.toFixed(4)})`);
+  await page.evaluate(() => window.__house.teleport(0, 0, 0));
+  await page.waitForTimeout(4000);
+  const lower = await sample();
+  check(lower > vestibule, `the lower halls are louder with sea than the middle (${lower.toFixed(4)} vs ${vestibule.toFixed(4)})`);
+
+  await page.click('#mute');
+  await page.waitForTimeout(800);
+  const muted = await sample(15);
+  check(muted < 0.0002, `mute silences the output (${muted.toFixed(5)})`);
+  await page.click('#mute');
+
+  // --- settings ---
+  await page.click('#open-settings');
+  await page.uncheck('#s-dead');
+  await page.click('#s-save');
+  await page.waitForTimeout(300);
+  check((await page.locator('#log').textContent()).includes('First Vestibule'), 'changing a world setting restarts at the First Vestibule');
+
+  mkdirSync('tests/e2e/out', { recursive: true });
+  await page.evaluate(() => window.__house.teleport(0, 0, 1));
+  await page.screenshot({ path: 'tests/e2e/out/screenshot.png' });
+  await page.setViewportSize({ width: 390, height: 780 });
+  await page.screenshot({ path: 'tests/e2e/out/screenshot-mobile.png' });
+
+  check(errors.length === 0, `no console or page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
+  await browser.close();
+} catch (e) {
+  console.error('FAIL  e2e crashed:', e);
+  failures++;
+} finally {
+  stop();
+}
+process.exit(failures ? 1 : 0);

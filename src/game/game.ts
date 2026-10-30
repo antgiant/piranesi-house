@@ -121,7 +121,7 @@ export function look(g: Game, realNowMs: number): Line[] {
   g.prev = scene;
   const paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed);
   const links: Link[] = [
-    ...g.exitsListed.map((e) => ({ label: `${e.index}. ${sideWord(e.side)} to ${e.toName}`, command: `go ${e.index}` })),
+    ...g.exitsListed.map((e) => ({ label: `${e.index} ${sideWord(e.side)}`, command: `go ${e.index}` })),
     ...g.seenListed.map((_, i) => ({ label: `examine ${i + 1}`, command: `examine ${i + 1}` })),
     { label: 'listen', command: 'listen' },
   ];

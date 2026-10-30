@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="An endless House of halls and stairs, tides below and clouds above, and silent statues. Listen." />
+  <meta name="theme-color" content="#14110e" />
+  <title>The House</title>
+  <link rel="stylesheet" href="/src/web/style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="bar" id="bar" hidden>
+      <div class="place"><span id="place">The House</span><span id="clock" class="clock"></span></div>
+      <div class="tools">
+        <button id="mute" type="button" aria-pressed="false" title="Mute or unmute the sound">Sound on</button>
+        <button id="open-settings" type="button" title="Settings">Settings</button>
+      </div>
+    </header>
+
+    <main id="log" class="log" role="log" aria-live="polite" aria-label="The House" tabindex="-1"></main>
+
+    <form id="cmd" class="cmd" autocomplete="off" hidden>
+      <label for="input" class="sr">What do you do?</label>
+      <span class="prompt" aria-hidden="true">&gt;</span>
+      <input id="input" type="text" inputmode="text" autocapitalize="none" spellcheck="false" placeholder="look, go north, examine 2, listen, help" />
+      <button type="submit">Go</button>
+    </form>
+
+    <section id="title" class="title" aria-labelledby="t-h">
+      <h1 id="t-h">The House</h1>
+      <p class="lede">An endless building of halls and staircases, with the sea beneath it and the clouds above, and on every wall more silent statues than anyone could count. It is always the same house. The tides keep their own time.</p>
+      <p>You will arrive alone. Listen as much as you look: the House is mostly sound.</p>
+      <p class="small">Headphones are best. Everything runs in your browser; nothing is sent anywhere.</p>
+      <button id="enter" type="button" class="primary">Enter the House</button>
+      <p class="credit">An unofficial fan project inspired by a novel. It contains none of the book's text. <a href="https://github.com/antgiant/piranesi-house">Source on GitHub</a>.</p>
+    </section>
+
+    <dialog id="settings" aria-labelledby="s-h">
+      <form method="dialog">
+        <h2 id="s-h">Settings</h2>
+        <p class="small">Everything starts on. Turn off what you do not want.</p>
+        <label class="row"><span>Volume</span><input id="s-volume" type="range" min="0" max="100" step="1" /></label>
+        <label class="row check"><input id="s-dead" type="checkbox" /> <span>Show the remains of the dead (restarts the walk)</span></label>
+        <label class="row check"><input id="s-diary" type="checkbox" /> <span>Capitalise the House's nouns, like a diary</span></label>
+        <label class="row"><span>Speed of time</span>
+          <select id="s-scale">
+            <option value="1">Real time</option>
+            <option value="60">1 minute per second</option>
+            <option value="600">10 minutes per second</option>
+            <option value="3600">1 hour per second</option>
+          </select>
+        </label>
+        <label class="row"><span>World seed</span><input id="s-seed" type="text" maxlength="40" /></label>
+        <p class="small">Changing the seed, the dead or the speed of time starts you again at the First Vestibule.</p>
+        <div class="actions"><button value="cancel" type="button" id="s-cancel">Cancel</button><button value="ok" id="s-save" class="primary">Save</button></div>
+      </form>
+    </dialog>
+  </div>
+  <script type="module" src="/src/web/main.ts"></script>
+</body>
+</html>

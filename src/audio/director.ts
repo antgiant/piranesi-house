@@ -74,9 +74,10 @@ export function audioFor(world: World, s: SceneState): AudioScene {
   // --- weather ---
   const falls = !drowned && h.falls ? 0.3 : 0;
   const streams = s.here.streams && !h.falls ? 0.18 : 0;
-  const rain = clamp((s.here.rainHere / 1000) * 0.75, 0, 0.75);
-  const exposed = h.kind === 'vestibule' || h.regions.cloud || h.level === 2 || h.regions.derelict >= 60;
-  const windGain = exposed ? clamp(0.04 + (s.weather.windSpeed / 1000) * 0.5, 0, 0.55) : clamp((s.weather.windSpeed / 1000) * 0.08, 0, 0.1);
+  // The Drowned Halls are cut off: windows half-submerged or choked with rubble, so little weather reaches them.
+  const rain = clamp((s.here.rainHere / 1000) * (drowned ? 0.2 : 0.75), 0, 0.75);
+  const exposed = !drowned && (h.kind === 'vestibule' || h.regions.cloud || h.level === 2 || h.regions.derelict >= 60);
+  const windGain = exposed ? clamp(0.04 + (s.weather.windSpeed / 1000) * 0.5, 0, 0.55) : clamp((s.weather.windSpeed / 1000) * (drowned ? 0.02 : 0.08), 0, 0.1);
   const whistle = exposed && s.weather.windSpeed > 400 ? clamp((s.weather.windSpeed - 400) / 1000, 0, 0.5) : 0;
 
   // --- birds ---

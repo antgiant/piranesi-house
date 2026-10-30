@@ -8,14 +8,28 @@ This is an unofficial fan project inspired by a novel. It contains no text from 
 `canon/` for the facts it is built from (in our own words), and `design/` for our own design decisions.
 
 ## Status
-Milestone 0 (canon) is a draft awaiting review. Milestones 1 and 2 are done: a deterministic world (layout, naming, doors, halls, statues with canon overlay) and a
-simulation of time, tides, weather, light and birds, with about 150 tests. Nothing is playable yet.
+Milestone 0 (canon) is a draft awaiting review. Milestones 1-3 are done: a deterministic world (layout, naming, doors, halls, statues with canon overlay), a simulation
+of time, tides, weather, light and birds, and a playable text adventure with a procedural soundscape, with 200+ tests
+and a real-browser test that measures the audio. Next: neighbouring-hall sound and a map, then multiplayer.
+
+## Play
+```sh
+npm install
+npm run dev          # open the printed address, click "Enter the House", and listen
+```
+Developer shortcuts in the URL hash: `#seed=abc`, `#scale=60` (time runs 60x), `#at=2034-02-01T08:00:00Z` (start at a moment),
+`#debug` (exposes `window.__house`). Try the next great tide: `npm run now -- "Ninth Vestibule" --join`.
+
+## Publish
+Pushes to `main` deploy to GitHub Pages (`.github/workflows/pages.yml`). One-time: repository Settings > Pages >
+Build and deployment > Source: **GitHub Actions**. The site is static and needs no server.
 
 ## Develop
 ```sh
 npm install
 npm test                        # ~80 tests: layout, canon fixtures, statue invariants, golden snapshot
 npm run typecheck
+npm run build && npm run test:e2e   # real-browser test (needs Playwright + Chromium)
 npm run build:canon             # regenerate src/generated/canon-statues.json after editing canon/statues.yaml
 npm run hall -- "Ninth Vestibule"             # print a hall
 npm run hall -- --xy 6 0 --statues 5          # a Drowned Hall

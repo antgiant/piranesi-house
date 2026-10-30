@@ -9,13 +9,18 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "hall": "tsx src/cli.ts",
-    "now": "tsx src/now.ts"
+    "now": "tsx src/now.ts",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "test:e2e": "node tests/e2e/smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "fast-check": "^3.23.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
+    "vite": "^5.4.21",
     "vitest": "^2.1.0",
     "yaml": "^2.6.0"
   }

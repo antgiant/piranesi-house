@@ -3,6 +3,7 @@ version: 0
 config_defaults:
   showDead: false
   packs: {outside_traces: false, visitor_marks: true}
+  inventory: true
 
 packs:
   - id: outside_traces
@@ -19,22 +20,33 @@ packs:
   - id: visitor_marks
     default: true
     from_canon: [X-006]
-    intent: "Visitors leave simple chalk marks and pebble patterns that other visitors can see, from a fixed preset list."
+    intent: "Visitors leave simple chalk marks and pebble patterns that other visitors can see, from a fixed preset list, using materials they carry."
+    economy:
+      - "A mark needs materials. Chalk marks spend chalk charges; pebble patterns spend pebbles. See design/inventory.yaml. This is the main limit on marks."
+      - "Chalk: symbols and arrows cost 1 charge; phrases cost 2. Chalk is an outside item, so it is rare."
+      - "Pebbles: cairn 4, arrow 5, line 6, wave 7, star 7, circle 8, spiral 10. Pebbles are gathered from tide-left banks, so anyone can make pebble marks."
     safety:
       - "No free text, no custom images, no names or user ids on screen. Presets only."
       - "Presets are authored by us; each must be generic and kind. No presets for names, places outside the House, numbers that could be personal, or anything that can be combined into sentences."
-      - "Rate limit: one mark per visitor per 2 minutes; at most 12 live marks per hall; marks never stack on top of one another."
-      - "Marks are shared in the in-memory Yjs room only. Nothing is stored or sent to a server."
-    lifetime:
-      - "Marks exist only while visitors are connected. When the last visitor leaves the room, all marks are gone."
-      - "Tides wash chalk away and scatter pebbles when water reaches the mark's hall, so marks in the Lower and Middle halls are short-lived."
-      - "OPEN QUESTION: should a visitor's marks also disappear when that visitor disconnects (author-bound), or last as long as the room does (room-bound)? Default proposal: room-bound."
+      - "Anti-spam backstop only: at most 12 live marks per hall, one mark every 5 seconds per visitor, marks never stack on top of one another. The inventory is the real limiter."
+      - "Shared in memory among connected visitors only. Nothing is stored or sent to a server."
+    memory:
+      model: "witness-based"
+      rules:
+        - "Marks and dropped items belong to the hall they are in. Each hall's shared state is its own Yjs subdocument."
+        - "A visitor carries a hall's subdocument if they have been in that hall (or standing in one of its doorways) while the state existed. Late arrivals receive it from a carrier when they enter."
+        - "A hall's state exists only while at least one connected visitor carries it. When the last carrier leaves, the hall forgets: marks and dropped items there are gone, even if other visitors remain elsewhere."
+        - "So a mark lasts as long as someone is connected who has, or could have, seen it. The author leaving does not erase it if another carrier remains."
+      consequences: ["Memory is naturally bounded: no one carries the whole House.", "A hall nobody visits in a session never has marks."]
+    washing:
+      - "When tide water reaches a mark's hall, chalk is washed away and pebbles are scattered into nearby halls. Marks on high ledges survive."
     chalk_presets:
       arrows: [north, south, east, west, up-stairs, down-stairs]
       symbols: [circle, small-star, wave, sun, moon, tally-stroke, spiral]
       phrases: ["Hello", "Peace", "Good morning", "Good night", "This way", "Rest here", "Fish here", "Water ahead", "Water rising", "Be careful", "Thank you"]
+      colours: [white, blue, pink, yellow]
     pebble_presets:
       patterns: [arrow, line, circle, spiral, cairn, wave, star]
       note: "Pebble messages are pictures only, never letters."
     ambient_rare:
-      - "Very rarely, a preset mark is found with no visible author, so the hall seems to have been visited. This is generated from the seed and time, has no meaning, and is subject to the same presets."
+      - "Very rarely, a preset mark is found with no visible author, so the hall seems to have been visited. Generated from the seed and time, no meaning, same presets."

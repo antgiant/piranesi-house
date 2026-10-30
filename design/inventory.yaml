@@ -1,0 +1,46 @@
+# Design (not canon): visitor inventory. Items marked origin: house exist in the book's House;
+# origin: outside are rare strays from beyond it (see packs.yaml / outside_traces).
+version: 0
+rules:
+  - "Each visit starts with a small randomly generated kit. It is drawn from (world seed + a fresh per-visit random value), so it is NOT tied to identity and is not stored anywhere. Leaving loses it."
+  - "Capacity: 6 stacks. Kit size at arrival: 3 to 5 stacks."
+  - "Actions: take, drop, give (to a visitor in the same hall), use. Dropped items appear in the hall, on the pavement or on a plinth/ledge, and are visible to others who can see that spot."
+  - "Dropped items follow the same memory rule as marks (witness-based, see packs.yaml): they exist while a connected visitor has seen the hall."
+  - "Tides move dropped items: when water reaches a hall, items on the floor are carried to a deterministic neighbouring hall (the book has tides carrying debris). Items on plinths or high ledges stay."
+  - "At most one 'outside' item per starting kit, with about a one-in-three chance of any."
+  - "Chalk and pebbles must be in inventory (or collected) to be used. This is the main limit on marks."
+
+kit_generation:
+  stacks: {min: 3, max: 5}
+  slots_by_rarity: {common: "2 to 3", uncommon: "0 to 1", rare: "0 to 1 (and counts as the one outside item)"}
+  guarantee: "At least one food or fuel item among the common draws."
+
+items:
+  common:
+    - {id: dried-seaweed, origin: house, uses: "food, or fuel for a fire", stack: 5, canon: [F-001, F-002]}
+    - {id: fish-leather-strip, origin: house, uses: "tying, mending", stack: 3, canon: [F-003]}
+    - {id: seaweed-twine, origin: house, uses: "tying", stack: 3, canon: [F-002]}
+    - {id: smooth-pebbles, origin: house, uses: "build pebble patterns (see visitor_marks)", stack: 12, canon: [TCH-PEBBLES, L-24TH-VESTIBULE]}
+    - {id: seashell, origin: house, uses: "ornament, tool", stack: 4, canon: [A-002]}
+    - {id: fishbone, origin: house, uses: "ornament, tool", stack: 4, canon: [F-003]}
+    - {id: dried-fish, origin: house, uses: "food", stack: 3, canon: [A-001]}
+    - {id: mussels, origin: house, uses: "food (spoil after a while)", stack: 4, canon: [A-002, L-45TH-VESTIBULE]}
+  uncommon:
+    - {id: coral-bead, origin: house, uses: "ornament", stack: 3, canon: [A-007]}
+    - {id: white-pebble-translucent, origin: house, uses: "pebble patterns; glows faintly in starlight", stack: 6, canon: [TCH-PEBBLES]}
+    - {id: water-lily, origin: house, uses: "offering, decoration; wilts", stack: 2, canon: [A-006]}
+    - {id: chalk-white, origin: outside, uses: "chalk marks", charges: "4 to 8", note: "the common chalk"}
+    - {id: net, origin: outside, uses: "fishing, climbing aid", stack: 1}
+    - {id: bowl, origin: outside, uses: "catch fresh water", stack: 1}
+  rare:
+    - {id: chalk-coloured, origin: outside, colours: [blue, pink, yellow], uses: "chalk marks", charges: "3 to 6"}
+    - {id: blanket, origin: outside, uses: "warmth in cloud or winter", stack: 1}
+    - {id: pearl, origin: house, uses: "ornament", stack: 1, canon: [A-002]}
+    - {id: swan-bone-flute, origin: house, uses: "plays a soft tune", stack: 1, canon: [A-010]}
+
+collecting:
+  - {what: pebbles, where: "pebble banks left by tides: the 24th Vestibule's white bank, stair mouths in tide-reached vestibules, lower-hall shores", rate: "one handful (3 to 6) per gather action, with a short cooldown per bank"}
+  - {what: seaweed, where: "tide-reached halls and stairs", rate: "a bundle per gather action"}
+  - {what: fish and shellfish, where: "lower halls and Drowned Halls shores; best at night in moonlight", rate: "chance-based per cast"}
+  - {what: water lilies, where: "Drowned Halls shallows only"}
+  - {what: "found strays", where: "rare outside traces (a chalk stub left in a corner; see outside_traces)", rate: "very rare"}

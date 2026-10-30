@@ -300,10 +300,16 @@ standing in the same hall hear the same ambience.
    (suggest MIT or similar for code; canon data and generated output under the same terms,
    with the book itself excluded).
 
-6. **Setting and story material**: set before the book's events; no characters. Rare
+6. **Setting and story material**: set before the book's events; no characters. The House
+   appears as it does at the start of the book (after the North-East ceiling collapse). Rare
    outside hints and visitor-left marks are allowed. Marks use fixed presets only (no free
-   text) for legal and safety reasons, and live only while visitors are connected.
+   text) for legal and safety reasons.
+7. **Visitor inventory**: each visit starts with a small random kit (3-5 stacks, capacity 6)
+   that visitors can drop, pick up and give. Chalk and pebbles must be carried or collected
+   to be used, which is the natural limit on marks. Marks and dropped items follow a
+   witness rule: a hall's shared state exists only while a connected visitor who has seen
+   that hall carries it. See `design/inventory.yaml` and `design/packs.yaml`.
 
 ### Config (draft)
-`seed`, `worldVersion`, `timeScale`, `showDead`, `packs.outsideTraces`, `packs.visitorMarks`, `audio.master`, `view` (`text` | `map` |
+`seed`, `worldVersion`, `timeScale`, `showDead`, `packs.outsideTraces`, `packs.visitorMarks`, `inventory`, `audio.master`, `view` (`text` | `map` |
 `3d`), `multiplayer` (`off` | `on`), `roomName`.

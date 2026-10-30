@@ -96,15 +96,16 @@ is a full extraction pass; the facts below are a starting point, not the full ca
   One monkey skeleton, no live monkeys.
 
 **Ambiguities to settle** (these are decisions, not bugs)
-- 1.7 km ≈ 7–8 halls (≈ 225 m each) but 20 km ≈ 192 halls (≈ 105 m each). Pick one hall
-  pitch (or make pitch differ by axis) and say so in the canon.
+- ~~Hall pitch~~ **Resolved**: the book is right everywhere, so hall size varies by region
+  (≈105 m per hall on the long western run, ≈225 m on the shorter run). Size is a
+  per-region property in the layout, and the canon records both measurements as tests.
 - Exactly how hall ordinals count in the diagonal sectors. The Dog-Fox directions at
   L1199–1203 are a worked example and become a unit test.
-- Day/night and "the Year" lengths in game time.
+- Length of a game day and "the Year" at `timeScale = 1` (see decisions).
 
 **Proposed in/out of scope**
-- In: all of the above, plus the Dead as quiet landmarks (bones on plinths, offerings), if
-  you want them. They are place features, but they carry emotional weight. Your call.
+- In: all of the above, plus the skeletal Dead as quiet landmarks (bones on plinths and
+  in niches). **Off by default**, behind the `showDead` config toggle.
 - Out: the Other, 16, rituals, notebooks as plot devices, the First Vestibule's
   "outside world" glimpse, the Flood-as-event, and everything in Parts 3–7.
 
@@ -265,12 +266,24 @@ standing in the same hall hear the same ambience.
   all narration originally, and credit the work as an unofficial fan project. This is a
   consideration, not legal advice.
 
-## 11. Decisions I need from you
+## 11. Decisions (resolved)
 
-1. Include the Dead (bones, offerings) as quiet landmarks, or exclude them with the plot?
-2. Game-time scale: real-time tides (hours-long cycles) or accelerated (minutes)?
-   Recommendation: accelerated, with the 8-year join compressed to something you can
-   actually witness (e.g. once per real day).
-3. Hall pitch: single value (~105 m or ~225 m) or per-axis?
-4. 3D ambition: is the etching-style stylised look acceptable, or do you want realism?
-5. Repo visibility and licence: public fan project (credit and non-commercial) or private?
+1. **The Dead**: included, off by default behind a config toggle (`showDead: false`). When
+   off, those niches and plinths are generated as ordinary Absences, so the world layout
+   does not change, only what occupies the spots.
+2. **Time**: real-time by default, with a config option `timeScale` (1 = real time, 60 =
+   one minute per second, and so on). Because the eight-year three-tide join is
+   effectively unwitnessable at 1×, add a `?t=` / time-scrub override for demos and tests.
+   In multiplayer the room's `timeScale` is set by whoever created it, and travels with
+   the room.
+3. **Hall size**: varies by region, per the book (see section 2).
+4. **Views**: start with the etched, stylised look. Realism, if wanted later, is added as
+   another view, which the SceneState architecture already allows.
+5. **Visibility**: public repo, served from its own GitHub Pages domain. Still no source
+   text, and the credit and fan-work notice ships in v1. Still to pick: a code licence
+   (suggest MIT or similar for code; canon data and generated output under the same terms,
+   with the book itself excluded).
+
+### Config (draft)
+`seed`, `worldVersion`, `timeScale`, `showDead`, `audio.master`, `view` (`text` | `map` |
+`3d`), `multiplayer` (`off` | `on`), `roomName`.

@@ -15,7 +15,7 @@ a fog-of-war map, sound through doorways, and a real-browser test that measures 
 ## Play
 ```sh
 npm install
-npm run dev          # open the printed address, click "Enter the House", and listen
+npm run dev          # open the printed address, click "Enter Piranesi’s House", and listen
 ```
 Developer shortcuts in the URL hash: `#seed=abc`, `#scale=60` (time runs 60x), `#pace=instant` (developer override: skip walking times; players choose 5.3 to 21.1 km/h in Settings), `#at=2034-02-01T08:00:00Z` (start at a moment),
 `#debug` (exposes `window.__house`). Try the next great tide: `npm run now -- "Ninth Vestibule" --join`.

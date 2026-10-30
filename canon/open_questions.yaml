@@ -13,6 +13,7 @@ questions:
   - {id: Q-011, q: "Explored extents reach 960 halls west with no edge in sight: is the world bounded?", proposal: "World is unbounded; the generator never says 'edge'."}
   - {id: Q-013, q: "Which moment before the book do we simulate?", decision: "After the ceiling collapse; the House appears as it does at the start of the book (cloud zone in the North-East, the albatross pair and chick, gull colony, etc.). No era option.", status: done}
   - {id: Q-014, q: "How long do visitor marks last?", decision: "As long as someone is connected who has, or could have, seen them: witness-based, per hall (see design/packs.yaml). The author leaving does not erase a mark another visitor has seen.", status: done}
-  - {id: Q-015, q: "Confirm the witness rule: a visitor counts as a witness if they were in the hall or in one of its doorways. Is that the right reading of 'could have seen'?", status: open}
-  - {id: Q-016, q: "Do visitors need to eat and drink (survival), or are food items just flavour and craft material?", proposal: "Flavour and craft only; no hunger or death.", status: open}
-  - {id: Q-012, q: "Should the Dead be included in the first public release even when the toggle exists?", proposal: "Ship the toggle but default off; it can be flipped in config or URL."}
+  - {id: Q-015, q: "Witness rule: a visitor counts as a witness if they were in the hall or in one of its doorways.", decision: "Confirmed.", status: done}
+  - {id: Q-016, q: "Do visitors need to eat and drink?", decision: "No survival. Food is flavour and craft material only.", status: done}
+  - {id: Q-017, q: "Should a visitor's character occasionally mutter incoherent, Markov-style speech rendered as audio? (toggle `mutter`)", status: open, notes: "See assistant recommendation in the conversation: yes with guardrails; train only on our own authored corpus, never the book."}
+  - {id: Q-012, q: "Are the Dead on by default?", decision: "Yes. All settings default to on, including showDead; visitors choose to turn things off.", status: done}

@@ -105,7 +105,7 @@ is a full extraction pass; the facts below are a starting point, not the full ca
 
 **Proposed in/out of scope**
 - In: all of the above, plus the skeletal Dead as quiet landmarks (bones on plinths and
-  in niches). **Off by default**, behind the `showDead` config toggle.
+  in niches). **On by default**; visitors can turn it off with the `showDead` config toggle.
 - **Setting (decided)**: the experience is set *before* the events of the book. All
   character pieces are out: the other inhabitant, the visitors, the ritual, the journals,
   the gifts, the story's Flood trap, their messages and items, and the real-world scenes.
@@ -284,7 +284,7 @@ standing in the same hall hear the same ambience.
 
 ## 11. Decisions (resolved)
 
-1. **The Dead**: included, off by default behind a config toggle (`showDead: false`). When
+1. **The Dead**: included, on by default, with a config toggle (`showDead`) to turn them off. When
    off, those niches and plinths are generated as ordinary Absences, so the world layout
    does not change, only what occupies the spots.
 2. **Time**: real-time by default, with a config option `timeScale` (1 = real time, 60 =

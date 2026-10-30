@@ -36,7 +36,7 @@ food_and_materials:
   - {id: F-004, fact: "Fresh water is caught from streams, falls, and dripping cloud; it runs down walls and statue faces.", src: [107, 483, 783], confidence: stated}
 
 dead:
-  # OPTIONAL. Behind config toggle `showDead` (default false). When off, these spots become ordinary Absences
+  # OPTIONAL. Behind config toggle `showDead` (default true; visitors may turn it off). When off, these spots become ordinary Absences
   # (empty plinth / niche), so the layout is identical either way.
   scope: optional
   items:

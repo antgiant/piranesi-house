@@ -84,6 +84,20 @@ export class AudioEngine {
    * Phones may suspend or "interrupt" the audio while the speech voice talks or the app is switched away; sounds scheduled
    * then are lost. Ask for it back; the next sound will be heard. Safe to call often.
    */
+  /**
+   * Can sounds be scheduled now? While running, yes. While a phone has paused the sound (speech talking, a brief
+   * interruption) we ask for it back and still schedule, because what is scheduled plays the moment it resumes, so the
+   * sounds the narrator mentions are not lost. Capped so a long pause cannot build up a pile of sounds.
+   */
+  private usable(): boolean {
+    const c = this.ctx;
+    if (!c || c.state === 'closed') return false;
+    if (c.state === 'running') { this.downCount = 0; return true; }
+    this.resume();
+    return ++this.downCount <= 10;
+  }
+  private downCount = 0;
+
   resume(): void {
     const c = this.ctx;
     if (c && c.state !== 'running' && c.state !== 'closed') void c.resume().catch(() => undefined);
@@ -435,8 +449,7 @@ export class AudioEngine {
   private tickEvents(): void {
     const ctx = this.ctx;
     const a = this.scene;
-    if (ctx && ctx.state !== 'running') this.resume();
-    if (!ctx || !a || ctx.state !== 'running') return;
+    if (!ctx || !a || !this.usable()) return;
     const t = ctx.currentTime;
     // drips: from falls and rain, and (rarely) in the hushed halls
     const dripRate = a.hush ? 0.12 : a.falls.gain * 3 + a.rain.gain * 4;
@@ -579,7 +592,7 @@ export class AudioEngine {
    */
   mutter(text: string): number {
     const ctx = this.ctx;
-    if (!ctx || ctx.state !== 'running') return 0;
+    if (!ctx || !this.usable()) return 0;
     const plan = babblePlan(text, 108 + Math.random() * 24);
     const t0 = ctx.currentTime + 0.05;
     let end = 0;
@@ -614,7 +627,7 @@ export class AudioEngine {
   footstep(surface: Surface): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    if (ctx.state !== 'running') { this.resume(); return; }
+    if (!this.usable()) return;
     const t = ctx.currentTime + 0.01;
     switch (surface) {
       case 'marble': this.burst(t, 0.07, 'bandpass', 1500, 1.2, 0.35); this.tone(t, 160, 90, 0.08, 'sine', 0.2); break;

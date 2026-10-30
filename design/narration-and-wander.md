@@ -13,7 +13,8 @@
 ## Wander (`src/game/wander.ts`, wiring in `src/web/main.ts`)
 * Header **Wander** button, or type `wander`. Goes on for ever until you type anything, press the button again, or type
   `wander off`.
-* Each step it waits until narration has finished (plus a short breath), or, with narration off, a reading-time pause
+* With narration on, each step waits until the whole reading has finished (every queued sentence), plus a 1.8 s breath; a
+  safety timeout covers browsers that never report the end. With narration off it waits a reading-time pause
   that grows with the length of the description (6 to 40 seconds). It never interrupts a walk in progress.
 * The choice is random but shaped: 8% listen, 12% look at a statue, 8% look at something left behind, 8% climb or
   descend where there are stairs; otherwise it takes a door, preferring to keep heading the way it was going (4:1) and

@@ -338,9 +338,10 @@ $('wander').addEventListener('click', () => setWandering(!wandering));
 input.addEventListener('input', () => { if (wandering) setWandering(false); });
 setInterval(() => {
   if (!wandering || !game || game.walk) return;
-  const quiet = Date.now() - lastPrintMs;
-  const wait = narrator.enabled ? 1800 : dwellMs(lastPrintChars);
-  if (narrator.busy || quiet < wait) return;
+  // With narration on, never move until the reading has finished, then leave a breath. Otherwise a reading-time pause.
+  if (narrator.enabled) {
+    if (narrator.busy || Date.now() - narrator.lastBusyMs < 1800) return;
+  } else if (Date.now() - lastPrintMs < dwellMs(lastPrintChars)) return;
   submit(chooseWander(game, Math.random), true);
 }, 500);
 

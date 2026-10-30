@@ -45,6 +45,10 @@ export class Narrator {
   pitch = 0.92;
   voiceURI = '';
   private pending = 0;
+  /** When it was last reading (or about to), in ms; used to leave a breath after the end of a reading. */
+  lastBusyMs = 0;
+  /** Latest moment the queue is expected to finish by, as a safety net if a browser never reports the end. */
+  private giveUpAtMs = 0;
 
   get supported(): boolean {
     return typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
@@ -54,12 +58,18 @@ export class Narrator {
   }
   /** True while anything is being read or waiting to be. */
   get busy(): boolean {
-    return this.enabled && this.supported && (this.pending > 0 || window.speechSynthesis.speaking);
+    if (!this.enabled || !this.supported) return false;
+    const reading = (this.pending > 0 || window.speechSynthesis.speaking) && Date.now() < this.giveUpAtMs;
+    if (reading) this.lastBusyMs = Date.now();
+    return reading;
   }
   speak(text: string): void {
     if (!this.enabled || !this.supported) return;
     const voice = this.voices().find((v) => v.voiceURI === this.voiceURI) ?? bestVoice(this.voices());
     // Sentence by sentence: some browsers stop in the middle of one long utterance.
+    // About 100 ms a character at the slowest speed, plus slack: after this we stop trusting the browser's 'ended' events.
+    this.giveUpAtMs = Math.max(this.giveUpAtMs, Date.now()) + (text.length * 100) / this.rate + 5000;
+    this.lastBusyMs = Date.now();
     for (const s of speakable(text)) {
       const u = new SpeechSynthesisUtterance(s);
       u.rate = this.rate;
@@ -75,6 +85,7 @@ export class Narrator {
   cancel(): void {
     if (!this.supported) return;
     this.pending = 0;
+    this.giveUpAtMs = 0;
     window.speechSynthesis.cancel();
   }
 }

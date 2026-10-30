@@ -57,6 +57,25 @@ try {
   await page.waitForFunction(() => document.getElementById('place').textContent === 'Fourth Western Hall');
   check((await page.locator('#log').textContent()).toLowerCase().includes('dog-fox'), 'the dog-fox route works from the page');
 
+  // --- sounds through doorways ---
+  const door = await page.evaluate(() => {
+    const h = window.__house;
+    for (const [x, y] of [[-87, 0], [-89, 0], [-88, 1], [-88, -1]]) {
+      h.teleport(x, y, 1);
+      const p = h.audio().portals.find((q) => q.toName.startsWith('Eighty-Eighth'));
+      if (p) return { x, y, mode: p.birds.mode, bearing: p.bearing, pan: p.pan };
+    }
+    return null;
+  });
+  check(door !== null && door.mode === 'nesting', `beside the gull colony, a doorway carries nesting gulls (${JSON.stringify(door)})`);
+  await page.waitForTimeout(6000);
+  const stats = await page.evaluate(() => window.__house.engine.stats());
+  check(stats.voices >= 1 && stats.portalEvents > 0, `the engine emits sound through the doorway (${JSON.stringify(stats)})`);
+  await page.fill('#input', 'listen');
+  await page.press('#input', 'Enter');
+  await page.waitForTimeout(300);
+  check(/Through the (north|east|south|west) door, (ahead of you|to your right|to your left|behind you), comes/.test(await page.locator('#log').textContent()), '"listen" describes what comes through the doors');
+
   // --- sound ---
   const sample = async (n = 40) => {
     let sum = 0;

@@ -24,13 +24,13 @@ export interface SceneState {
   birds: BirdScene;
 }
 
-export function sceneAtWorldTime(world: World, x: number, y: number, level: Level, t: number): SceneState {
+export function sceneAtWorldTime(world: World, x: number, y: number, level: Level, t: number, opts: { forecast?: boolean } = {}): SceneState {
   const hall = getHall(world, x, y, level);
   const weather = weatherAt(world, t);
   const here = localWeather(hall, weather);
   const light = lightAt(world, hall, t, weather, here);
   const tide = tideAt(world, hall, t, weather);
-  const horizon = forecast(world, hall, t, 2 * 3_600_000);
+  const horizon = opts.forecast === false ? [] : forecast(world, hall, t, 2 * 3_600_000);
   const nextTide = horizon.find((e) => e.endMs > t && !(e.startMs <= t && tide.depthDm > 0)) ?? null;
   return {
     t, clock: clock(t), hall, tide, nextTide, weather, here, light, moon: moon(world, t), birds: birdsAt(hall, t, weather, here, light),

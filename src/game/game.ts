@@ -58,6 +58,8 @@ export interface Game {
   prev: SceneState | null;
   /** Events already announced, so each is said once. */
   said: Set<string>;
+  /** The way you face: the way you last walked. Sounds through doorways are placed relative to it. */
+  facing: Side;
   /** A walk in progress: the visitor is between here and there until the clock reaches `endMs`. */
   walk: Walk | null;
 }
@@ -83,7 +85,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N',
   };
 }
 
@@ -135,7 +137,7 @@ export function visibleStatues(g: Game, h: Hall): Seen[] {
 export function look(g: Game, realNowMs: number): Line[] {
   const t = worldNow(g, realNowMs);
   const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, t);
-  const audio = audioFor(g.world, scene);
+  const audio = audioFor(g.world, scene, { facing: g.facing });
   g.exitsListed = listExits(g, g.pos.level);
   g.seenListed = visibleStatues(g, scene.hall);
   g.prev = scene;
@@ -240,6 +242,7 @@ export function go(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const meters = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall: e.side, pos: e.pos }) + DOORWAY_M + e.corridor * CORRIDOR_HALL_M;
   const seconds = walkSeconds(meters, terrainFactor(h, scene.tide.depthDm));
   const dest = getHall(g.world, e.to.x, e.to.y, g.pos.level);
+  g.facing = e.side;
   const walk = startWalk(g, { kind: 'door', meters, seconds, exit: e, beatText: beatFor(g, h, `${e.index}${e.side}`), label: dest.name }, realNowMs);
   if (!walk) return finishDoor(g, e, realNowMs);
   const where = e.corridor > 0 ? 'a long passage' : `the ${sideWord(e.side)} door`;
@@ -301,6 +304,7 @@ export function walkTo(g: Game, wall: Side, realNowMs: number): Line[] {
   const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
   const meters = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall, pos: 500 });
   const seconds = walkSeconds(meters);
+  g.facing = wall;
   const walk = startWalk(g, { kind: 'wall', meters, seconds, wall, beatText: '', label: `the ${sideWord(wall)} wall` }, realNowMs);
   if (!walk) return finishWall(g, wall, realNowMs);
   return [text(g, `${startVerb(g)} the ${sideWord(wall)} wall, ${describeDistance(meters)} away. It will take ${describeDuration(seconds / g.opts.walkPace)}.`)];
@@ -382,7 +386,7 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'look': return look(g, realNowMs);
     case 'listen': {
       const s = sceneNow(g, realNowMs);
-      return [text(g, soundParagraph(audioFor(g.world, s), s))];
+      return [text(g, soundParagraph(audioFor(g.world, s, { facing: g.facing }), s))];
     }
     case 'go': {
       if (g.exitsListed.length === 0) look(g, realNowMs);
@@ -447,7 +451,7 @@ export function tick(g: Game, realNowMs: number, force = false): Line[] {
     }
   }
   const scene = sceneNow(g, realNowMs);
-  const audio = audioFor(g.world, scene);
+  const audio = audioFor(g.world, scene, { facing: g.facing });
   if (!g.prev) {
     g.prev = scene;
     return out;

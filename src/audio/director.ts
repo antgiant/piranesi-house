@@ -1,13 +1,51 @@
 // The audio director: a pure function from SceneState to a description of the soundscape. The Web Audio engine realises
 // it, and the narrator reads it back as prose ("listen"), so what you hear and what you read cannot disagree.
 
-import type { SceneState } from '../sim/scene';
+import { sceneAtWorldTime, type SceneState } from '../sim/scene';
 import type { BirdMode } from '../sim/light';
+import { exits as hallExits, type Side } from '../world/layout';
+import { getHall } from '../world/hall';
 import { nearbyVestibules } from '../world/tidegeo';
 import type { World } from '../world/world';
 
 export type Surface = 'marble' | 'wet' | 'shallow' | 'rubble';
 export type TideSound = 'none' | 'approach' | 'booming' | 'submerged';
+
+export type Bearing = 'ahead' | 'right' | 'behind' | 'left';
+
+const SIDE_INDEX: Record<Side, number> = { N: 0, E: 1, S: 2, W: 3 };
+
+/** Where a door is relative to the way you are facing. */
+export function bearing(side: Side, facing: Side | null): Bearing {
+  const rel = (SIDE_INDEX[side] - SIDE_INDEX[facing ?? 'N'] + 4) % 4;
+  return (['ahead', 'right', 'behind', 'left'] as const)[rel] as Bearing;
+}
+
+/** What leaks through one doorway from the hall beyond. Only things that actually carry are listed. */
+export interface Portal {
+  side: Side;
+  /** 0..1000 along the wall. */
+  pos: number;
+  toName: string;
+  bearing: Bearing;
+  /** -1 (left) .. 1 (right). */
+  pan: number;
+  /** A doorway muffles; a door behind you muffles more. */
+  lowpassHz: number;
+  tide: { kind: 'none' | 'approach' | 'booming'; gain: number };
+  birds: { mode: BirdMode; perMinute: number; loudness: number };
+  falls: number;
+  rain: number;
+  /** The loudest component, 0..1, for sorting and thresholds. */
+  loudness: number;
+}
+
+export interface AudioOpts {
+  /** The way you face (the way you last walked); doors are placed to your left, right, ahead or behind. */
+  facing?: Side | null;
+  /** Compute what arrives through the doorways (default true). */
+  portals?: boolean;
+}
 
 export interface AudioScene {
   reverb: { decaySec: number; wet: number; dampHz: number };
@@ -27,11 +65,61 @@ export interface AudioScene {
   surface: Surface;
   /** Rough size of the space for the narrator. */
   space: 'small' | 'large' | 'vast';
+  /** What drifts in through the doorways from the neighbouring halls, loudest first. */
+  portals: Portal[];
 }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
-export function audioFor(world: World, s: SceneState): AudioScene {
+/** A neighbouring hall heard through one open door: a fraction of its level. */
+const DOOR_ATTEN = 0.45;
+const MAX_PORTALS = 10;
+
+function portalsFor(world: World, s: SceneState, facing: Side | null): Portal[] {
+  const h = s.hall;
+  const heard = new Map<string, AudioScene>();
+  const out: Portal[] = [];
+  const merged = new Set<string>();
+  const doors = hallExits(world, h.x, h.y, h.level).filter((e) => e.corridor === 0); // a long passage swallows what is beyond
+  for (const e of doors) {
+    // several doors in one wall to the same hall are one source of sound: one portal, at the middle of them
+    const wallKey = `${e.side}:${e.to.x},${e.to.y}`;
+    if (merged.has(wallKey)) continue;
+    merged.add(wallKey);
+    const same = doors.filter((d) => d.side === e.side && d.to.x === e.to.x && d.to.y === e.to.y);
+    const midPos = Math.round(same.reduce((n, d) => n + d.pos, 0) / same.length);
+    const key = `${e.to.x},${e.to.y}`;
+    let a = heard.get(key);
+    if (!a) {
+      a = audioFor(world, sceneAtWorldTime(world, e.to.x, e.to.y, h.level, s.t, { forecast: false }), { portals: false, facing });
+      heard.set(key, a);
+    }
+    if (a.hush || a.dark) continue;
+    const tideKind = a.tide.kind === 'booming' || a.tide.kind === 'submerged' ? 'booming' : a.tide.kind === 'approach' ? 'approach' : 'none';
+    const tideGain = tideKind === 'none' ? 0 : a.tide.gain * DOOR_ATTEN * (tideKind === 'booming' ? 1 : 0.8);
+    const birdLoud = a.birds.perMinute > 0 ? a.birds.loudness * DOOR_ATTEN : 0;
+    const falls = a.falls.gain * DOOR_ATTEN;
+    const rain = a.rain.gain * DOOR_ATTEN;
+    const loudness = Math.max(tideGain, birdLoud, falls * 1.4, rain * 1.4);
+    if (loudness < 0.06) continue;
+    const b = bearing(e.side, facing);
+    const pan = b === 'left' ? -0.85 : b === 'right' ? 0.85 : b === 'ahead' ? (midPos - 500) / 1500 : 0;
+    out.push({
+      side: e.side, pos: midPos, toName: getName(world, e.to.x, e.to.y, h.level), bearing: b, pan,
+      lowpassHz: b === 'behind' ? 1100 : b === 'ahead' ? 2400 : 1800,
+      tide: { kind: tideKind, gain: tideGain },
+      birds: { mode: a.birds.mode, perMinute: birdLoud > 0 ? a.birds.perMinute : 0, loudness: birdLoud },
+      falls, rain, loudness,
+    });
+  }
+  return out.sort((x, y) => y.loudness - x.loudness).slice(0, MAX_PORTALS);
+}
+
+function getName(world: World, x: number, y: number, level: 0 | 1 | 2): string {
+  return getHall(world, x, y, level).name;
+}
+
+export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): AudioScene {
   const h = s.hall;
   const drowned = h.regions.drowned && h.level === 1;
   const dark = h.tags.includes('dark-hall');
@@ -100,5 +188,6 @@ export function audioFor(world: World, s: SceneState): AudioScene {
     dark,
     surface,
     space,
+    portals: opts.portals === false ? [] : portalsFor(world, s, opts.facing ?? null),
   };
 }

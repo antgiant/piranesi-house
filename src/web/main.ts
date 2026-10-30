@@ -105,7 +105,7 @@ function refresh(): void {
   if (!game) return;
   const now = Date.now();
   const s = sceneNow(game, now);
-  const a = audioFor(game.world, s);
+  const a = audioFor(game.world, s, { facing: game.facing });
   engine.setScene(a);
   $('place').textContent = s.hall.name;
   const ws = walkStatus(game, now);
@@ -125,7 +125,7 @@ function submit(raw: string): void {
   // An instant move (pace "instant", or a very short walk) gets a few footsteps; a real walk gets them continuously below.
   const moved = before !== `${game.pos.x},${game.pos.y},${game.pos.level}`;
   if (moved && !game.walk && engine.started) {
-    const surface = audioFor(game.world, sceneNow(game, Date.now())).surface;
+    const surface = audioFor(game.world, sceneNow(game, Date.now()), { portals: false }).surface;
     for (let i = 0; i < 4; i++) setTimeout(() => engine.footstep(surface), i * 380);
   }
 }
@@ -141,7 +141,7 @@ function startGame(): void {
     (window as unknown as Record<string, unknown>).__house = {
       game: g, engine,
       teleport(x: number, y: number, level: 0 | 1 | 2) { g.pos = { x, y, level, wall: null, pos: 500 }; print(look(g, Date.now())); refresh(); },
-      audio() { return audioFor(g.world, sceneNow(g, Date.now())); },
+      audio() { return audioFor(g.world, sceneNow(g, Date.now()), { facing: g.facing }); },
       scene() { return sceneNow(g, Date.now()); },
     };
   }
@@ -226,7 +226,7 @@ setInterval(() => {
 
 // While walking, footsteps at a cadence that follows your speed: about 2 a second at the book's pace, 3 at marathon pace.
 function stepLoop(): void {
-  if (game?.walk && engine.started) engine.footstep(audioFor(game.world, sceneNow(game, Date.now())).surface);
+  if (game?.walk && engine.started) engine.footstep(audioFor(game.world, sceneNow(game, Date.now()), { portals: false }).surface);
   const pace = game && Number.isFinite(game.opts.walkPace) ? game.opts.walkPace : 1;
   setTimeout(stepLoop, 1000 / stepsPerSecond(pace));
 }

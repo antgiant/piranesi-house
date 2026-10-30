@@ -2,7 +2,7 @@
 // Every claim comes from data (never invented on the spot), so the text, the sound and the later views cannot disagree.
 
 import canonStatues from '../generated/canon-statues.json';
-import type { AudioScene } from '../audio/director';
+import type { AudioScene, Portal } from '../audio/director';
 import type { SceneState } from '../sim/scene';
 import { formatClock, sunTimes } from '../sim/time';
 import type { Hall } from '../world/hall';
@@ -303,6 +303,27 @@ export function statueDetail(hall: Hall, sn: Seen): string {
 // Sound
 // ---------------------------------------------------------------------------------------------------------------
 
+const BEARING_PHRASE = { ahead: 'ahead of you', right: 'to your right', left: 'to your left', behind: 'behind you' } as const;
+
+/** What is heard through a doorway, in a few words. */
+function portalWhat(p: Portal): string {
+  const bits: string[] = [];
+  if (p.tide.kind === 'booming') bits.push('the boom of waves');
+  else if (p.tide.kind === 'approach') bits.push('a low thudding, like a tide coming');
+  const b = p.birds;
+  if (b.perMinute > 0) {
+    bits.push(b.mode === 'nesting' ? 'the screaming of gulls' : b.mode === 'noisy' ? 'rooks cawing' : b.mode === 'murmuration' ? 'a rush of wings'
+      : b.mode === 'chick' ? 'a strange clacking and whirring' : b.mode === 'roosting' ? 'rustling birds' : 'birdsong');
+  }
+  if (p.falls > 0.06) bits.push('the splash of falling water');
+  if (p.rain > 0.06) bits.push('the patter of rain');
+  return bits.slice(0, 2).join(' and ');
+}
+
+export function portalSentences(a: AudioScene): string[] {
+  return a.portals.slice(0, 3).map((p) => `Through the ${SIDE_WORD[p.side]} door, ${BEARING_PHRASE[p.bearing]}, comes ${portalWhat(p)}.`);
+}
+
 export function soundParagraph(a: AudioScene, s: SceneState): string {
   const bits: string[] = [];
   if (a.hush) bits.push('The silence here is unusual and deep. No sea, no wind; only the occasional drip.');
@@ -336,6 +357,7 @@ export function soundParagraph(a: AudioScene, s: SceneState): string {
     else if (b.mode === 'roosting') bits.push('Soft rustles of roosting birds.');
     else bits.push('Small birds twitter and flutter.');
   } else if (b.mode === 'silent' && s.hall.level === 1 && !a.hush) bits.push('There are no birdsong or wingbeats.');
+  bits.push(...portalSentences(a));
   if (bits.length === 0) bits.push('You hear almost nothing: the echo of your own breathing.');
   return bits.join(' ');
 }

@@ -2,7 +2,7 @@
 // Everything audible comes through one reverb whose length follows the hall, then one low-pass for cloud and water.
 // Randomness here (bird timing, drips) is cosmetic and deliberately not part of the deterministic world.
 
-import type { AudioScene, Surface } from './director';
+import type { AudioScene, Portal, Surface } from './director';
 
 type Species = 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle';
 
@@ -21,6 +21,18 @@ function speciesFor(mode: AudioScene['birds']['mode']): Species[] {
 
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 
+/** One doorway's worth of sound from the next hall: its own pan, its own muffling, its own timing. */
+interface PortalVoice {
+  key: string;
+  p: Portal;
+  bus: GainNode;
+  pan: StereoPannerNode;
+  lp: BiquadFilterNode;
+  nextBoom: number;
+  nextBird: number;
+  nextDrip: number;
+}
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private master!: GainNode;
@@ -33,6 +45,8 @@ export class AudioEngine {
   private noise!: AudioBuffer;
   private brown!: AudioBuffer;
   private scene: AudioScene | null = null;
+  private voices: PortalVoice[] = [];
+  private portalEvents = 0;
   private irKey = '';
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBird = 0;
@@ -105,6 +119,11 @@ export class AudioEngine {
   }
   private pushMaster(): void {
     if (this.ctx) this.master.gain.setTargetAtTime(this.muted ? 0 : this.volume, this.ctx.currentTime, 0.1);
+  }
+
+  /** How many doorway voices exist and how many sounds they have emitted. Used by the end-to-end tests. */
+  stats(): { voices: number; portalEvents: number } {
+    return { voices: this.voices.length, portalEvents: this.portalEvents };
   }
 
   /** RMS of what is currently coming out (0..1). Used by the end-to-end tests. */
@@ -257,6 +276,29 @@ export class AudioEngine {
     if (old) setTimeout(() => { old.disconnect(); }, 2500);
   }
 
+  private syncPortals(list: Portal[]): void {
+    const ctx = this.ctx as AudioContext;
+    const keep: PortalVoice[] = [];
+    for (const p of list) {
+      const key = `${p.side}:${p.toName}`;
+      let v = this.voices.find((x) => x.key === key);
+      if (!v) {
+        const bus = ctx.createGain();
+        const pan = ctx.createStereoPanner();
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        bus.connect(lp).connect(pan).connect(this.bus);
+        v = { key, p, bus, pan, lp, nextBoom: 0, nextBird: 0, nextDrip: 0 };
+      }
+      v.p = p;
+      v.pan.pan.setTargetAtTime(p.pan, ctx.currentTime, 0.3);
+      v.lp.frequency.setTargetAtTime(p.lowpassHz, ctx.currentTime, 0.3);
+      keep.push(v);
+    }
+    for (const v of this.voices) if (!keep.includes(v)) setTimeout(() => { v.bus.disconnect(); v.lp.disconnect(); v.pan.disconnect(); }, 800);
+    this.voices = keep;
+  }
+
   private apply(a: AudioScene): void {
     const ctx = this.ctx as AudioContext;
     const now = ctx.currentTime;
@@ -267,7 +309,10 @@ export class AudioEngine {
     ease(this.lowpass.frequency, 20000 - a.muffle * 19400, 0.6);
     ease(this.seaGain.gain, a.sea.gain * 0.55);
     ease(this.seaFilter.frequency, a.sea.lowpassHz, 1.5);
-    ease(this.rumbleGain.gain, a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5);
+    // a tide booming next door is felt through the floor before it reaches you
+    const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
+    ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));
+    this.syncPortals(a.portals);
     ease(this.fallsGain.gain, a.falls.gain * 0.22);
     ease(this.rainGain.gain, a.rain.gain * 0.3);
     ease(this.windGain.gain, a.wind.gain * 0.3);
@@ -294,6 +339,25 @@ export class AudioEngine {
       this.boom(t + 0.02, a.tide.kind === 'approach' ? 0.18 * a.tide.gain * 2 : 0.5 * a.tide.gain);
       this.nextBoom = t + a.tide.strikeEverySec * rand(0.75, 1.3);
     }
+    // what drifts in through the doorways
+    for (const v of this.voices) {
+      const p = v.p;
+      if (p.tide.kind === 'booming' && t >= v.nextBoom) {
+        this.boom(t + 0.02, 0.45 * p.tide.gain * 2, v.bus);
+        this.portalEvents++;
+        v.nextBoom = t + rand(6, 11);
+      }
+      if (p.birds.perMinute > 0 && t >= v.nextBird) {
+        const ks = speciesFor(p.birds.mode);
+        if (ks.length) { this.bird(ks[Math.floor(Math.random() * ks.length)] as Species, t + 0.02, p.birds.loudness * 1.6, v.bus); this.portalEvents++; }
+        v.nextBird = t + (60 / p.birds.perMinute) * rand(0.5, 1.6);
+      }
+      if ((p.falls > 0.06 || p.rain > 0.06) && t >= v.nextDrip) {
+        this.drip(t + 0.02, 0.08, v.bus);
+        this.portalEvents++;
+        v.nextDrip = t + rand(0.5, 1.5) / Math.max(0.1, (p.falls + p.rain) * 3);
+      }
+    }
     // birds
     const kinds = speciesFor(a.birds.mode);
     if (a.birds.perMinute > 0 && kinds.length > 0 && t >= this.nextBird) {
@@ -309,7 +373,7 @@ export class AudioEngine {
     g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
   }
 
-  private burst(t: number, dur: number, type: BiquadFilterType, freq: number, q: number, peak: number, pan = 0, attack = 0.004): void {
+  private burst(t: number, dur: number, type: BiquadFilterType, freq: number, q: number, peak: number, pan = 0, attack = 0.004, out?: AudioNode): void {
     const ctx = this.ctx as AudioContext;
     const s = ctx.createBufferSource();
     s.buffer = this.noise;
@@ -321,12 +385,12 @@ export class AudioEngine {
     const p = ctx.createStereoPanner();
     p.pan.value = pan;
     this.env(g, t, attack, 0, dur, peak);
-    s.connect(f).connect(g).connect(p).connect(this.bus);
+    s.connect(f).connect(g).connect(p).connect(out ?? this.bus);
     s.start(t, Math.random() * 2);
     s.stop(t + dur + attack + 0.05);
   }
 
-  private tone(t: number, f0: number, f1: number, dur: number, type: OscillatorType, peak: number, pan = 0, attack = 0.005): void {
+  private tone(t: number, f0: number, f1: number, dur: number, type: OscillatorType, peak: number, pan = 0, attack = 0.005, out?: AudioNode): void {
     const ctx = this.ctx as AudioContext;
     const o = ctx.createOscillator();
     o.type = type;
@@ -336,35 +400,36 @@ export class AudioEngine {
     const p = ctx.createStereoPanner();
     p.pan.value = pan;
     this.env(g, t, attack, 0, dur, peak);
-    o.connect(g).connect(p).connect(this.bus);
+    o.connect(g).connect(p).connect(out ?? this.bus);
     o.start(t);
     o.stop(t + dur + attack + 0.05);
   }
 
-  private drip(t: number, peak: number): void {
-    this.tone(t, rand(900, 2200), rand(500, 1100), 0.12, 'sine', peak, rand(-0.8, 0.8));
+  private drip(t: number, peak: number, out?: AudioNode): void {
+    this.tone(t, rand(900, 2200), rand(500, 1100), 0.12, 'sine', peak, out ? 0 : rand(-0.8, 0.8), 0.005, out);
   }
 
-  private boom(t: number, peak: number): void {
-    this.tone(t, 90, 38, 0.9, 'sine', peak);
-    this.burst(t, 0.6, 'lowpass', 300, 0.5, peak * 0.6);
+  private boom(t: number, peak: number, out?: AudioNode): void {
+    this.tone(t, 90, 38, 0.9, 'sine', peak, 0, 0.005, out);
+    this.burst(t, 0.6, 'lowpass', 300, 0.5, peak * 0.6, 0, 0.004, out);
   }
 
-  private bird(sp: Species, t: number, loud: number): void {
-    const pan = rand(-0.9, 0.9);
+  /** A bird call. Through a doorway it keeps the doorway's own placement (pan 0 here; the portal bus pans it). */
+  private bird(sp: Species, t: number, loud: number, out?: AudioNode): void {
+    const pan = out ? 0 : rand(-0.9, 0.9);
     const v = 0.05 + loud * 0.08;
     switch (sp) {
       case 'sparrow': {
         const n = 2 + Math.floor(Math.random() * 4);
-        for (let i = 0; i < n; i++) this.tone(t + i * rand(0.07, 0.13), rand(3200, 5200), rand(2600, 6000), rand(0.04, 0.08), 'sine', v, pan);
+        for (let i = 0; i < n; i++) this.tone(t + i * rand(0.07, 0.13), rand(3200, 5200), rand(2600, 6000), rand(0.04, 0.08), 'sine', v, pan, 0.005, out);
         break;
       }
       case 'gull': {
         const n = 2 + Math.floor(Math.random() * 3);
         for (let i = 0; i < n; i++) {
           const s = t + i * 0.38;
-          this.tone(s, 1500, 700, 0.3, 'sawtooth', v * 0.6, pan, 0.03);
-          this.burst(s, 0.28, 'bandpass', 1400, 2, v * 0.8, pan, 0.03);
+          this.tone(s, 1500, 700, 0.3, 'sawtooth', v * 0.6, pan, 0.03, out);
+          this.burst(s, 0.28, 'bandpass', 1400, 2, v * 0.8, pan, 0.03, out);
         }
         break;
       }
@@ -372,22 +437,22 @@ export class AudioEngine {
         const n = 1 + Math.floor(Math.random() * 3);
         for (let i = 0; i < n; i++) {
           const s = t + i * 0.33;
-          this.tone(s, 420, 260, 0.22, 'sawtooth', v * 0.7, pan, 0.02);
-          this.burst(s, 0.2, 'bandpass', 900, 1.5, v * 0.7, pan, 0.02);
+          this.tone(s, 420, 260, 0.22, 'sawtooth', v * 0.7, pan, 0.02, out);
+          this.burst(s, 0.2, 'bandpass', 900, 1.5, v * 0.7, pan, 0.02, out);
         }
         break;
       }
       case 'albatross': {
         const n = 7 + Math.floor(Math.random() * 6);
-        for (let i = 0; i < n; i++) this.burst(t + i * 0.045, 0.025, 'bandpass', rand(1800, 2600), 6, v * 1.4, pan, 0.001);
-        this.tone(t + 0.1, 110, 85, 0.7, 'sawtooth', v * 0.35, pan, 0.1);
+        for (let i = 0; i < n; i++) this.burst(t + i * 0.045, 0.025, 'bandpass', rand(1800, 2600), 6, v * 1.4, pan, 0.001, out);
+        this.tone(t + 0.1, 110, 85, 0.7, 'sawtooth', v * 0.35, pan, 0.1, out);
         break;
       }
       case 'flock':
-        for (let i = 0; i < 6; i++) this.burst(t + i * 0.12, 0.5, 'bandpass', rand(2500, 5000), 0.8, v * 0.9, rand(-1, 1), 0.15);
+        for (let i = 0; i < 6; i++) this.burst(t + i * 0.12, 0.5, 'bandpass', rand(2500, 5000), 0.8, v * 0.9, out ? 0 : rand(-1, 1), 0.15, out);
         break;
       case 'rustle':
-        this.burst(t, rand(0.1, 0.25), 'highpass', 3500, 0.7, v * 0.7, pan, 0.02);
+        this.burst(t, rand(0.1, 0.25), 'highpass', 3500, 0.7, v * 0.7, pan, 0.02, out);
         break;
     }
   }

@@ -1,0 +1,52 @@
+# Tides, weather, seasons, light. Own-words paraphrase.
+version: 0
+
+tides:
+  - {id: T-001, fact: "Tides are regular and predictable but not identical: each comes from a different region and has its own character, volume, colour and timing. A table of times and volumes can be kept and extrapolated.", src: [201, 485], confidence: stated}
+  - {id: T-002, fact: "Tides arrive from the lower halls, rise up the vestibule staircases, then spread through the surrounding middle halls. The drained water falls back down the staircases afterwards.", src: [75-81, 379], confidence: stated}
+  - {id: T-003, fact: "The far-eastern tide is nearly colourless, ankle-deep and quiet; milky foam streaks a grey, mirror-like surface.", src: 75, confidence: stated}
+  - {id: T-004, fact: "The tide from the western halls is violent: it thunders up the westernmost stairs and strikes the opposite wall with a great clap; bone-white foam over pewter water; reaches waist height on the first tier of statues within seconds.", src: 77, confidence: stated}
+  - {id: T-005, fact: "The tide from the northern halls charges up the central stair in a burst of sparkling, icy-white foam that soaks everything.", src: 79, confidence: stated}
+  - {id: T-006, fact: "A rare meeting of three tides (east, west, north) in the Ninth Vestibule happens once every eight years; the combined water sweeps up the walls like a hand, causing a deep silence underwater, then rushes on into adjacent halls with thunder and cracks. Afterwards water drops to the plinths of the first tier.", src: 69-81, confidence: stated}
+  - {id: T-007, fact: "Tides carry debris from far away; a marble finger from some distant statue was deposited in the Ninth Vestibule. Rubble, shells, starfish and pebbles are dumped in dry halls.", src: [83, 407, 843], confidence: stated}
+  - {id: T-008, fact: "Tides differ in food value: some are rich with fish and sea vegetation, others bright, clean and empty.", src: 485, confidence: stated}
+  - {id: T-009, fact: "When a tide strikes a wall, the water withdraws and surges again through successive doors, each impact booming in turn and making the hall tremble like a plucked string.", src: 361, confidence: stated}
+  - {id: T-010, fact: "A typical ordinary tide: from arrival at the Sixth Vestibule's staircase, a hall two halls east of the Second South-Western Hall stays flooded for about an hour at ankle depth.", src: 379, confidence: stated}
+  - {id: T-011, fact: "Tides from different directions can arrive nearly together: a northern tide rose in the Tenth Vestibule and an eastern tide in the Twelfth Vestibule moments later, flooding the Eighth Northern Hall and carrying a person seven halls to the Third Western Hall.", src: 371, confidence: stated}
+  - {id: T-012, fact: "Storms from the west disturb the tides, drive fish far out to sea for a couple of days.", src: 535, confidence: stated}
+  - {id: T-013, fact: "A strong wind (from the south, in midwinter) makes high tides higher and low tides lower; at an extreme low tide a lower hall can be completely dry.", src: [397, 407], confidence: stated}
+  - {id: T-014, fact: "Constantly: the sea can be heard lapping the walls in thousands of chambers beneath, day and night.", src: 871, confidence: stated}
+  - {id: T-015, fact: "A very large coordinated flood (all four of the 9th, 22nd, 10th and 24th Vestibule tides at once, between about 11:30 and noon) is possible. Its flood fills a hall to above knee height, spray reaching ceiling height; afterward water falls over an hour or so (knee- then ankle-high) and drains down staircases. This is the 'extreme event' ceiling for the sim.", src: [2979, 2987, 3055, 3041-3085, 3099, 3135], confidence: stated, note: "story event, but the physics are canon"}
+  - {id: T-016, fact: "Drowned Halls are not touched by tides; they are fresh rain-fed lakes.", src: 467, confidence: stated}
+  - {id: T-017, fact: "Three or more named recurring tide sources are mentioned: far-eastern, western, northern; the southern halls' tides are blue-green.", src: [75-79, 745], confidence: inferred}
+
+weather:
+  - {id: WX-001, fact: "Clouds own the Upper halls and drift through them slowly, with statues emerging abruptly from the mist. Lightning flashes light whole rows of upper windows.", src: [91, 107], confidence: stated}
+  - {id: WX-002, fact: "Rain falls in vestibules and runs down walls and staircases in streams; this is the fresh-water supply. A steady drenching rain can last five days.", src: [107, ~1857], confidence: stated}
+  - {id: WX-003, fact: "In the North-Eastern ceiling-collapse region, cloud descends into the middle halls, so a morning can start with a hall filled with mist and statues looking like pale images on white.", src: [455, 457], confidence: stated}
+  - {id: WX-004, fact: "Cloud-filled halls are chill, damp and grey; visibility is poor; falls through floors are a real hazard.", src: [493, 503, 513], confidence: stated}
+  - {id: WX-005, fact: "Wind carries cloud away westwards at times; bright clear sun reaches upper halls when clouds depart.", src: [163, 513], confidence: stated}
+  - {id: WX-006, fact: "Storms from the west happen; they bring unexpected strong winds and turbulent tides.", src: 535, confidence: stated}
+  - {id: WX-007, fact: "Moisture condenses: fresh drinking water is caught from the dripping of cloud water.", src: [783, ~2429], confidence: stated}
+  - {id: WX-008, fact: "Fog or mist can blur the door frames and haze the long vistas of receding halls.", src: ~1807, confidence: inferred}
+
+seasons:
+  - {id: SEA-001, fact: "The calendar has twelve months. Winter spans roughly the twelfth to the second month. The book's own coastal climate otherwise mirrors a temperate northern year with a cold, wet winter.", src: [389-395, 397], confidence: inferred}
+  - {id: SEA-002, fact: "In winter snow piles on staircase steps; statues wear snow cloaks; outstretched arms bear icicles like swords or feathers.", src: 391, confidence: stated}
+  - {id: SEA-003, fact: "Winter wind from the south howls through vestibules, blows stinging snow into halls, forms little snow ghosts, and makes statues whistle.", src: [397, 399], confidence: stated}
+  - {id: SEA-004, fact: "Autumn evenings (later months of the year): birds perform spiralling mass dances in vestibules.", src: 523, confidence: stated}
+  - {id: SEA-005, fact: "Gull nesting runs spring to summer; nests are abandoned by late summer / early autumn.", src: 907, confidence: stated}
+  - {id: SEA-006, fact: "Seaweed can be dried in spring, summer and autumn; winter is too cold and wet.", src: 403, confidence: stated}
+
+light:
+  - {id: LT-001, fact: "Even at night stars shine through windows and the hall is faintly lit; true darkness is rare.", src: 849, confidence: stated}
+  - {id: LT-002, fact: "Window light creates distinct set pieces: great shafts of grey light in derelict halls; walls ablaze with golden light so statues seem to dissolve; dim, cool antechambers with few windows; soft blue twilight in adjoining halls.", src: [91, 841, 847, ~1230], confidence: stated}
+  - {id: LT-003, fact: "Late afternoon sun through the lower windows strikes the waves; moving golden ripples of light play across the ceiling of the lower staircase and over the faces of statues.", src: 1031, confidence: stated}
+  - {id: LT-004, fact: "At dawn the pale golden sky is reflected in some courtyard windows.", src: 409, confidence: stated}
+  - {id: LT-005, fact: "The full moon rises centred in a particular doorway in the 192nd Western Hall and floods the hall; as it sinks west the light fades and the constellations grow brighter in the window opposite.", src: [873, 881], confidence: stated}
+  - {id: LT-006, fact: "The moon is seen to rise in particular halls' windows (e.g. the Third Northern Hall) and its position is a usable clock.", src: 69, confidence: inferred}
+  - {id: LT-007, fact: "A torch or lamp is never needed in ordinary use; lighting is solar/lunar/stellar.", src: 849, confidence: inferred}
+
+sky:
+  - {id: SKY-001, fact: "A sun, a moon with phases (full moon is mentioned), and a rich starry sky with named constellations. Constellation names in the book are the inhabitant's own; players may invent their own.", src: [881, 933], confidence: stated}
+  - {id: SKY-002, fact: "Which stars are visible from a door depends on the hall's orientation and the door's width; framed sections of sky change through the night.", src: 851, confidence: stated}

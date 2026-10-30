@@ -1,0 +1,44 @@
+# Living things, food, and the optional skeletal Dead. Own-words paraphrase.
+version: 0
+
+birds:
+  - {id: B-001, kind: "sparrows and other small birds", fact: "Common in vestibules and halls in mixed flocks; will take flight together in swoops to particular statues. Behave as a flock with something like collective intelligence.", src: [519, 525, 541], confidence: stated}
+  - {id: B-002, kind: "flock behaviour", fact: "Flocks fly between particular statues in sequence (e.g. from north wall to west wall), in two groups that alight on contrasting statues; this is the basis for the 'bird message' mechanic. They warned of an incoming storm.", src: [525-575], confidence: stated, scope: core}
+  - {id: B-003, kind: "murmuration", fact: "On autumn evenings (late months) birds fill a vestibule in a swirling dense-and-thin column.", src: 523, confidence: stated}
+  - {id: B-004, kind: "rooks and crows", fact: "Nest and roost on high statues in the Sixth North-Western Hall and elsewhere; noisy, caw, swoop down to scattered food, alight on shoulders. Wake at night when disturbed.", src: [~1863, 749, 1979], confidence: stated}
+  - {id: B-005, kind: "herring gulls", fact: "Colony in the Eighty-Eighth Western Hall: nests on statues and plinths, built of dry seaweed and fish bones; fierce and screaming against intruders near eggs and young; quiet when the intruder keeps away. Roost there year-round.", src: [845, 901-907, ~1769], confidence: stated}
+  - {id: B-006, kind: "albatrosses", fact: "Two arrived in winter on the wind, gliding on enormous wings; a mated pair. Large (head reaches breastbone height), black backs to the wings with white star-like or flecked patterns, pink webbed feet that slap on pavement, a clacking whirring call, shrieks, beak-tapping courtship. Nest (about 1 m wide) in the Forty-Third Vestibule; they raise one chick slowly.", src: [415-449], confidence: stated}
+  - {id: B-007, kind: "buzzard", fact: "Hunts small birds inside halls; perches on high statues for long periods.", src: 1518, confidence: stated}
+  - {id: B-008, kind: "blackbirds", fact: "Seen in vestibules with other birds.", src: ~3147, confidence: stated}
+  - {id: B-009, kind: "silence of birds", fact: "In cloudy cold weather birds fall silent and gather in one hall, perched on every statue. In pitch darkness halls they avoid entirely.", src: [461, 869], confidence: stated}
+  - {id: B-010, kind: "droppings", fact: "Bird droppings coat statues in places favoured by birds (and in gull nesting halls).", src: [665, ~1769], confidence: stated}
+
+sea_life:
+  - {id: A-001, fact: "Fish are plentiful in the lower halls of every vestibule; they are drawn into spots of bright moonlight at night.", src: [105, 475, 187], confidence: stated}
+  - {id: A-002, fact: "Crustaceans (lobsters), mussels, shellfish beds, starfish, shells and pebbles are common in the lower halls.", src: [105, 407, 531, 839], confidence: stated}
+  - {id: A-003, fact: "Octopuses live in some lower halls (e.g. beneath the Eighteenth Vestibule).", src: ~1488, confidence: stated}
+  - {id: A-004, fact: "Sea vegetation and seaweed grow in tide-reached halls; seaweed hangs from statues and streams in wind.", src: [105, 407], confidence: stated}
+  - {id: A-005, fact: "Fish in the Drowned Halls are plentiful; night fishing in moonlight is best.", src: 475, confidence: stated}
+  - {id: A-006, fact: "White water lilies carpet the shallow edge of the Drowned Halls.", src: [91, 471], confidence: stated}
+  - {id: A-007, fact: "Coral grew in the Coral Halls when they were long flooded and persists now they are dry.", src: 3495, confidence: stated}
+  - {id: A-008, fact: "No land mammals live in the House. (A single monkey skeleton exists among the optional Dead; no live monkeys are known.)", src: 179, confidence: stated}
+  - {id: A-009, fact: "Trees and leaves are not native; one drifting leaf was seen once and could not be explained.", src: 251, confidence: stated, scope: optional, note: "tiny easter egg possibility"}
+
+food_and_materials:
+  - {id: F-001, fact: "Food: fish, crustaceans, shellfish, sea vegetation (seaweed soup).", src: [105, 459], confidence: stated}
+  - {id: F-002, fact: "Dry seaweed can be burned as fuel; twisted into twine; used as nesting material.", src: [393, 403, 443], confidence: stated}
+  - {id: F-003, fact: "Fish skin can be cured to leather and used with fish glue for repairs and thongs.", src: [159, 357], confidence: stated}
+  - {id: F-004, fact: "Fresh water is caught from streams, falls, and dripping cloud; it runs down walls and statue faces.", src: [107, 483, 783], confidence: stated}
+
+dead:
+  # OPTIONAL. Behind config toggle `showDead` (default false). When off, these spots become ordinary Absences
+  # (empty plinth / niche), so the layout is identical either way.
+  scope: optional
+  items:
+    - {id: DEAD-BISCUIT, name: "skeleton bundled with a red biscuit tin of small bones", location: "empty niche, Third North-Western Hall", note: "bones sorted: long bones tied in bundles, skull to the right, tin of small bones to the left", src: 157}
+    - {id: DEAD-CONCEALED, name: "half-collapsed skeleton wedged between a plinth and the wall, once sitting with knees drawn up", location: "upper hall directly above the Eighteenth North-Eastern Hall; reached via the staircase in the Thirteenth Vestibule", src: 163}
+    - {id: DEAD-ALCOVE, name: "ten skeletons arranged in a row on a vacant plinth, plus a small long-tailed monkey skeleton beside them", location: "northernmost alcove of the Fourteenth South-Western Hall; room for about four more adults on the plinth", note: "one skeleton (very old, worn to pebbles) once threaded on fish leather", src: [167-179]}
+    - {id: DEAD-CHILD, name: "child's skeleton in a folded-up posture with a coral and fishbone necklace", location: "empty plinth, Sixth South-Eastern Hall", src: 183}
+  offerings: "A visitor can leave water, food and lilies gathered in the Drowned Halls. Optional ritual flavour only; there is no reward mechanic."
+  distance_note: "The Dead lie several kilometres apart; visiting all in a day is arduous."
+  src_distance: 827

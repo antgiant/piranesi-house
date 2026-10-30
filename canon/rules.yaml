@@ -1,0 +1,36 @@
+# Testable invariants distilled from the canon. Each becomes an automated test in milestone 1.
+# kind: property = holds for every generated hall; fixture = holds for specific named places; sim = about time-based state.
+version: 0
+rules:
+  - {id: RL-001, kind: property, test: "Every hall has statues on all its walls, apart from a small fraction of deliberate absences.", from: [S-R01, S-R03]}
+  - {id: RL-002, kind: property, test: "Statue height class is uniform within a hall (allow named exceptions pinned by canon).", from: [S-R04]}
+  - {id: RL-003, kind: property, test: "Size 'colossal' occurs only in Drowned Halls.", from: [S-R05]}
+  - {id: RL-004, kind: property, test: "A hall's mood is one of the allowed moods; violent halls are region-clustered (a violent hall has violent neighbours), never scattered singly.", from: [S-R06]}
+  - {id: RL-005, kind: property, test: "No two statues within a 5 km radius share the same subject+pose+attribute signature.", from: [S-R08], note: "radius is a design choice; the book says only 'vast distances'"}
+  - {id: RL-006, kind: property, test: "Statue subjects come from the approved vocabulary; none is modern or technological.", from: [S-R09]}
+  - {id: RL-007, kind: property, test: "A statue's wetness / seaweed / mussel / salt condition is a function of its height relative to the highest regular tide in that hall, never random on its own.", from: [S-R12]}
+  - {id: RL-008, kind: property, test: "Fresh-water wear appears only in halls with a fall of water; derelict halls may contain fallen, shattered statues; dry halls contain none.", from: [S-R12]}
+  - {id: RL-009, kind: property, test: "Winter snow and icicle states appear on statues only in winter and only in vestibules and open halls.", from: [S-R13]}
+  - {id: RL-010, kind: property, test: "Coral modifies statues only inside the Coral Halls region.", from: [S-R14]}
+  - {id: RL-011, kind: property, test: "Drowned Halls have no tide events and never any tide sound.", from: [T-016, SND-DROWNED-SILENCE]}
+  - {id: RL-012, kind: property, test: "Level L (Lower) halls are connected to the Middle level only via vestibule staircases.", from: [W-003]}
+  - {id: RL-013, kind: property, test: "Windows and courtyards: each hall's windows face a courtyard of 3, 4, 6 or 8 sides (never 5 or 7).", from: [W-005]}
+  - {id: RL-014, kind: property, test: "Only the Middle level is walkable by default; Upper halls are cloud/rain affected; Lower halls are submerged for part of each tide cycle.", from: [W-003, W-004]}
+  - {id: RL-015, kind: property, test: "At least one hall type exists that is windowless with a single door, and it is dark at all times.", from: [R-NO-WINDOW-HALL]}
+  - {id: RL-016, kind: property, test: "Doors are about 4x11 m (within a tolerance) and staircase steps are about twice normal height.", from: [W-009, W-010]}
+  - {id: RL-020, kind: fixture, test: "The First Vestibule has exactly eight minotaur statues, all different, about 9 m tall.", from: [ST-MINOTAURS]}
+  - {id: RL-021, kind: fixture, test: "The pair of Horned Giants flank the east door of the First Western Hall; they are ~6 m, bodies emerge ~2 m above the floor.", from: [ST-HORNED-GIANTS]}
+  - {id: RL-022, kind: fixture, test: "The Woman with the Beehive is on the west wall of the Ninth Vestibule at about 15 m height and has a marble bee on her left eye.", from: [ST-BEEHIVE-WOMAN]}
+  - {id: RL-023, kind: fixture, test: "The Ninth Vestibule has three staircases (east, middle, west) and is two halls west and north of the First Vestibule.", from: [L-NINTH-VESTIBULE, P-001]}
+  - {id: RL-024, kind: fixture, test: "The dog-fox route from the First Vestibule reaches the Fourth Western Hall's north-western corner using the stated door counts.", from: [ROUTE-DOGFOX]}
+  - {id: RL-025, kind: fixture, test: "The 192nd Western Hall has exactly one door, no windows, and its crowd statues face that door.", from: [R-NO-WINDOW-HALL, ST-MOON-CROWD]}
+  - {id: RL-026, kind: fixture, test: "The 88th Western Hall has a gull colony in the nesting season; nests sit on statues.", from: [L-88TH-WESTERN]}
+  - {id: RL-027, kind: fixture, test: "The 43rd Vestibule has the albatross nest.", from: [L-43RD-VESTIBULE]}
+  - {id: RL-030, kind: sim, test: "Tide join: the three named tides coincide at the Ninth Vestibule exactly once per 8 in-world years (at timeScale 1 this is 8 real years).", from: [T-006]}
+  - {id: RL-031, kind: sim, test: "An ordinary tide floods a typical hall to ankle depth for about an hour.", from: [T-010]}
+  - {id: RL-032, kind: sim, test: "Extreme coordinated flood never exceeds the 'thigh-high with ceiling-height spray' envelope.", from: [T-015]}
+  - {id: RL-033, kind: sim, test: "Under strong south wind high tides rise above normal and lows fall below; at extreme low a lower hall can be completely dry.", from: [T-013]}
+  - {id: RL-034, kind: sim, test: "Full moon stands centred in the 192nd Western Hall doorway on its night.", from: [LT-005]}
+  - {id: RL-035, kind: sim, test: "Gull nests are present spring-summer and abandoned by early autumn; murmurations only in autumn evenings.", from: [SEA-004, SEA-005]}
+  - {id: RL-040, kind: consistency, test: "Text, side-scroller and 3D builders yield the same statue list for the same hall, viewpoint and time.", from: [project-plan]}
+  - {id: RL-041, kind: consistency, test: "With showDead=false, the hall layout and all statue ids are identical to showDead=true; only the contents of the four bone sites differ.", from: [config]}

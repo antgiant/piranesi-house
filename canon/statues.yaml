@@ -1,0 +1,263 @@
+# Statues. Own-words paraphrase; src = line in owner's text export.
+version: 0
+
+# ---------------------------------------------------------------------------
+# General rules. Each becomes a property test in M1 (see rules.yaml).
+# ---------------------------------------------------------------------------
+rules:
+  - {id: S-R01, fact: "Every hall, vestibule, staircase and passage has statues on its walls. Most halls are packed with them.", src: 95, confidence: stated}
+  - {id: S-R02, fact: "Statues stand in tiers rising up the walls, in big rooms numbering hundreds to about a thousand per hall.", src: [71, 531, 1927], confidence: stated}
+  - {id: S-R03, fact: "Deliberate absences exist: a vacant plinth, niche or apse, or a bare stretch of an otherwise full wall. They are rare but meaningful.", src: 95, confidence: stated}
+  - {id: S-R04, fact: "Size is roughly uniform within one hall but varies a lot between halls: shoulder-high, life-size, 2-3 times human height.", src: 97, confidence: stated}
+  - {id: S-R05, fact: "In the Drowned Halls statues are gigantic, 15-20 m high; this is the exception.", src: 97, confidence: stated}
+  - {id: S-R06, fact: "Most statues show serene, joyful or distantly calm expressions. A few halls are exceptions: wholly violent scenes with screaming faces (the upper hall above the Nineteenth Eastern Hall region).", src: 499, confidence: stated}
+  - {id: S-R07, fact: "Some halls show a crowd rather than individuals: a jumbled mass not arranged in tiers (192nd Western Hall).", src: 873, confidence: stated}
+  - {id: S-R08, fact: "All statues are unique. If there are repetitions they occur only at vast distances.", src: 667, confidence: stated}
+  - {id: S-R09, fact: "Subjects are classical, allegorical, mythological, animal or trade figures. No modern objects or technology.", src: 'whole list', confidence: inferred}
+  - {id: S-R10, fact: "Many statues carry an allegorical meaning (industriousness, innocence, strength, endeavour). Pairs and groups of statues can be read as messages (used by birds).", src: [243, 531, 575], confidence: stated}
+  - {id: S-R11, fact: "Statues of the same subject type are not necessarily placed together by size; adjacent halls usually share characteristics.", src: 499, confidence: inferred}
+  - {id: S-R12, fact: "Condition is determined by exposure: statues in tide-reached halls wear rags of seaweed and crusts of shellfish; dry halls are clean; falls of fresh water wear grooves; in derelict regions statues fall and shatter; bird droppings coat favoured perches.", src: [483, 505, 665, 843], confidence: stated}
+  - {id: S-R13, fact: "In winter statues wear snow and outstretched arms hold icicles; wind passing through crevices and hollows makes some statues whistle or sing.", src: [391, 399], confidence: stated}
+  - {id: S-R14, fact: "In the Coral Halls, coral growth transforms statues: crowns, hands turned to stars or flowers, horns, branches, cages, flame-like cover.", src: 3495, confidence: stated}
+  - {id: S-R15, fact: "Statues use small details heavily: tiny marble bees, expressions that mean more than one thing, a carved shield with clouds on it.", src: [73, 241, 555], confidence: stated}
+  - {id: S-R16, fact: "Some statues bridge between floor and wall by emerging from it at the waist or back, forming a platform, pocket, or ledge that a person can use for climbing, sitting or fishing.", src: [243, 473, 3071], confidence: stated}
+  - {id: S-R17, fact: "Statues lining staircases exist; steps are on a giant scale.", src: 839, confidence: stated}
+
+size_classes:
+  # derived from S-R04 / S-R05 and named statues; values are a design starting point
+  - {id: small, rough_height_m: "about shoulder height (~1.4)", where: "common in some halls", src: 97}
+  - {id: life, rough_height_m: "~1.8", where: "common", src: 97}
+  - {id: large, rough_height_m: "~3.5-5.5 (2-3x human)", where: "common in halls and vestibules", src: [97, 73]}
+  - {id: huge, rough_height_m: "~6-9", where: "named: Horned Giants (~6), Minotaurs (~9)", src: [243, 1169]}
+  - {id: colossal, rough_height_m: "15-20", where: "Drowned Halls only", src: 97}
+
+moods:
+  - {id: serene, fact: "tranquil, kindly or mildly smiling", src: 499}
+  - {id: joyful, fact: "playing, laughing, celebrating", src: [499, 3746]}
+  - {id: solemn, fact: "weighty, reverent, protective", src: [241, 1169, 3702]}
+  - {id: effort, fact: "straining against something; contorted but determined", src: 243}
+  - {id: violent, fact: "fighting, being carried off, mauled; faces in rage or anguish. Region-wide, not mixed in among serene ones", src: 499}
+  - {id: crowd, fact: "a crowd looking toward something, intimate gestures between neighbours", src: 873}
+
+# ---------------------------------------------------------------------------
+# Named statues. location.hall uses the book's naming. wall/height only where stated.
+# ---------------------------------------------------------------------------
+named:
+  - id: ST-BEEHIVE-WOMAN
+    label: "Woman carrying a beehive"
+    location: {hall: "Ninth Vestibule", wall: west, height_m: 15, note: "in a niche; also perched on by small birds"}
+    size: "2-3x human height"
+    attributes: ["beehive covered in thumb-sized marble bees", "one bee crawls over her left eye"]
+    meaning: industriousness
+    src: [73, 237, 529]
+    confidence: stated
+  - id: ST-GARDENER
+    label: "Old bent gardener digging"
+    location: {hall: "Ninth Vestibule", wall: north-west corner}
+    meaning: industriousness
+    src: [529-531]
+    confidence: stated
+  - id: ST-FAUN
+    label: "Faun with finger to lips (a warning or a promise of quiet)"
+    location: {hall: "door between the Fifth and Fourth North-Western Halls"}
+    attributes: ["half man, half goat", "head of exuberant curls", "faint smile"]
+    src: [239, ~1620]
+    confidence: stated
+  - id: ST-GORILLA
+    label: "Squatting gorilla leaning on his fists, with a great brow that reads as peace, not threat"
+    location: {hall: "Fifth Northern Hall"}
+    meaning: "peace, tranquillity, strength, endurance"
+    src: [241, 3728]
+    confidence: stated
+  - id: ST-CYMBAL-BOY
+    label: "Young boy playing cymbals"
+    location: {hall: unknown}
+    src: 243
+    confidence: stated
+  - id: ST-ELEPHANT-CASTLE
+    label: "Elephant carrying a castle"
+    location: {hall: unknown}
+    src: 243
+    confidence: stated
+  - id: ST-KINGS-CHESS
+    label: "Two kings playing chess"
+    location: {hall: unknown}
+    src: 243
+    confidence: stated
+  - id: ST-HORNED-GIANTS
+    label: "Pair of horned half-figures emerging from the wall at the waist, arms reaching back to push, muscles swelling, faces contorted: Endeavour against a wretched fate"
+    location: {hall: "First Western Hall", wall: east, note: "flank the east door; left giant has a niche with a seated father tending his son's foot beside him"}
+    size: "~6 m, larger than everything else in the hall"
+    attributes: ["bodies emerge ~2 m above floor", "backs leave a marble pocket between giant and wall, usable as shelter"]
+    src: [243, 3053, 3071]
+    confidence: stated
+  - id: ST-FATHER-THORN
+    label: "Seated father removing a splinter from his little boy's foot, set in a niche with plinth and pediment"
+    location: {hall: "First Western Hall", wall: east, note: "next to the left horned giant"}
+    src: 3053
+    confidence: stated
+  - id: ST-MINOTAURS
+    label: "Eight enormous minotaurs, each different, horns jutting into empty air, solemn inscrutable faces"
+    location: {hall: "First Vestibule", note: "two flank the south-east corner"}
+    size: "~9 m"
+    count: 8
+    src: [1169, 3531]
+    confidence: stated
+  - id: ST-ANGEL-ROSE
+    label: "Angel caught on a rose bush"
+    location: {hall: "Second Northern Hall", wall: "north-east corner", height_m: 5}
+    src: [199, 2929]
+    confidence: stated
+  - id: ST-DOGFOX
+    label: "Aged dog-fox instructing a pair of squirrels and a pair of satyrs (other small creatures too)"
+    location: {hall: "Fourth Western Hall", wall: "north-western corner"}
+    src: [1185, 1201]
+    confidence: stated
+  - id: ST-HIEROPHANT
+    label: "Hierophant in a solemn, upright pose"
+    location: {hall: "Nineteenth Southern Hall"}
+    src: 621
+    confidence: stated
+  - id: ST-ANGEL-TRUMPET
+    label: "Angel blowing a trumpet"
+    location: {hall: "Second North-Eastern Hall", wall: north-or-west}
+    src: 551
+    confidence: stated
+  - id: ST-SHIP-WAVES
+    label: "Ship travelling on little waves"
+    location: {hall: "Second North-Eastern Hall"}
+    src: 551
+    confidence: stated
+  - id: ST-MAN-BOOK
+    label: "Man reading from a large book"
+    location: {hall: "Second North-Eastern Hall"}
+    src: 555
+    confidence: stated
+  - id: ST-WOMAN-CLOUD-SHIELD
+    label: "Woman holding up a big round dish or shield carved with clouds"
+    location: {hall: "Second North-Eastern Hall"}
+    src: 555
+    confidence: stated
+  - id: ST-CHILD-FLOWER
+    label: "Small child, head covered in curls like petals, bowing to look at a flower in its hand"
+    location: {hall: "Second North-Eastern Hall"}
+    meaning: innocence
+    src: 559
+    confidence: stated
+  - id: ST-GRAIN-MICE
+    label: "Sack of grain being eaten by a horde of mice"
+    location: {hall: "Second North-Eastern Hall"}
+    meaning: "innocence eroded"
+    src: 559
+    confidence: stated
+  - id: ST-TRAMPLED-MAN
+    label: "Man flung backwards, trampled by a centaur, great hands palms up with curled fingers; sticks out far over the floor"
+    location: {hall: "Upper hall above the Nineteenth Eastern Hall (the violent hall)", note: "beside a long gash in the floor, with a drop of 30 m+ into a Drowned Hall"}
+    size: "2-3x human"
+    mood: violent
+    src: [507, 511]
+    confidence: stated
+  - id: ST-VIOLENT-SET
+    label: "Scenes of men fighting, abductions by centaurs and satyrs, people torn by octopuses; all in violent action"
+    location: {hall: "Upper hall above the Nineteenth/Twentieth Eastern Hall"}
+    mood: violent
+    src: 499
+    confidence: stated
+  - id: ST-DROWNED-GIANTS
+    label: "Giant curly-haired bearded men straining out of the wall, upper bodies over the dark water; one leans so far his broad back forms a platform half a metre above the water"
+    location: {hall: "Drowned Halls"}
+    size: "15-20 m"
+    src: 473
+    confidence: stated
+  - id: ST-MUSSEL-STAIR
+    label: "Statue on a staircase nearly buried under dark mussels, with only part of its face and one pale raised arm still visible"
+    location: {hall: "Forty-Fifth Vestibule", wall: staircase}
+    src: 839
+    confidence: stated
+  - id: ST-WOMAN-BEAR-CUB
+    label: "Woman offering a broad shallow dish to a thirsty bear cub"
+    location: {hall: "antechamber next to the Fifty-Second Western Hall"}
+    src: 841
+    confidence: stated
+  - id: ST-ELEPHANT-NEST
+    label: "Elephant (a gull nest tucked between its legs)"
+    location: {hall: "Eighty-Eighth Western Hall"}
+    src: 903
+    confidence: stated
+  - id: ST-OLD-KING-CROWN
+    label: "Elderly king (a gull nest sits in his crown)"
+    location: {hall: "Eighty-Eighth Western Hall"}
+    src: 903
+    confidence: stated
+  - id: ST-MOON-CROWD
+    label: "Crowd turned toward the doorway as if to see the moon: pairs with arms around each other, a man pulling himself forward by a neighbour's shoulder, a child holding its father's hand, a dog on hind legs begging for its master's attention, and at the front a young man with a banner and elation on his face"
+    location: {hall: "One-Hundred-and-Ninety-Second Western Hall", note: "rear wall is a jumbled mass, not tiers"}
+    mood: crowd
+    src: 873
+    confidence: stated
+  - id: ST-MAN-BOY-STARS
+    label: "Man and boy mapping the stars"
+    location: {hall: unknown, note: "a buzzard once perched here"}
+    src: 1518
+    confidence: stated
+  - id: ST-SHEPHERDESS
+    label: "Shepherdess cradling a lamb, standing on a plinth in an upper hall above the Second Vestibule stairs"
+    location: {hall: "Upper hall above the Second Vestibule staircase"}
+    src: 2919
+    confidence: stated
+  - id: ST-OLD-MAN-SHIP
+    label: "Old man holding a model of a ship"
+    location: {hall: "First Northern Hall", wall: right-hand side}
+    src: 3437
+    confidence: stated
+  - id: ST-WINGED-HORSE-COLT
+    label: "Winged horse and its colt"
+    location: {hall: "First Northern Hall", wall: left-hand side}
+    src: 3437
+    confidence: stated
+  - id: ST-KNEELING-SPHERE
+    label: "Man kneeling on his plinth with a sword blade snapped in five lying beside him, surrounded by the fragments of a shattered sphere; he stares at the pieces hoping for knowledge"
+    location: {hall: "Nineteenth North-Western Hall"}
+    src: 3696
+    confidence: stated
+  - id: ST-HERETIC-POPE
+    label: "Obese pope sprawled on a magnificent throne he threatens to split; laughing triumphantly"
+    location: {hall: "an upper vestibule, opposite the top of the stair that climbs from the Thirty-Second Vestibule"}
+    src: 3698
+    confidence: stated
+  - id: ST-QUEEN-CHARIOT
+    label: "Queen in a chariot, protective, gentle, wise"
+    location: {hall: "Forty-Fourth Western Hall"}
+    src: 3702
+    confidence: stated
+  - id: ST-LANTERN-WALKER
+    label: "Androgynous figure walking forward holding up a lantern, peering ahead, solitary"
+    location: {hall: "antechamber between the Forty-Fifth and Sixty-Second Northern Halls"}
+    src: 3704
+    confidence: stated
+  - id: ST-KING-CITY
+    label: "King carrying a miniature fortified town in one hand, other hand lifted in a blessing"
+    location: {hall: "Forty-Eighth Western Hall", wall: north}
+    src: 3744
+    confidence: stated
+  - id: ST-CHILDREN-FLUTE
+    label: "Two laughing children, one holding a flute"
+    location: {hall: "Twenty-Seventh Southern Hall"}
+    src: 3746
+    confidence: stated
+  - id: ST-CORAL-GROUP
+    label: "Coral-altered statues: woman crowned with coral whose hands have turned to stars or flowers; figures horned, crucified on branches or pierced with coral arrows; a lion held in a cage of coral; a man holding a small box whose left side is engulfed by red-rose coral like flames"
+    location: {hall: "Coral Halls"}
+    src: 3495
+    confidence: stated
+  - id: ST-HALL-GENERIC-SCHOLARS
+    label: "Scholars (statues of academic-looking figures exist somewhere)"
+    location: {hall: unknown}
+    src: ~1747
+    confidence: inferred
+
+# Statue subjects the book mentions in passing (for the generator's vocabulary)
+vocabulary_hints:
+  animals: [gorilla, elephant, minotaur, centaur, satyr, faun, squirrel, bear cub, lion, monkey, winged horse, mice, octopus, dog, fox, birds]
+  trades_and_figures: [gardener, beekeeper, shepherdess, scholar, king, queen, pope, hierophant, angel, child, flute-player, cymbal-player, chess-player, star-mapper, reader]
+  motifs: [ship, castle, beehive, book, flower, clouds on a shield, lantern, sphere and sword, throne, chariot, banner, crown, walled city model]

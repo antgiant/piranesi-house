@@ -1,0 +1,163 @@
+# World structure. Own-words paraphrase; src = line in owner's text export.
+version: 0
+
+structure:
+  - {id: W-001, fact: "The world is a single enormous building (the House) of halls, vestibules, staircases, passages and corridors. No outside is reachable.", src: 91-109, confidence: stated}
+  - {id: W-002, fact: "Outside the building there are only the sun, moon and stars.", src: 103, confidence: stated}
+  - {id: W-003, fact: "Three levels: Lower (sea and tides), Middle (birds and people), Upper (clouds, rain, fresh water).", src: 105-109, confidence: stated}
+  - {id: W-004, fact: "The Lower and Upper levels are largely uninhabitable for people; the Middle level is where visitors live and walk.", src: 109, confidence: stated}
+  - {id: W-005, fact: "Windows look out on large empty paved courtyards. Courtyards are usually four-sided; sometimes 6- or 8-sided; rarely, gloomy 3-sided ones.", src: 101, confidence: stated}
+  - {id: W-006, fact: "From the lower halls, windows seen across a courtyard look grey-green and spattered with foam; from the upper halls they look grey-white and misty, sometimes lit by lightning.", src: 105-107, confidence: stated}
+  - {id: W-007, fact: "No end of the world has been found; halls and passages continue regularly into the far distance in every direction explored.", src: 93, confidence: stated}
+  - {id: W-008, fact: "Halls vary in the style of columns, pilasters, niches, apses, pediments, and in the number of doors and windows. No two halls are identical.", src: 667, confidence: stated}
+  - {id: W-009, fact: "Doors are huge: about 4 m wide and 11 m high (one hall's single door; treat as typical).", src: 851, confidence: inferred}
+  - {id: W-010, fact: "Staircase steps are about twice the height comfortable for a person; the staircases are on the same grand scale as everything else.", src: 491, confidence: stated}
+  - {id: W-011, fact: "A staircase is about 25 m high (floor to floor).", src: 2923, confidence: stated}
+  - {id: W-012, fact: "Halls have a deep cornice or shelf running the length of the wall, around 7 m above the floor in the First Western Hall; pediments top niches.", src: 3057, confidence: stated}
+  - {id: W-013, fact: "Very few places are dark. Even at night stars shine in the windows. A rare windowless hall is truly dark.", src: 849, confidence: stated}
+  - {id: W-014, fact: "Drops of fresh water fall in most halls (rain through cracks); some statues are partly worn through by long splashing.", src: 483, confidence: stated}
+
+dimensions:
+  - {id: D-001, fact: "A typical hall: about 200 m long by 120 m wide; neighbouring halls tend to share these dimensions.", src: 499, confidence: stated}
+  - {id: D-002, fact: "Travelling to the 192nd Western Hall is 20 km from the First Vestibule and takes about 3.76 hours walking at a steady pace.", src: 693, confidence: stated}
+  - {id: D-003, fact: "A detour of 7-8 halls adds about 1.7 km.", src: 893, confidence: stated}
+  - {id: D-004, fact: "Another long trip: a few hours' walk reaches the 192nd Western Hall from the First Vestibule, passing the 45th Vestibule, the 52nd Western Hall, the 78th Vestibule and the 88th Western Hall.", src: 835-847, confidence: stated}
+  - hypothesis:
+      id: D-H1
+      text: >
+        D-001..D-003 reconcile if halls are 200 x 120 m rectangles. Walking across the short axis gives roughly
+        105-120 m per hall (192 halls is about 20-23 km), while walking along the long axis gives about 225 m per
+        hall (7-8 halls is about 1.7 km). Hall pitch therefore depends on direction and on which way each hall is
+        oriented, which matches the project decision that size varies by location.
+      confidence: inferred
+  - {id: D-005, fact: "Explored extents: 960 halls west, 890 north, 768 south. East is derelict beyond the First Vestibule.", src: 91, confidence: stated}
+  - {id: D-006, fact: "Some halls and passages are narrow; a statue-lined passage or corridor can link halls (the Fourth Western Hall is at the end of a corridor).", src: 1201, confidence: stated}
+
+naming:
+  - {id: N-001, fact: "Halls are named by an ordinal plus a compass sector: e.g. Third North-Western Hall, Fifth Northern Hall, Eighteenth South-Eastern Hall, Fourth Western Hall.", src: 157-183, confidence: stated}
+  - {id: N-002, fact: "Vestibules are numbered in their own sequence; the First Vestibule is the origin of the whole numbering.", src: 1167, confidence: stated}
+  - {id: N-003, fact: "Eight sector names are in use: Northern, North-Eastern, Eastern, South-Eastern, Southern, South-Western, Western, North-Western.", src: 65-199, confidence: stated}
+  - {id: N-004, fact: "Upper and Lower halls are referred to relative to a named middle hall (e.g. the hall above the Nineteenth Eastern Hall; the lower hall beneath the Thirty-Seventh South-Western Hall).", src: 163-407, confidence: stated}
+
+regions:
+  - id: R-DERELICT-EAST
+    fact: "Past the First Vestibule on the eastern side the building is ruinous: floors, ceilings and some walls have given way; masonry and statues from above have fallen into middle and lower halls; shafts of grey light cut the dimness."
+    src: [91, 467]
+    confidence: stated
+  - id: R-DROWNED
+    fact: "About 40-50 halls east of the First Vestibule are cut off from the tides. The sea water drained and rain filled them: dark still freshwater lakes, ringed by shallow lily-covered water, deep and treacherous in the middle with broken masonry and drowned statues. Mostly unreachable; a few can be reached from above by climbing down through rents in the floor (drops of 30 m or more)."
+    src: [91, 467-473, 513, 489]
+    confidence: stated
+  - id: R-CORAL
+    fact: "The Coral Halls: a long chain of halls running to the south-west away from the Thirty-Eighth Southern Hall. Once flooded for a long time, now dry. Coral has overgrown many statues."
+    src: [3457, 3495]
+    confidence: stated
+  - id: R-NO-WINDOW-HALL
+    fact: "The 192nd Western Hall has a single door and no windows; it is pitch dark. Its statues form a crowd gazing toward the door, moonlit when the full moon stands in the doorway."
+    src: [847, 867-873, 681]
+    confidence: stated
+  - id: R-CLOUD-ZONE
+    fact: "Since two ceilings in the North-Eastern halls (20th and 21st) collapsed, cloud falls through into the middle halls of that region, making it chilly, grey and quiet."
+    src: [455]
+    confidence: stated
+  - id: R-RUBBLE-78
+    fact: "The 78th Vestibule region has a floor of jagged broken stone, with a thin sheet of water running beneath; broken statues are heaped in corners. The tides bring debris from the lower halls up here."
+    src: [843, 713]
+    confidence: stated
+
+landmarks:
+  - id: L-FIRST-VESTIBULE
+    name: First Vestibule
+    fact: "Larger and gloomier than most vestibules, several degrees colder, with a Great Staircase down to the Lower Halls (a pale, cave-like hollow lies under it). Dominated by eight massive Minotaur statues, each different, each about 9 m high."
+    src: [1169, ~1742]
+    confidence: stated
+    notes: "The 'draught from elsewhere' phenomenon in the south-east corner is EXCLUDED (see excluded.yaml)."
+  - id: L-FIRST-WESTERN
+    name: First Western Hall
+    fact: "East door flanked by two huge horned half-figures straining out of the wall (the Horned Giants). Has north and south doors, a cornice about 7 m up, niches with pediments."
+    src: [243, 2931, 3053-3071]
+    confidence: stated
+  - id: L-NINTH-VESTIBULE
+    name: Ninth Vestibule
+    fact: "Three great staircases (east, middle, west). Walls lined with hundreds of marble statues in tiers rising to great heights. Located two halls west and north of the First Vestibule. Three tides meet here once every eight years."
+    src: [69-71, 2979]
+    confidence: stated
+  - id: L-THIRD-NORTHERN
+    name: Third Northern Hall
+    fact: "A hall of about a thousand statues; full of roosting birds at night."
+    src: [869, 1927]
+    confidence: stated
+  - id: L-24TH-VESTIBULE
+    name: Twenty-Fourth Vestibule
+    fact: "A shallow sloping bank of white translucent marble pebbles, laid down by tides, partly blocks the head of the staircase to the lower halls."
+    src: [~2369]
+    confidence: stated
+  - id: L-43RD-VESTIBULE
+    name: Forty-Third Vestibule
+    fact: "Has a staircase to a lower hall (beneath the 37th South-Western Hall). Where the pair of albatrosses nest, on a tall seaweed nest."
+    src: [405-447]
+    confidence: stated
+  - id: L-45TH-VESTIBULE
+    name: Forty-Fifth Vestibule
+    fact: "A staircase is entirely covered by a bed of blue-black mussels, nearly engulfing a statue."
+    src: [839]
+    confidence: stated
+  - id: L-52ND-WESTERN
+    name: Fifty-Second Western Hall
+    fact: "A wall blazing with golden light so strongly the statues seem to dissolve; beyond it a small cool shadowy antechamber with few windows."
+    src: [841]
+    confidence: stated
+  - id: L-88TH-WESTERN
+    name: Eighty-Eighth Western Hall
+    fact: "Herring-gull colony: nests on shoulders, plinths and in crowns of statues; fierce in breeding season; nests built of dry seaweed and fish bones; abandoned by late summer/autumn."
+    src: [845, 903-907]
+    confidence: stated
+  - id: L-192ND-WESTERN
+    name: One-Hundred-and-Ninety-Second Western Hall
+    fact: "See R-NO-WINDOW-HALL. 20 m inside the door, facing it, one can see the moon in the doorway at full moon; constellations frame in the window opposite the door through the night."
+    src: [847-881]
+    confidence: stated
+  - id: L-SIXTH-NW
+    name: Sixth North-Western Hall
+    fact: "Home to a flock of rooks."
+    src: [~1863, 1995]
+    confidence: stated
+  - id: L-SIXTH-WESTERN
+    name: Sixth Western Hall
+    fact: "Where birds gather in cloudy, cold weather, perched on every statue, plinth and column."
+    src: [461]
+    confidence: stated
+  - id: L-17TH-VESTIBULE
+    name: Seventeenth Vestibule
+    fact: "Murmuration site: on autumn evenings birds fill it in a whirling smoke-like dance."
+    src: [523]
+    confidence: stated
+  - id: L-ALCOVE-14SW
+    name: Fourteenth South-Western Hall (Northernmost Alcove)
+    fact: "Location of the largest group of skeletal Dead on an empty plinth. OPTIONAL content (showDead)."
+    scope: optional
+    src: [167]
+    confidence: stated
+
+relative_positions:
+  # facts about which hall is next to which; used as layout constraints and route tests
+  - {id: P-001, fact: "Ninth Vestibule is two halls west and north of the First Vestibule.", src: 2979}
+  - {id: P-002, fact: "Twenty-Second Vestibule is five halls south and west of the First Vestibule.", src: 2987}
+  - {id: P-003, fact: "Second Southern Hall is two halls east of the Second South-Western Hall.", src: 379}
+  - {id: P-004, fact: "Third Western Hall is seven halls from the Eighth Northern Hall (a swept-away traveller was carried that far).", src: 371}
+  - {id: P-005, fact: "The Tenth and Twelfth Vestibules are close enough to the Eighth Northern Hall that their tides flooded it within moments of each other.", src: 371}
+  - {id: P-006, fact: "The Sixth Vestibule's staircase feeds the Second Southern Hall within minutes of a tide arriving there.", src: 379}
+  - {id: P-007, fact: "Coral Halls extend south and west from the Thirty-Eighth Southern Hall.", src: 3457}
+  - {id: P-008, fact: "Eighteenth Vestibule has lower halls where octopuses swim.", src: ~1488}
+  - {id: P-009, fact: "The hall directly above the Eighteenth North-Eastern Hall is an upper hall that holds the Concealed Person (optional).", src: 163}
+
+routes:
+  - id: ROUTE-DOGFOX
+    fact: >
+      Start at the First Vestibule and leave by its west door. In the hall beyond, use the third door along on your right
+      (it opens into the First North-Western Hall). Keep the southern wall on your left and use the third door
+      you come to. That leads into a corridor ending in the Fourth Western Hall. The statue of the aged dog-fox
+      instructing a pair of squirrels and a pair of satyrs stands in that hall's north-western corner.
+    src: 1199-1203
+    confidence: stated
+    use: "M1 route test; also a good tutorial route."

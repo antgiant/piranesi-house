@@ -1,0 +1,13 @@
+# Deliberately NOT in the project. Listed so nobody re-adds them by accident.
+version: 0
+excluded:
+  - {id: X-001, what: "The two living people in the story and their relationship", why: "Plot / characters. Visitors are anonymous."}
+  - {id: X-002, what: "The ritual, the 'Great and Secret Knowledge', the invoked king", why: "Plot"}
+  - {id: X-003, what: "The shoes, gifts, notebooks and index system as plot devices", why: "Plot. (A simple in-game notebook for the player is a separate feature, not canon.)"}
+  - {id: X-004, what: "The glimpse of the outside world through the shadows in the First Vestibule south-east corner (voices, petrol, rain-and-metal draught)", why: "Breaks the 'no outside' premise; story device"}
+  - {id: X-005, what: "The coordinated Flood as a story event, the weapon and the boat", why: "Plot. The tide physics it shows is kept as T-015."}
+  - {id: X-006, what: "Messages left in chalk or pebbles between characters, torn paper in gull nests", why: "Plot"}
+  - {id: X-007, what: "All of Part 5, most of Part 3 and Part 4, Part 7 (real-world scenes)", why: "Outside the House or about the plot"}
+  - {id: X-008, what: "Gifts the world supposedly gives (sleeping bags, plastic bowls, tinned food, camera)", why: "Items from the other world; modern objects violate S-R09"}
+  - {id: X-009, what: "Crisp packets, biro and other litter from visitors", why: "Modern objects; plot flavour"}
+  - {id: X-010, what: "The inhabitant's personal named constellations and year names", why: "Personal flavour. Players may invent their own; the engine ships neutral names."}

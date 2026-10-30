@@ -1,0 +1,43 @@
+# Sound, smell, touch descriptors for the audio engine and the narrator. Own-words paraphrase.
+# Each entry says what produces it and what governs when it plays. `driver` names the SceneState input.
+version: 0
+
+sound:
+  - {id: SND-SEA-BED, what: "Continuous soft lapping of the sea in thousands of chambers beneath; a heartbeat-like lullaby audible essentially everywhere in the middle level", driver: "lower-hall tide level, distance to nearest staircase", src: 871, confidence: stated}
+  - {id: SND-TIDE-ARRIVAL, what: "A booming thud as the incoming tide strikes a wall, then withdraws and strikes the next chamber; boom repeats through successive doors and the hall thrums like a plucked string; timbre differs by tide (thunder with a clap for the west tide; glittering hiss for the north; thin gentle for the east)", driver: "tide event schedule", src: [77, 361, 3017], confidence: stated}
+  - {id: SND-UNDERWATER, what: "When fully submerged by a surge a strange hush falls, as if the sea drowns its own sounds", driver: "player submerged", src: 79, confidence: stated}
+  - {id: SND-WALL-VIBRATION, what: "Walls vibrate with a felt low rumble before and during a big tide", driver: "tide event schedule", src: 73, confidence: stated}
+  - {id: SND-ECHOES, what: "Voices and sounds reverberate in the halls so it is hard to tell where a source is; echoes confuse direction", driver: "hall size, portal geometry", src: 3035, confidence: stated}
+  - {id: SND-FALLS, what: "Constant trickle and splash of fresh water on stone from falls, streams on stairs, rain through cracks", driver: "weather, hall character", src: [107, 483], confidence: stated}
+  - {id: SND-RAIN, what: "Steady rain in vestibules; shushing like tides on marble", driver: "weather", src: [~1857, 3738], confidence: stated}
+  - {id: SND-WIND, what: "Wind howls in vestibules and whistles or sings through hollows and crevices in statues; stronger near broken ceilings", driver: "weather, derelict flag", src: [397, 399], confidence: stated}
+  - {id: SND-DROWNED-SILENCE, what: "The Drowned Halls are unusually silent because the tides cannot reach them", driver: "region", src: 467, confidence: stated}
+  - {id: SND-BIRDS-SPARROWS, what: "Chirping, rustling and fluttering in halls; at night, soft shifting on perches", driver: "region, time, weather", src: [519, 869], confidence: stated}
+  - {id: SND-GULLS, what: "Furious squawking and wing beats in gull-colony halls", driver: "hall id (88th Western) and season", src: 845, confidence: stated}
+  - {id: SND-ALBATROSS, what: "A clacking, whirring throat sound, shrieks of joy, beak-tapping; feet slapping on the pavement", driver: "43rd Vestibule", src: [417, 431, 433, 435], confidence: stated}
+  - {id: SND-ROOKS, what: "Cawing and flapping, rattle of wings", driver: "Sixth North-Western Hall", src: [749, ~1863], confidence: stated}
+  - {id: SND-FOOTSTEPS-MARBLE, what: "Barefoot or shod steps on large stone pavement; slap in shallow water", driver: "surface", src: 433, confidence: inferred}
+  - {id: SND-THUNDER, what: "Thunder and lightning in upper halls", driver: "weather", src: 107, confidence: inferred}
+  - {id: SND-DARK-HALL, what: "A faint draught like cold breath from the windowless hall; very quiet", driver: "192nd Western Hall", src: 847, confidence: stated}
+  - {id: SND-ICICLES-SNOW, what: "Muffled snow, creaking cold", driver: "winter", src: 391, confidence: inferred}
+  - {id: SND-STATUES-SING, what: "Wind makes statues whistle, hum and sing", driver: "wind", src: 399, confidence: stated}
+
+smell:
+  - {id: SMELL-TIDE-AIR, what: "Salt-laden air that corrodes plastic; the sharp salty wild tang of far-off tides and winds", driver: "tide proximity", src: [357, 423], confidence: stated}
+  - {id: SMELL-FLOODED-HALL, what: "Flooded halls smell of the tides; dry halls do not", driver: "recent flooding", src: 483, confidence: stated}
+  - {id: SMELL-SEAWEED, what: "Wet seaweed smell strong where it is draped or drying", driver: "flooded recently", src: 403, confidence: inferred}
+  - {id: SMELL-MARBLE-COOL, what: "Cool mineral smell in shadowy antechambers", driver: "light level", src: 841, confidence: inferred}
+
+touch_and_temperature:
+  - {id: TCH-FIRST-VEST-COLD, what: "The First Vestibule is several degrees colder than neighbouring halls", src: 1171, confidence: stated}
+  - {id: TCH-CLOUD, what: "Cloud-filled halls are cold, damp and grey", src: [457, 493], confidence: stated}
+  - {id: TCH-WINTER, what: "Winter is long and hard: numb fingers, ice, snow", src: 393, confidence: stated}
+  - {id: TCH-WET-STATUES, what: "Statues in cloud or after rain are wet and slippery (dangerous for climbing)", src: 511, confidence: stated}
+  - {id: TCH-PEBBLES, what: "White translucent tidal pebbles, smooth and delightful to the touch", src: ~2369, confidence: stated}
+  - {id: TCH-STEPS, what: "Steps are very high; climbing is tiring", src: 491, confidence: stated}
+
+visual_textures:
+  - {id: VIS-MARBLE, what: "Everything is marble and stone; pavements of large stones; white, pewter, grey tones; the statues are pale and read as white shapes in mist", src: [457, 783], confidence: stated}
+  - {id: VIS-WATER-COLOURS, what: "Tide waters differ in colour: colourless, pewter, ice-white, blue-green; foam white as fish bones or milky", src: [75-79, 745], confidence: stated}
+  - {id: VIS-SEA-STATUES, what: "Seaweed rags and mussel crusts on statues in flooded halls; coral in the Coral Halls", src: [483, 839, 3495], confidence: stated}
+  - {id: VIS-DEEP-WATER, what: "Drowned Halls: dark still water, white lilies, half-submerged windows, gloom", src: [467, 471], confidence: stated}

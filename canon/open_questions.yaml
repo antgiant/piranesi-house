@@ -1,0 +1,14 @@
+version: 0
+questions:
+  - {id: Q-001, q: "How are hall ordinals counted in diagonal sectors (e.g. Second North-Eastern Hall: is that 2 steps diagonally, or the 2nd hall in a ring)?", evidence: "Dog-fox directions (ROUTE-DOGFOX) give one worked example; P-001..P-003 give others.", proposal: "Solve in M1 by finding the simplest scheme that satisfies every stated relative position."}
+  - {id: Q-002, q: "Do ordinals count halls only, or do vestibules sit in between at intervals?", evidence: "Vestibules are numbered separately; Ninth Vestibule is 2 halls W and N of the First; 22nd is 5 halls S and W.", proposal: "Vestibules form a coarser lattice interleaved with halls; derive spacing from P-001 and P-002."}
+  - {id: Q-003, q: "Hall dimensions: use the 200 x 120 m reconciliation D-H1 (short axis ~105-120 m, long axis ~225 m)?", proposal: "Yes. It satisfies every stated measurement and matches the 'size varies by location' decision."}
+  - {id: Q-004, q: "Length of one in-world day and year at timeScale 1.", proposal: "24 h day, 365-day year, 12 months. Year names (X-010) unneeded."}
+  - {id: Q-005, q: "Which tides exist in total and what are their periods?", evidence: "Only east/west/north tide characters are given, plus a south tide implied (blue-green), and an 8-year triple join.", proposal: "Define 8 tide sources (one per compass sector) with periods of coprime lengths chosen so that east+west+north align every 8 years; document it as a design choice (confidence: guess)."}
+  - {id: Q-006, q: "How many lower/upper levels exist? Only three are stated.", proposal: "Exactly three; stairs connect them only at vestibules."}
+  - {id: Q-007, q: "Should the 'bird messages' be a playable mechanic or just flavour?", proposal: "Flavour first (flocks perch on thematically related statues); optional puzzle later."}
+  - {id: Q-008, q: "Do people exist in this version? The book has two inhabitants.", proposal: "No NPCs. Players are the only people. Footprints and traces only."}
+  - {id: Q-009, q: "Are 'repeated statue' rules strict?", evidence: "The book says unique, or repeats only at vast distances.", proposal: "Strict uniqueness within 5 km; allow repeats beyond; test RL-005."}
+  - {id: Q-010, q: "Finish a line-by-line read of Parts 3, 4 and 6 for missed statues and places.", status: open, owner: assistant}
+  - {id: Q-011, q: "Explored extents reach 960 halls west with no edge in sight: is the world bounded?", proposal: "World is unbounded; the generator never says 'edge'."}
+  - {id: Q-012, q: "Should the Dead be included in the first public release even when the toggle exists?", proposal: "Ship the toggle but default off; it can be flipped in config or URL."}

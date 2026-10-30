@@ -11,6 +11,8 @@ import { exits, parseCellName, vestibuleCell, type Level } from '../src/world/la
 import { createWorld } from '../src/world/world';
 
 const NOW = Date.UTC(2026, 5, 10, 9, 0);
+/** Most of these tests are about where doors lead, not how long it takes to walk there. */
+const FAST = { walkPace: Infinity };
 const all = (lines: Line[]): string => lines.map((l) => l.text).join('\n');
 const at = (g: Game, name: string, level: Level = 1) => {
   const c = parseCellName(g.world, name)!;
@@ -40,7 +42,7 @@ describe('arrival', () => {
 
 describe('the dog-fox route, played with commands (ROUTE-DOGFOX)', () => {
   it('leads from the First Vestibule to the Fourth Western Hall and its fox', () => {
-    const g = newGame({}, NOW);
+    const g = newGame(FAST, NOW);
     look(g, NOW);
     expect(all(step(g, 'go west', NOW))).toContain('First Western Hall');
     expect(all(step(g, 'look', NOW))).toMatch(/horned figure/i);
@@ -82,7 +84,7 @@ describe('rules of movement', () => {
     expect(g.pos).toMatchObject({ x: ninth.x, y: ninth.y + 1 });
   });
   it('climbs and descends the great stair in vestibules only', () => {
-    const g = newGame({}, NOW);
+    const g = newGame(FAST, NOW);
     expect(all(step(g, 'up', NOW))).toContain('upper halls');
     expect(g.pos.level).toBe(2);
     expect(all(step(g, 'up', NOW))).toMatch(/ends in the upper halls/);
@@ -92,13 +94,13 @@ describe('rules of movement', () => {
     expect(all(step(g, 'up', NOW))).toMatch(/no staircase/i);
   });
   it('stops at the water\'s edge on the stair to the sea', () => {
-    const g = newGame({}, NOW);
+    const g = newGame(FAST, NOW);
     const out = all(step(g, 'down', NOW));
     expect(out).toMatch(/water/i);
     expect(g.pos.level === 1 || g.pos.level === 0).toBe(true);
   });
   it('walks along a wall and then sees that wall\'s statues', () => {
-    const g = newGame({}, NOW);
+    const g = newGame(FAST, NOW);
     expect(all(step(g, 'walk east', NOW))).toContain('You walk to the east wall');
     expect(g.pos.wall).toBe('E');
     expect(g.seenListed.every((s) => s.statue.wall === 'E' || s.statue.canonId)).toBe(true);

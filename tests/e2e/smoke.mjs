@@ -7,7 +7,8 @@ import { mkdirSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const PORT = 4173;
-const URL = `http://localhost:${PORT}/#debug&at=2026-06-10T09:00:00Z`;
+const URL = `http://localhost:${PORT}/#debug&pace=instant&at=2026-06-10T09:00:00Z`;
+const URL_WALK = (pace) => `http://localhost:${PORT}/#debug&pace=${pace}&at=2026-06-10T09:00:00Z`;
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
 const stop = () => { try { server.kill(); } catch { /* ignore */ } };
@@ -93,6 +94,32 @@ try {
   await page.screenshot({ path: 'tests/e2e/out/screenshot.png' });
   await page.setViewportSize({ width: 390, height: 780 });
   await page.screenshot({ path: 'tests/e2e/out/screenshot-mobile.png' });
+
+  // --- walking takes time ---
+  for (const pace of ['real', 'fast']) {
+    const w = await browser.newPage({ viewport: { width: 900, height: 700 } });
+    w.on('pageerror', (e) => errors.push(String(e)));
+    await w.goto(URL_WALK(pace));
+    await w.click('#enter');
+    await w.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await w.fill('#input', 'go west');
+    await w.press('#input', 'Enter');
+    await w.waitForFunction(() => document.getElementById('log').textContent.includes('You set off for the west door'));
+    check((await w.locator('#place').textContent()) === 'First Vestibule', `[${pace}] you are still where you were while walking`);
+    await w.waitForTimeout(1500);
+    check((await w.locator('#clock').textContent()).includes('walking'), `[${pace}] the header counts the walk down`);
+    if (pace === 'real') {
+      check((await w.locator('#place').textContent()) === 'First Vestibule', '[real] a crossing is not instant (still walking after 1.5 s)');
+      await w.fill('#input', 'stop');
+      await w.press('#input', 'Enter');
+      await w.waitForFunction(() => document.getElementById('log').textContent.includes('You stop where you are'));
+      check(!(await w.locator('#clock').textContent()).includes('walking'), '[real] stop ends the walk');
+    } else {
+      await w.waitForFunction(() => document.getElementById('place').textContent === 'First Western Hall', null, { timeout: 40000 });
+      check(true, '[fast] you arrive when the walk is over');
+    }
+    await w.close();
+  }
 
   check(errors.length === 0, `no console or page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await browser.close();

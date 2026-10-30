@@ -3,7 +3,8 @@
 
 import { audioFor } from '../audio/director';
 import { AudioEngine } from '../audio/engine';
-import { look, newGame, sceneNow, step, tick, type Game, type GameOptions, type Line } from '../game/game';
+import { look, newGame, sceneNow, step, tick, walkStatus, type Game, type GameOptions, type Line } from '../game/game';
+import { describeDuration } from '../game/walk';
 import { formatClock } from '../sim/time';
 
 interface Settings {
@@ -13,8 +14,10 @@ interface Settings {
   showDead: boolean;
   diary: boolean;
   seed: string;
+  pace: 'real' | 'brisk' | 'fast' | 'instant';
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, seed: 'the-house' };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, seed: 'the-house', pace: 'real' };
+const PACE = { real: 1, brisk: 4, fast: 20, instant: Infinity } as const;
 const KEY = 'the-house.settings.v1';
 
 function loadSettings(): Settings {
@@ -49,6 +52,7 @@ function gameOptions(): Partial<GameOptions> {
     timeScale: Number(q.get('scale') ?? settings.timeScale) || 1,
     showDead: settings.showDead,
     style: settings.diary ? 'diary' : 'plain',
+    walkPace: PACE[(q.get('pace') as keyof typeof PACE) in PACE ? (q.get('pace') as keyof typeof PACE) : settings.pace],
   };
   const at = q.get('at');
   if (at && !Number.isNaN(Date.parse(at))) opts.startAtWorldMs = Date.parse(at) - Date.UTC(2026, 0, 1);
@@ -96,7 +100,8 @@ function refresh(): void {
   const a = audioFor(game.world, s);
   engine.setScene(a);
   $('place').textContent = s.hall.name;
-  $('clock').textContent = formatClock(s.clock);
+  const ws = walkStatus(game, now);
+  $('clock').textContent = ws ? `${formatClock(s.clock)} · walking: ${describeDuration(ws.remainingWorldS)} to go` : formatClock(s.clock);
 }
 
 function submit(raw: string): void {
@@ -109,8 +114,9 @@ function submit(raw: string): void {
   print(out);
   logEl.scrollTop = echoEl.offsetTop - logEl.offsetTop - 8;
   refresh();
+  // An instant move (pace "instant", or a very short walk) gets a few footsteps; a real walk gets them continuously below.
   const moved = before !== `${game.pos.x},${game.pos.y},${game.pos.level}`;
-  if (moved && engine.started) {
+  if (moved && !game.walk && engine.started) {
     const surface = audioFor(game.world, sceneNow(game, Date.now())).surface;
     for (let i = 0; i < 4; i++) setTimeout(() => engine.footstep(surface), i * 380);
   }
@@ -166,6 +172,7 @@ function fillSettings(): void {
   $<HTMLInputElement>('s-dead').checked = settings.showDead;
   $<HTMLInputElement>('s-diary').checked = settings.diary;
   $<HTMLSelectElement>('s-scale').value = String(settings.timeScale);
+  $<HTMLSelectElement>('s-pace').value = settings.pace;
   $<HTMLInputElement>('s-seed').value = settings.seed;
 }
 $('open-settings').addEventListener('click', () => { fillSettings(); dlg.showModal(); });
@@ -180,12 +187,14 @@ $('s-save').addEventListener('click', (e) => {
     diary: $<HTMLInputElement>('s-diary').checked,
     timeScale: Number($<HTMLSelectElement>('s-scale').value) || 1,
     seed: $<HTMLInputElement>('s-seed').value.trim() || DEFAULTS.seed,
+    pace: $<HTMLSelectElement>('s-pace').value as Settings['pace'],
   };
   const restart = next.showDead !== settings.showDead || next.timeScale !== settings.timeScale || next.seed !== settings.seed;
   const restyle = next.diary !== settings.diary;
   settings = next;
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
+  if (game) game.opts.walkPace = PACE[settings.pace];
   dlg.close();
   if (restart || restyle) { startGame(); input.focus(); }
 });
@@ -193,7 +202,14 @@ $('s-save').addEventListener('click', (e) => {
 paintMute();
 setInterval(() => {
   if (!game) return;
+  const wasWalking = game.walk !== null;
   const lines = tick(game, Date.now());
-  if (lines.length) print(lines, 'end');
+  if (lines.length) print(lines, wasWalking && game.walk === null ? 'start' : 'end');
   refresh();
-}, 3000);
+}, 1000);
+
+// While walking, a footstep every half second or so (about 2 steps a second at a stride of 0.75 m).
+setInterval(() => {
+  if (!game || !game.walk || !engine.started) return;
+  engine.footstep(audioFor(game.world, sceneNow(game, Date.now())).surface);
+}, 520);

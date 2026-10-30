@@ -121,9 +121,13 @@ function buildHall(world: World, x: number, y: number, level: Level, id: string)
   const scale = 80 + (dBase % 46); // 80..125 percent: halls vary by where you are
   let orientation: 'EW' | 'NS' = (district(world, x, y, 5, 0x52) % 100) < 50 ? 'EW' : 'NS';
   if (rng.chance(15, 100)) orientation = orientation === 'EW' ? 'NS' : 'EW';
+  // The great east-west road is built of tall narrow halls: it crosses their short axis (about 105 m), which is what
+  // makes the book's 20 km to the 192nd Western Hall come out right (canon D-002, hypothesis D-H1).
+  const road = Math.abs(y) <= 2 && Math.abs(x) >= 1;
+  if (road) orientation = 'NS'; // forced AFTER the random flip, so every later random draw is unchanged
   const vest = kind === 'vestibule' ? 120 : 100;
   const longM = Math.round((200 * scale * vest) / 10000) + rng.range(-12, 12);
-  const shortM = Math.round((120 * scale * vest) / 10000) + rng.range(-8, 8);
+  const shortM = Math.round(((road ? 105 : 120) * scale * vest) / 10000) + rng.range(-8, 8);
   const xExtent = orientation === 'EW' ? longM : shortM;
   const yExtent = orientation === 'EW' ? shortM : longM;
   const heightM = isDark ? 24 : kind === 'vestibule' ? rng.range(50, 90) : rng.range(24, 34);

@@ -55,7 +55,7 @@ it says they are.
 ## Remaining deviations (the generator does NOT reproduce these)
 | Claim in the book | What we do | Why |
 |---|---|---|
-| 20 km to the 192nd Western Hall in 3.76 h | We do not yet model walking time; halls on the west axis are 105-250 m wide | Distance model arrives with the simulation (milestone 2) |
+| 20 km to the 192nd Western Hall in 3.76 h | Now modelled: the east-west road is made of narrow halls, about 20.4 km, walked at the book's pace (see `design/walking.md`) | resolved |
 | Absolute positions in metres | Topological only in M1 | Not needed until the 2D/3D views |
 | Statues whose hall the book does not give (Cymbal Boy, Elephant with a Castle, Two Kings, ...) | Deterministic hash places each within 3-14 steps of the origin on a ray | Marked `guess: true` in `src/data/canonPlacement.ts` |
 | Other numbered rooms (the 2nd, 8th, 16th, 18th, 32nd Vestibules, and so on) | Placed by distance from the origin | The book gives no relative position for them |

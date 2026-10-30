@@ -10,6 +10,7 @@ import { mapView, type MapCell, type MapView } from '../game/mapdata';
 import type { Level } from '../world/layout';
 import { MapPanel } from './map';
 import { Narrator } from './speech';
+import { ScreenWake } from './wakelock';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
 
@@ -63,6 +64,7 @@ const logEl = $<HTMLElement>('log');
 const input = $<HTMLInputElement>('input');
 const engine = new AudioEngine();
 const narrator = new Narrator();
+const screenWake = new ScreenWake();
 let settings = loadSettings();
 let game: Game | null = null;
 const history: string[] = [];
@@ -344,6 +346,8 @@ function setWandering(on: boolean): void {
 }
 $('wander').addEventListener('click', () => setWandering(!wandering));
 input.addEventListener('input', () => { if (wandering) setWandering(false); });
+// Keep the screen awake while wandering or while something is being read aloud.
+setInterval(() => screenWake.want(wandering || narrator.busy), 1000);
 setInterval(() => {
   if (!wandering || !game || game.walk) return;
   // With narration on, never move until the reading has finished, then leave a breath. Otherwise a reading-time pause.

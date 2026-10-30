@@ -31,3 +31,9 @@ warm male-sounding names up; robotic or novelty voices down. The default speed i
 speech goes sentence by sentence so each gets a natural pause. You can still pick any voice by hand in Settings.
 Quality varies by device: Chrome and Edge offer online "natural" voices, Safari and macOS offer good "Daniel" and
 "Enhanced" voices, and a bare Linux machine may only have a robotic one.
+
+## Keeping the screen on (`src/web/wakelock.ts`)
+While Wander is on, or while anything is being read aloud, the page asks the browser to keep the screen awake (the Screen
+Wake Lock API) so a phone does not lock and silence the House. It is let go a second after both stop, and taken again
+if you switch away and come back. Browsers without the API, or that refuse (low battery), are simply left alone.
+Not requested merely for playing the soundscape or for a plain walk.

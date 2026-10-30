@@ -227,6 +227,12 @@ try {
   {
     const n = await browser.newPage({ viewport: { width: 900, height: 900 } });
     await n.addInitScript(() => {
+      window.__wake = { held: 0, requests: 0 };
+      Object.defineProperty(navigator, 'wakeLock', { value: { request: async () => {
+        window.__wake.requests++; window.__wake.held++;
+        const l = { released: false, _f: [], addEventListener(_t, f) { this._f.push(f); }, async release() { if (!this.released) { this.released = true; window.__wake.held--; this._f.forEach((f) => f()); } } };
+        return l;
+      } } });
       window.__spoken = [];
       window.SpeechSynthesisUtterance = function (t) { this.text = t; };
       Object.defineProperty(window, 'speechSynthesis', { value: {
@@ -252,8 +258,11 @@ try {
     check((await n.locator('#wander').getAttribute('aria-pressed')) === 'true', 'wander starts');
     await n.waitForFunction((p) => document.getElementById('place').textContent !== p, startPlace, { timeout: 15000 });
     check(true, 'wander moved to another hall by itself');
+    check((await n.evaluate(() => window.__wake.held)) === 1, 'while wandering, the screen is kept awake');
     await n.fill('#input', 'x');
     check((await n.locator('#wander').getAttribute('aria-pressed')) === 'false', 'typing anything stops wandering');
+    await n.waitForFunction(() => window.__wake.held === 0, null, { timeout: 8000 });
+    check(true, 'when wandering stops and nothing is being read, the screen lock is let go');
     await n.close();
   }
 

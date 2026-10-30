@@ -1,16 +1,19 @@
-# Deliberately NOT in the project. Listed so nobody re-adds them by accident.
-version: 0
+# Decisions on story material. Project setting (decided): the experience is set BEFORE the events of the book.
+# Anything that depends on the book's characters or their actions is out. Rare "outside" traces and visitor
+# marks are in, as opt-in packs defined in design/packs.yaml (not canon: they are our design).
+version: 1
+setting: "Set before the events of the book. No character from the story exists yet or acts."
 excluded:
-  - {id: X-001, what: "The two living people in the story and their relationship", why: "Plot / characters. Visitors are anonymous."}
-  - {id: X-002, what: "The ritual, the 'Great and Secret Knowledge', the invoked king", why: "Plot"}
-  - {id: X-003, what: "The shoes, gifts, notebooks and index system as plot devices", why: "Plot. (A simple in-game notebook for the player is a separate feature, not canon.)"}
-  - {id: X-004, what: "The glimpse of the outside world through the shadows in the First Vestibule south-east corner (voices, petrol, rain-and-metal draught)", why: "Breaks the 'no outside' premise; story device"}
-  - {id: X-005, what: "The coordinated Flood as a story event, the weapon and the boat", why: "Plot. The tide physics it shows is kept as T-015."}
-  - {id: X-006, what: "Messages left in chalk or pebbles between characters, torn paper in gull nests", why: "Plot"}
-  - {id: X-007, what: "All of Part 5, most of Part 3 and Part 4, Part 7 (real-world scenes)", why: "Outside the House or about the plot"}
-  - {id: X-008, what: "Gifts the world supposedly gives (sleeping bags, plastic bowls, tinned food, camera)", why: "Items from the other world; modern objects violate S-R09"}
-  - {id: X-009, what: "Crisp packets, biro and other litter from visitors", why: "Modern objects; plot flavour"}
-  - {id: X-011, what: "In-world explanations of why the statues exist (that they embody ideas from another world), and all talk of 'forgetting' or the House causing memory loss", why: "Plot / lore. Keep the statues' origin unexplained."}
-  - {id: X-012, what: "Perfumes, a rescuer's torch/phone, a kayak-type boat, a firearm", why: "Modern objects / plot"}
-  - {id: X-013, what: "The body of the antagonist placed in the lower halls and later set among the Dead", why: "Plot"}
-  - {id: X-010, what: "The inhabitant's personal named constellations and year names", why: "Personal flavour. Players may invent their own; the engine ships neutral names."}
+  - {id: X-001, what: "The story's people (the two living inhabitants, the older visitor, the newcomer)", decision: excluded, why: "Character piece; setting precedes the story."}
+  - {id: X-002, what: "The ritual, the 'Great and Secret Knowledge', the invoked king", decision: excluded, why: "Character piece."}
+  - {id: X-003, what: "The inhabitant's notebooks, journals and index system", decision: excluded, why: "Character piece. (A player-facing journal, if ever wanted, is a separate design feature, not canon.)"}
+  - {id: X-004, what: "The glimpse of the outside world through the shadows between the south-east minotaurs in the First Vestibule (draught, smell of rain and metal, faint foreign voices)", decision: included_as_pack, pack: outside_traces, why: "Rare, ambient, no characters."}
+  - {id: X-005, what: "The coordinated Flood", decision: split, why: "As a story event with a trap, excluded. As a natural rare conjunction of tides it is already canon (T-015, T-018, T-019); the sim may produce one."}
+  - {id: X-006, what: "Messages left in chalk or pebbles", decision: included_as_pack, pack: visitor_marks, why: "Visitors can leave preset generic marks (never free text). The story's own messages and the torn-paper scraps in gull nests stay out."}
+  - {id: X-007, what: "Real-world scenes (Part 5 and most of Part 7)", decision: excluded, why: "Story; the 'outside' is only ever hinted at (outside_traces)."}
+  - {id: X-008, what: "Gifts brought in by the other inhabitant (sleeping bag, bowls, nets, shoes, camera, etc.)", decision: excluded, why: "Character piece."}
+  - {id: X-009, what: "Crisp packets, fish-finger wrappers, an old sleeping bag and similar litter in and near the First Vestibule", decision: included_as_pack, pack: outside_traces, why: "Rare drifting traces of the outside; no authorship implied."}
+  - {id: X-010, what: "The inhabitant's personal named constellations and year names", decision: excluded, why: "Character piece. The engine ships neutral sky names."}
+  - {id: X-011, what: "In-world explanations of why the statues exist, and talk of the House causing forgetting", decision: excluded, why: "Lore from characters. The statues' origin stays unexplained."}
+  - {id: X-012, what: "Perfumes, a torch/phone, a kayak-style boat, a firearm", decision: excluded, why: "Character items."}
+  - {id: X-013, what: "A body placed in the lower halls and later among the Dead", decision: excluded, why: "Story event."}

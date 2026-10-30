@@ -106,8 +106,12 @@ is a full extraction pass; the facts below are a starting point, not the full ca
 **Proposed in/out of scope**
 - In: all of the above, plus the skeletal Dead as quiet landmarks (bones on plinths and
   in niches). **Off by default**, behind the `showDead` config toggle.
-- Out: the Other, 16, rituals, notebooks as plot devices, the First Vestibule's
-  "outside world" glimpse, the Flood-as-event, and everything in Parts 3–7.
+- **Setting (decided)**: the experience is set *before* the events of the book. All
+  character pieces are out: the other inhabitant, the visitors, the ritual, the journals,
+  the gifts, the story's Flood trap, their messages and items, and the real-world scenes.
+- In as rare opt-in packs (see `design/packs.yaml`): `outside_traces` (a draught, smell,
+  muffled sounds or a stray wrapper hinting at an outside; very rare, never explained) and
+  `visitor_marks` (visitors leave preset chalk marks and pebble patterns).
 
 ## 3. Architecture
 
@@ -296,6 +300,10 @@ standing in the same hall hear the same ambience.
    (suggest MIT or similar for code; canon data and generated output under the same terms,
    with the book itself excluded).
 
+6. **Setting and story material**: set before the book's events; no characters. Rare
+   outside hints and visitor-left marks are allowed. Marks use fixed presets only (no free
+   text) for legal and safety reasons, and live only while visitors are connected.
+
 ### Config (draft)
-`seed`, `worldVersion`, `timeScale`, `showDead`, `audio.master`, `view` (`text` | `map` |
+`seed`, `worldVersion`, `timeScale`, `showDead`, `packs.outsideTraces`, `packs.visitorMarks`, `audio.master`, `view` (`text` | `map` |
 `3d`), `multiplayer` (`off` | `on`), `roomName`.

@@ -1,0 +1,40 @@
+# Design (not canon): opt-in content packs and their rules. Each is a config toggle.
+version: 0
+config_defaults:
+  showDead: false
+  packs: {outside_traces: false, visitor_marks: true}
+
+packs:
+  - id: outside_traces
+    default: false
+    from_canon: [X-004, X-009]
+    intent: "Very rare hints that an outside exists. Nothing to enter, no one to meet."
+    rules:
+      - "Frequency: very low and strictly rate-limited (suggested: at most one event per player per in-world day, most days none)."
+      - "Effects are ambient: a cold draught with a smell of rain and metal, a few seconds of muffled foreign voices or traffic-like sound, a crumpled wrapper blown across a pavement."
+      - "Places: mostly in and near the First Vestibule, especially between the two south-east minotaurs; elsewhere only the rarest sound/wrapper events."
+      - "Objects: crisp packets, food wrappers, an old sleeping bag under the great stair. They vanish after a short time; none can be picked up or used."
+      - "Voices: wordless or unintelligible; no real speech, no names, no story dialogue."
+      - "Never explained."
+  - id: visitor_marks
+    default: true
+    from_canon: [X-006]
+    intent: "Visitors leave simple chalk marks and pebble patterns that other visitors can see, from a fixed preset list."
+    safety:
+      - "No free text, no custom images, no names or user ids on screen. Presets only."
+      - "Presets are authored by us; each must be generic and kind. No presets for names, places outside the House, numbers that could be personal, or anything that can be combined into sentences."
+      - "Rate limit: one mark per visitor per 2 minutes; at most 12 live marks per hall; marks never stack on top of one another."
+      - "Marks are shared in the in-memory Yjs room only. Nothing is stored or sent to a server."
+    lifetime:
+      - "Marks exist only while visitors are connected. When the last visitor leaves the room, all marks are gone."
+      - "Tides wash chalk away and scatter pebbles when water reaches the mark's hall, so marks in the Lower and Middle halls are short-lived."
+      - "OPEN QUESTION: should a visitor's marks also disappear when that visitor disconnects (author-bound), or last as long as the room does (room-bound)? Default proposal: room-bound."
+    chalk_presets:
+      arrows: [north, south, east, west, up-stairs, down-stairs]
+      symbols: [circle, small-star, wave, sun, moon, tally-stroke, spiral]
+      phrases: ["Hello", "Peace", "Good morning", "Good night", "This way", "Rest here", "Fish here", "Water ahead", "Water rising", "Be careful", "Thank you"]
+    pebble_presets:
+      patterns: [arrow, line, circle, spiral, cairn, wave, star]
+      note: "Pebble messages are pictures only, never letters."
+    ambient_rare:
+      - "Very rarely, a preset mark is found with no visible author, so the hall seems to have been visited. This is generated from the seed and time, has no meaning, and is subject to the same presets."

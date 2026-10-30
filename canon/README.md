@@ -5,6 +5,10 @@ The source text is copyrighted and is never stored in this repo (see `scripts/ch
 Entries are short factual descriptors with a line reference; there are no quotations and no prose borrowed
 from the book. If you need the original wording, open your own copy at the cited line.
 
+## Setting
+Set before the events of the book; the story's characters and their actions are out of scope (see
+`excluded.yaml`). Opt-in packs for rare outside hints and visitor marks live in `design/packs.yaml`, not here.
+
 ## Status: DRAFT v1 — full pass complete, needs your review
 
 ### Coverage

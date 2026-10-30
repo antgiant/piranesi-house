@@ -10,7 +10,7 @@ import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
 import { createWorld, type World } from '../world/world';
 import { hashInts } from '../world/rng';
-import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance, describeDuration, distanceM, terrainFactor, walkSeconds } from './walk';
+import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance, describeDuration, distanceM, gait, terrainFactor, walkSeconds } from './walk';
 import { parse, type Command } from './parser';
 import {
   describeHall, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
@@ -192,7 +192,13 @@ export function walkStatus(g: Game, realNowMs: number): { label: string; remaini
   if (!w) return null;
   const total = Math.max(1, w.endMs - w.startMs);
   const left = Math.max(0, w.endMs - realNowMs);
-  return { label: w.label, remainingWorldS: (left / 1000) * g.cfg.timeScale * g.opts.walkPace, fraction: 1 - left / total };
+  return { label: w.label, remainingWorldS: (left / 1000) * g.cfg.timeScale, fraction: 1 - left / total };
+}
+
+/** "You set off for", "You break into a jog for", "You run for". */
+function startVerb(g: Game): string {
+  const m = gait(g.opts.walkPace);
+  return m === 'walk' ? 'You set off for' : m === 'jog' ? 'You break into a jog for' : 'You run for';
 }
 
 function beatFor(g: Game, h: Hall, key: string): string {
@@ -200,7 +206,7 @@ function beatFor(g: Game, h: Hall, key: string): string {
   if (all.length === 0) return 'You walk on across the great floor.';
   const st = all[hashInts(g.world.seed, 0xbea7, h.x, h.y, h.level, key.length * 31 + key.charCodeAt(0)) % all.length] as Statue;
   const desc = describeStatue(h, st).replace(/\.$/, '');
-  return `About halfway, you pass ${desc.charAt(0).toLowerCase()}${desc.slice(1)}, on the ${sideWord(st.wall)} wall.`;
+  return `About halfway, you ${gait(g.opts.walkPace) === 'walk' ? 'pass' : 'sweep past'} ${desc.charAt(0).toLowerCase()}${desc.slice(1)}, on the ${sideWord(st.wall)} wall.`;
 }
 
 function startWalk(g: Game, w: Omit<Walk, 'startMs' | 'endMs' | 'beatMs'> & { seconds: number }, now: number): Walk | null {
@@ -237,7 +243,7 @@ export function go(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const walk = startWalk(g, { kind: 'door', meters, seconds, exit: e, beatText: beatFor(g, h, `${e.index}${e.side}`), label: dest.name }, realNowMs);
   if (!walk) return finishDoor(g, e, realNowMs);
   const where = e.corridor > 0 ? 'a long passage' : `the ${sideWord(e.side)} door`;
-  return [text(g, `You set off for ${where}, ${describeDistance(meters)} away. It will take ${describeDuration(seconds)}.`)];
+  return [text(g, `${startVerb(g)} ${where}, ${describeDistance(meters)} away. It will take ${describeDuration(seconds / g.opts.walkPace)}.`)];
 }
 
 function finishDoor(g: Game, e: NamedExit, realNowMs: number): Line[] {
@@ -276,7 +282,7 @@ export function stairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
   const label = `the ${(['lower', 'middle', 'upper'] as const)[target]} halls`;
   const walk = startWalk(g, { kind: 'stairs', meters: approach + 45, seconds, dir, beatText: '', label }, realNowMs);
   if (!walk) return finishStairs(g, dir, realNowMs);
-  return [text(g, `You set off for the great stair and the climb ${dir === 'up' ? 'up' : 'down'}, ${describeDuration(seconds)} in all.`)];
+  return [text(g, `${startVerb(g)} the great stair and the climb ${dir === 'up' ? 'up' : 'down'}, ${describeDuration(seconds / g.opts.walkPace)} in all.`)];
 }
 
 function finishStairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
@@ -297,7 +303,7 @@ export function walkTo(g: Game, wall: Side, realNowMs: number): Line[] {
   const seconds = walkSeconds(meters);
   const walk = startWalk(g, { kind: 'wall', meters, seconds, wall, beatText: '', label: `the ${sideWord(wall)} wall` }, realNowMs);
   if (!walk) return finishWall(g, wall, realNowMs);
-  return [text(g, `You set off for the ${sideWord(wall)} wall, ${describeDistance(meters)} away. It will take ${describeDuration(seconds)}.`)];
+  return [text(g, `${startVerb(g)} the ${sideWord(wall)} wall, ${describeDistance(meters)} away. It will take ${describeDuration(seconds / g.opts.walkPace)}.`)];
 }
 
 function finishWall(g: Game, wall: Side, realNowMs: number): Line[] {

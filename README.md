@@ -17,7 +17,7 @@ and a real-browser test that measures the audio. Next: neighbouring-hall sound a
 npm install
 npm run dev          # open the printed address, click "Enter the House", and listen
 ```
-Developer shortcuts in the URL hash: `#seed=abc`, `#scale=60` (time runs 60x), `#pace=instant` (skip walking times), `#at=2034-02-01T08:00:00Z` (start at a moment),
+Developer shortcuts in the URL hash: `#seed=abc`, `#scale=60` (time runs 60x), `#pace=instant` (developer override: skip walking times; players choose 5.3 to 21.1 km/h in Settings), `#at=2034-02-01T08:00:00Z` (start at a moment),
 `#debug` (exposes `window.__house`). Try the next great tide: `npm run now -- "Ninth Vestibule" --join`.
 
 ## Publish

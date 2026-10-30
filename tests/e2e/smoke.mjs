@@ -102,9 +102,17 @@ try {
     await w.goto(URL_WALK(pace));
     await w.click('#enter');
     await w.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    if (pace === 'fast') {
+      // the speed slider tops out at a two-hour marathon
+      await w.click('#open-settings');
+      const max = await w.evaluate(() => { const s = document.getElementById('s-speed'); s.value = s.max; s.dispatchEvent(new Event('input')); return s.max; });
+      check(Math.abs(Number(max) - 21.1) < 0.05, `the speed slider tops out at 21.1 km/h, a two-hour marathon (max=${max})`);
+      check((await w.locator('#s-speed-note').textContent()).includes('marathon'), 'the slider says so at the top');
+      await w.click('#s-save');
+    }
     await w.fill('#input', 'go west');
     await w.press('#input', 'Enter');
-    await w.waitForFunction(() => document.getElementById('log').textContent.includes('You set off for the west door'));
+    await w.waitForFunction(() => /(set off for|jog for|run for) the west door/.test(document.getElementById('log').textContent));
     check((await w.locator('#place').textContent()) === 'First Vestibule', `[${pace}] you are still where you were while walking`);
     await w.waitForTimeout(1500);
     check((await w.locator('#clock').textContent()).includes('walking'), `[${pace}] the header counts the walk down`);
@@ -115,8 +123,8 @@ try {
       await w.waitForFunction(() => document.getElementById('log').textContent.includes('You stop where you are'));
       check(!(await w.locator('#clock').textContent()).includes('walking'), '[real] stop ends the walk');
     } else {
-      await w.waitForFunction(() => document.getElementById('place').textContent === 'First Western Hall', null, { timeout: 40000 });
-      check(true, '[fast] you arrive when the walk is over');
+      await w.waitForFunction(() => document.getElementById('place').textContent === 'First Western Hall', null, { timeout: 45000 });
+      check((await w.locator('#log').textContent()).match(/You (break into a jog|run) for the west door/) !== null, '[fast] at marathon pace you run, and arrive when the walk is over');
     }
     await w.close();
   }

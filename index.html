@@ -51,13 +51,9 @@
             <option value="3600">1 hour per second</option>
           </select>
         </label>
-        <label class="row"><span>Walking pace</span>
-          <select id="s-pace">
-            <option value="real">Realistic (about 1.5 m/s)</option>
-            <option value="brisk">Brisk (4x)</option>
-            <option value="fast">Fast (20x)</option>
-            <option value="instant">Instant</option>
-          </select>
+        <label class="row stack"><span>Walking speed: <output id="s-speed-out">5.3 km/h</output></span>
+          <input id="s-speed" type="range" min="5.3" max="21.1" step="0.1" />
+          <span class="small" id="s-speed-note"></span>
         </label>
         <label class="row"><span>World seed</span><input id="s-seed" type="text" maxlength="40" /></label>
         <p class="small">Changing the seed, the dead or the speed of time starts you again at the First Vestibule.</p>

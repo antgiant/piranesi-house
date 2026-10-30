@@ -166,3 +166,62 @@ describe('walking in the game', () => {
     expect(all(tick(g, NOW + 2000))).toContain('First Western Hall');
   });
 });
+
+import { BOOK_KMH, MARATHON_KMH, MARATHON_MPS, MAX_PACE, gait, paceFromKmh, stepsPerSecond } from '../src/game/walk';
+
+describe('the speed control tops out at a two-hour marathon', () => {
+  it('a two-hour marathon is 42.195 km in 7200 s: 5.86 m/s, 21.1 km/h', () => {
+    expect(MARATHON_MPS).toBeCloseTo(5.86, 2);
+    expect(MARATHON_KMH).toBeCloseTo(21.1, 1);
+    expect(42_195 / MARATHON_MPS / 3600).toBeCloseTo(2, 5);
+  });
+  it('that is about four times the book\'s pace, and the book\'s pace is the floor', () => {
+    expect(BOOK_KMH).toBeCloseTo(5.32, 2);
+    expect(MAX_PACE).toBeGreaterThan(3.9);
+    expect(MAX_PACE).toBeLessThan(4.0);
+    expect(paceFromKmh(1)).toBe(1);
+    expect(paceFromKmh(BOOK_KMH)).toBeCloseTo(1, 5);
+    expect(paceFromKmh(100)).toBe(MAX_PACE);
+    expect(paceFromKmh(12)).toBeGreaterThan(1);
+    expect(paceFromKmh(12)).toBeLessThan(MAX_PACE);
+  });
+  it('how you move follows how fast: a walk, a jog, a run', () => {
+    expect(gait(1)).toBe('walk');
+    expect(gait(paceFromKmh(10))).toBe('jog');
+    expect(gait(MAX_PACE)).toBe('run');
+  });
+  it('footsteps quicken from about 2 a second to about 3 at marathon pace', () => {
+    expect(stepsPerSecond(1)).toBeCloseTo(1.95, 2);
+    expect(stepsPerSecond(MAX_PACE)).toBeGreaterThan(2.9);
+    expect(stepsPerSecond(MAX_PACE)).toBeLessThan(3.4);
+    expect(stepsPerSecond(100)).toBe(stepsPerSecond(MAX_PACE));
+  });
+  it('a marathon takes two hours at marathon pace, and the dark hall road about a fifth of its walking time', () => {
+    const w = createWorld('the-house');
+    let m = 0;
+    for (let x = -1; x >= -192; x--) m += getHall(w, x, 0, 1).xExtent;
+    expect(walkSeconds(m) / MAX_PACE / 3600).toBeGreaterThan(0.85);
+    expect(walkSeconds(m) / MAX_PACE / 3600).toBeLessThan(1.1);
+  });
+  it('speeding up shortens both the wait and the time the game says it will take', () => {
+    const slow = newGame({ walkPace: 1 }, NOW);
+    const fast = newGame({ walkPace: MAX_PACE }, NOW);
+    look(slow, NOW); look(fast, NOW);
+    const a = all(step(slow, 'go west', NOW));
+    const b = all(step(fast, 'go west', NOW));
+    expect(a).toMatch(/You set off for the west door/);
+    expect(b).toMatch(/You (break into a jog|run) for the west door/);
+    const wa = slow.walk!;
+    const wb = fast.walk!;
+    // same door, same hall, same distance: the faster runner takes about a quarter of the time
+    expect(wb.meters).toBeCloseTo(wa.meters, 5);
+    expect((wa.endMs - wa.startMs) / (wb.endMs - wb.startMs)).toBeGreaterThan(3.8);
+    expect((wa.endMs - wa.startMs) / (wb.endMs - wb.startMs)).toBeLessThan(4.1);
+    // and what the game tells you matches: about a minute at the book's pace, about 20 seconds at marathon pace
+    expect(a).toMatch(/It will take about (a minute|\d+ minutes)/);
+    expect(b).toMatch(/It will take about \d+ seconds/);
+    // the "time to go" is the real remaining world time, whatever your speed
+    const st = walkStatus(slow, NOW + 10_000)!;
+    expect(st.remainingWorldS).toBeCloseTo((wa.endMs - NOW - 10_000) / 1000, 0);
+  });
+});

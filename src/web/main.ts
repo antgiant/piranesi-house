@@ -4,7 +4,7 @@
 import { audioFor } from '../audio/director';
 import { AudioEngine } from '../audio/engine';
 import { look, newGame, sceneNow, step, tick, walkStatus, type Game, type GameOptions, type Line } from '../game/game';
-import { describeDuration } from '../game/walk';
+import { BOOK_KMH, MARATHON_KMH, describeDuration, gait, paceFromKmh, stepsPerSecond } from '../game/walk';
 import { formatClock } from '../sim/time';
 
 interface Settings {
@@ -14,10 +14,17 @@ interface Settings {
   showDead: boolean;
   diary: boolean;
   seed: string;
-  pace: 'real' | 'brisk' | 'fast' | 'instant';
+  /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
+  speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, seed: 'the-house', pace: 'real' };
-const PACE = { real: 1, brisk: 4, fast: 20, instant: Infinity } as const;
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+
+function speedNote(kmh: number): string {
+  const g = gait(paceFromKmh(kmh));
+  const label = kmh <= BOOK_KMH + 0.05 ? "the book's pace: a steady walk" : g === 'walk' ? 'a brisk walk' : g === 'jog' ? 'a jog' : kmh >= MARATHON_KMH - 0.05 ? 'a two-hour marathon pace' : 'a run';
+  const crossing = Math.round(150 / (kmh / 3.6));
+  return `${label}. A 150 m hall takes about ${crossing} seconds.`;
+}
 const KEY = 'the-house.settings.v1';
 
 function loadSettings(): Settings {
@@ -52,7 +59,8 @@ function gameOptions(): Partial<GameOptions> {
     timeScale: Number(q.get('scale') ?? settings.timeScale) || 1,
     showDead: settings.showDead,
     style: settings.diary ? 'diary' : 'plain',
-    walkPace: PACE[(q.get('pace') as keyof typeof PACE) in PACE ? (q.get('pace') as keyof typeof PACE) : settings.pace],
+    // `#pace=instant` is a developer override for tests; the settings panel only offers the book's pace up to a marathon.
+    walkPace: q.get('pace') === 'instant' ? Infinity : paceFromKmh(settings.speedKmh),
   };
   const at = q.get('at');
   if (at && !Number.isNaN(Date.parse(at))) opts.startAtWorldMs = Date.parse(at) - Date.UTC(2026, 0, 1);
@@ -172,11 +180,19 @@ function fillSettings(): void {
   $<HTMLInputElement>('s-dead').checked = settings.showDead;
   $<HTMLInputElement>('s-diary').checked = settings.diary;
   $<HTMLSelectElement>('s-scale').value = String(settings.timeScale);
-  $<HTMLSelectElement>('s-pace').value = settings.pace;
+  const sp = $<HTMLInputElement>('s-speed');
+  sp.value = String(settings.speedKmh);
+  $('s-speed-out').textContent = `${settings.speedKmh.toFixed(1)} km/h`;
+  $('s-speed-note').textContent = speedNote(settings.speedKmh);
   $<HTMLInputElement>('s-seed').value = settings.seed;
 }
 $('open-settings').addEventListener('click', () => { fillSettings(); dlg.showModal(); });
 $('s-cancel').addEventListener('click', () => dlg.close());
+$<HTMLInputElement>('s-speed').addEventListener('input', (e) => {
+  const v = Number((e.target as HTMLInputElement).value);
+  $('s-speed-out').textContent = `${v.toFixed(1)} km/h`;
+  $('s-speed-note').textContent = speedNote(v);
+});
 $<HTMLInputElement>('s-volume').addEventListener('input', (e) => engine.setVolume(Number((e.target as HTMLInputElement).value) / 100));
 $('s-save').addEventListener('click', (e) => {
   e.preventDefault();
@@ -187,14 +203,14 @@ $('s-save').addEventListener('click', (e) => {
     diary: $<HTMLInputElement>('s-diary').checked,
     timeScale: Number($<HTMLSelectElement>('s-scale').value) || 1,
     seed: $<HTMLInputElement>('s-seed').value.trim() || DEFAULTS.seed,
-    pace: $<HTMLSelectElement>('s-pace').value as Settings['pace'],
+    speedKmh: Math.max(BOOK_KMH, Math.min(MARATHON_KMH, Number($<HTMLInputElement>('s-speed').value) || DEFAULTS.speedKmh)),
   };
   const restart = next.showDead !== settings.showDead || next.timeScale !== settings.timeScale || next.seed !== settings.seed;
   const restyle = next.diary !== settings.diary;
   settings = next;
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
-  if (game) game.opts.walkPace = PACE[settings.pace];
+  if (game && hashParams().get('pace') !== 'instant') game.opts.walkPace = paceFromKmh(settings.speedKmh);
   dlg.close();
   if (restart || restyle) { startGame(); input.focus(); }
 });
@@ -208,8 +224,10 @@ setInterval(() => {
   refresh();
 }, 1000);
 
-// While walking, a footstep every half second or so (about 2 steps a second at a stride of 0.75 m).
-setInterval(() => {
-  if (!game || !game.walk || !engine.started) return;
-  engine.footstep(audioFor(game.world, sceneNow(game, Date.now())).surface);
-}, 520);
+// While walking, footsteps at a cadence that follows your speed: about 2 a second at the book's pace, 3 at marathon pace.
+function stepLoop(): void {
+  if (game?.walk && engine.started) engine.footstep(audioFor(game.world, sceneNow(game, Date.now())).surface);
+  const pace = game && Number.isFinite(game.opts.walkPace) ? game.opts.walkPace : 1;
+  setTimeout(stepLoop, 1000 / stepsPerSecond(pace));
+}
+stepLoop();

@@ -50,5 +50,7 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 dialog h2 { margin: 0 0 0.3rem; font-weight: normal; }
 .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0.7rem 0; }
 .row.check { justify-content: flex-start; }
+.row.stack { flex-direction: column; align-items: stretch; gap: 4px; }
+.row.stack input[type="range"] { width: 100%; }
 .row input[type="text"], .row select { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 0.3rem 0.5rem; max-width: 55%; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1rem; }

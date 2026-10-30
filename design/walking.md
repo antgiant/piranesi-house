@@ -7,8 +7,10 @@ Movement used to be instant: one command crossed a whole hall. It now takes the 
   `src/game/walk.ts`.
 * **The world clock sets the pace.** Walking time is world time. At real time a 200 m hall takes about two and a quarter
   minutes; at 60x time it takes two seconds. So `timeScale` and walking agree.
-* **Walking-pace setting** (settings panel, or `#pace=real|brisk|fast|instant` in the URL): real, 4x, 20x, instant.
-  This only changes how long you wait, not how far anything is.
+* **Walking-speed setting** (settings panel): a slider from the book's pace (5.3 km/h) up to a **two-hour marathon**
+  (42.195 km in 7200 s: 5.86 m/s, 21.1 km/h, about 4x the book's pace). It only changes how long you wait, not how far
+  anything is. As you speed up you jog, then run; the footsteps quicken from about 2 to about 3 a second. (`#pace=instant`
+  in the URL is a developer override for tests, not offered in the settings.)
 * **Terrain.** Rubble (ruined halls) slows you to 60%; water to 90% (a skin), 65% (knee-deep) or 45% (waist-deep).
 * **Stairs.** A great stair is about 25 m high with steps nearly twice a comfortable height: 150 s up, 120 s down, plus
   the walk to it.

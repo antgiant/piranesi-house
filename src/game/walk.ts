@@ -6,6 +6,25 @@ import type { Side } from '../world/layout';
 
 /** The book: 20 km to the 192nd Western Hall in 3.76 hours, rests excluded (canon D-002). About 1.48 m/s. */
 export const WALK_SPEED_MPS = 20_000 / (3.76 * 3600);
+/** The book's pace in km/h (5.3). */
+export const BOOK_KMH = WALK_SPEED_MPS * 3.6;
+/** The top of the speed control: a two-hour marathon, 42.195 km in 7200 s (5.86 m/s, 21.1 km/h). */
+export const MARATHON_MPS = 42_195 / 7200;
+export const MARATHON_KMH = MARATHON_MPS * 3.6;
+/** How many times the book's pace the marathon pace is (about 3.97). */
+export const MAX_PACE = MARATHON_MPS / WALK_SPEED_MPS;
+
+/** Pace multiplier for a chosen speed in km/h, held between the book's pace and the marathon pace. */
+export const paceFromKmh = (kmh: number): number => Math.max(1, Math.min(MAX_PACE, kmh / BOOK_KMH));
+
+/** How you are moving, from your pace multiplier. */
+export function gait(pace: number): 'walk' | 'jog' | 'run' {
+  const mps = WALK_SPEED_MPS * pace;
+  return mps < 2.2 ? 'walk' : mps < 4 ? 'jog' : 'run';
+}
+
+/** Footsteps per second: about 2 at a walk, about 3 (180 a minute) at marathon pace. */
+export const stepsPerSecond = (pace: number): number => 1.95 + 0.35 * (Math.max(1, Math.min(MAX_PACE, pace)) - 1);
 /** Thickness of a wall and doorway, walked through at each door. */
 export const DOORWAY_M = 12;
 /** One hall's worth of passage, for the long corridors between distant halls. */

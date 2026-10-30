@@ -80,6 +80,15 @@ export class AudioEngine {
 
   get started(): boolean { return this.ctx !== null; }
 
+  /**
+   * Phones may suspend or "interrupt" the audio while the speech voice talks or the app is switched away; sounds scheduled
+   * then are lost. Ask for it back; the next sound will be heard. Safe to call often.
+   */
+  resume(): void {
+    const c = this.ctx;
+    if (c && c.state !== 'running' && c.state !== 'closed') void c.resume().catch(() => undefined);
+  }
+
   /** Must be called from a user gesture (browsers refuse to make sound otherwise). */
   async start(): Promise<void> {
     if (this.ctx) {
@@ -426,6 +435,7 @@ export class AudioEngine {
   private tickEvents(): void {
     const ctx = this.ctx;
     const a = this.scene;
+    if (ctx && ctx.state !== 'running') this.resume();
     if (!ctx || !a || ctx.state !== 'running') return;
     const t = ctx.currentTime;
     // drips: from falls and rain, and (rarely) in the hushed halls
@@ -603,7 +613,8 @@ export class AudioEngine {
   /** One footstep on a surface. Called when the visitor moves. */
   footstep(surface: Surface): void {
     const ctx = this.ctx;
-    if (!ctx || ctx.state !== 'running') return;
+    if (!ctx) return;
+    if (ctx.state !== 'running') { this.resume(); return; }
     const t = ctx.currentTime + 0.01;
     switch (surface) {
       case 'marble': this.burst(t, 0.07, 'bandpass', 1500, 1.2, 0.35); this.tone(t, 160, 90, 0.08, 'sine', 0.2); break;

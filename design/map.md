@@ -33,3 +33,7 @@
 * Sound from rooms more than one door away, and from long passages' far ends.
 * Other visitors on the map and in the soundscape (milestone 8).
 * The map does not show the statues or any detail inside a hall.
+
+## Leaving the map on a phone
+The map is full screen on a phone, so the first thing in it is a wide, labelled "← Back to the House" button (at least 44 px
+tall) instead of a small cross. Escape and the Map button still close it, and the level and zoom buttons are 44 px targets.

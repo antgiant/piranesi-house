@@ -60,6 +60,7 @@ dialog h2 { margin: 0 0 0.3rem; font-weight: normal; }
 .map { position: fixed; right: 12px; bottom: 12px; z-index: 4; width: min(26rem, calc(100vw - 24px)); max-height: calc(100dvh - 24px); display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; box-shadow: 0 6px 30px rgba(0, 0, 0, 0.45); }
 .map-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .map-head button { padding: 0.2rem 0.55rem; font-size: 0.85rem; }
+.map-back { width: 100%; padding: 0.7rem 1rem; font-size: 1.05rem; font-weight: bold; background: var(--accent); color: #1b1408; border-color: var(--accent); border-radius: 8px; }
 .seg { display: flex; }
 .seg button { border-radius: 0; margin-left: -1px; }
 .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
@@ -69,4 +70,8 @@ dialog h2 { margin: 0 0 0.3rem; font-weight: normal; }
 #map-canvas { width: 100%; height: min(22rem, 52dvh); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; touch-action: none; cursor: grab; }
 .map .small { margin: 0; }
 .legend { font-size: 0.75rem; }
-@media (max-width: 700px) { .map { inset: 0; width: auto; max-height: none; border-radius: 0; } #map-canvas { flex: 1; height: auto; } }
+@media (max-width: 700px) {
+  .map { inset: 0; width: auto; max-height: none; border-radius: 0; padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
+  #map-canvas { flex: 1; height: auto; }
+  .map-head button { min-height: 44px; min-width: 44px; font-size: 1rem; }
+}

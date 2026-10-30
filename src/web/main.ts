@@ -64,6 +64,7 @@ const logEl = $<HTMLElement>('log');
 const input = $<HTMLInputElement>('input');
 const engine = new AudioEngine();
 const narrator = new Narrator();
+narrator.onActivity = () => engine.resume();
 const screenWake = new ScreenWake();
 let settings = loadSettings();
 let game: Game | null = null;

@@ -44,6 +44,8 @@ export class Narrator {
   rate = 0.9;
   pitch = 0.92;
   voiceURI = '';
+  /** Called as each sentence starts and ends: the page uses it to make sure the sound is still running. */
+  onActivity: (() => void) | null = null;
   private pending = 0;
   /** When it was last reading (or about to), in ms; used to leave a breath after the end of a reading. */
   lastBusyMs = 0;
@@ -76,7 +78,8 @@ export class Narrator {
       u.pitch = this.pitch;
       if (voice) { u.voice = voice; u.lang = voice.lang; }
       this.pending++;
-      const done = (): void => { this.pending = Math.max(0, this.pending - 1); };
+      const done = (): void => { this.pending = Math.max(0, this.pending - 1); this.onActivity?.(); };
+      u.onstart = () => this.onActivity?.();
       u.onend = done;
       u.onerror = done;
       window.speechSynthesis.speak(u);

@@ -39,8 +39,8 @@
     </section>
 
     <aside id="map-panel" class="map" hidden aria-label="Map of the halls you have explored">
+      <button type="button" id="map-close" class="map-back">&larr; Back to the House</button>
       <div class="map-head">
-        <strong>Map</strong>
         <div class="seg" role="group" aria-label="Level">
           <button type="button" data-level="2" aria-pressed="false">Upper</button>
           <button type="button" data-level="1" aria-pressed="true">Middle</button>
@@ -50,7 +50,6 @@
           <button type="button" id="map-minus" aria-label="Zoom out">&minus;</button>
           <button type="button" id="map-plus" aria-label="Zoom in">+</button>
           <button type="button" id="map-centre">Centre</button>
-          <button type="button" id="map-close" aria-label="Close the map">&times;</button>
         </div>
       </div>
       <canvas id="map-canvas" role="img" aria-label="Map"></canvas>

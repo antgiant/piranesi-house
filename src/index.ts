@@ -5,3 +5,4 @@ export { slotAt, hallSlots, hallStatues, canonLocations } from './world/slots';
 export { describeStatue, signature, workshopMark, type Slot, type Statue, type Condition } from './world/statues';
 export { regionsAt, DROWNED, CORAL, type Regions } from './world/regions';
 export { ordinalWord, parseOrdinal } from './world/words';
+export { shortestRooms } from './world/path';

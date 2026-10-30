@@ -223,6 +223,7 @@ function buildHall(world: World, x: number, y: number, level: Level, id: string)
   }
 
   // --- tags (what the audio and text layers key off) -------------------------------------------------------------
+  const name = cellName(world, x, y);
   const tags: HallTag[] = [];
   if (kind === 'vestibule') {
     if (vnum === 1) tags.push('first-vestibule', 'minotaurs');
@@ -235,15 +236,15 @@ function buildHall(world: World, x: number, y: number, level: Level, id: string)
   if (x === -1 && y === 0) tags.push('horned-giants');
   if (isDark) tags.push('dark-hall');
   if (x === -88 && y === 0) tags.push('gull-colony');
-  if (x === -6 && y === 6) tags.push('rook-flock');
-  if (x === -6 && y === 0) tags.push('bird-shelter');
+  if (name === 'Sixth North-Western Hall') tags.push('rook-flock');
+  if (name === 'Sixth Western Hall') tags.push('bird-shelter');
   if (regions.drowned && level === 1) tags.push('drowned');
   if (regions.coral) tags.push('coral');
   if (regions.cloud) tags.push('cloud-zone');
   if (regions.derelict >= 60) tags.push('ruinous');
 
   const hall: Hall = {
-    id, x, y, level, kind, name: cellName(world, x, y), orientation, xExtent, yExtent, heightM, courtyardSides, windows,
+    id, x, y, level, kind, name, orientation, xExtent, yExtent, heightM, courtyardSides, windows,
     architecture, mood, theme, sizeClass, statueHeightDm, regions, tideReachDm, falls, birdPerches, doors, stairs,
     features, tags, slotCount: 0,
   };

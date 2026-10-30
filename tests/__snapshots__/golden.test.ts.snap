@@ -94,6 +94,36 @@ exports[`golden snapshot > hall -4,0 level 1 1`] = `
 }
 `;
 
+exports[`golden snapshot > hall -5,-4 level 1 1`] = `
+{
+  "digest": 257960107,
+  "doors": [
+    2,
+    1,
+    2,
+    2,
+  ],
+  "kind": "vestibule",
+  "mood": "solemn",
+  "name": "Twenty-Second Vestibule",
+  "orientation": "EW",
+  "sample": [
+    "A life-sized satyr, standing very upright, holding a wreath out in front, a younger figure leaning on an arm; crusted with shellfish.",
+    "A life-sized winged child, arm outstretched in blessing, with a veil of stone lace, with a small hound at the feet; crusted with shellfish.",
+  ],
+  "size": [
+    232,
+    147,
+    59,
+  ],
+  "sizeClass": "life",
+  "slots": 4440,
+  "statues": 4376,
+  "tags": [],
+  "theme": "mythic",
+}
+`;
+
 exports[`golden snapshot > hall -6,6 level 1 1`] = `
 {
   "digest": 4033058835,
@@ -105,7 +135,7 @@ exports[`golden snapshot > hall -6,6 level 1 1`] = `
   ],
   "kind": "hall",
   "mood": "serene",
-  "name": "Sixth North-Western Hall",
+  "name": "Seventh North-Western Hall, 1 row north",
   "orientation": "NS",
   "sample": [
     "A life-sized captain, head slightly bowed, holding a fan of feathers, head tipped back; hung with seaweed.",
@@ -119,10 +149,72 @@ exports[`golden snapshot > hall -6,6 level 1 1`] = `
   "sizeClass": "life",
   "slots": 2568,
   "statues": 2508,
+  "tags": [],
+  "theme": "martial",
+}
+`;
+
+exports[`golden snapshot > hall -6,7 level 1 1`] = `
+{
+  "digest": 3317037741,
+  "doors": [
+    2,
+    5,
+    5,
+    1,
+  ],
+  "kind": "hall",
+  "mood": "solemn",
+  "name": "Sixth North-Western Hall",
+  "orientation": "NS",
+  "sample": [
+    "A life-sized sun god, looking straight ahead without expression, carrying a model of a tower, a hooded watcher behind; crusted with shellfish.",
+    "A life-sized moon goddess, standing very upright, wearing a crown of reeds, a younger figure leaning on an arm; crusted with shellfish.",
+  ],
+  "size": [
+    119,
+    186,
+    29,
+  ],
+  "sizeClass": "life",
+  "slots": 2160,
+  "statues": 2124,
   "tags": [
     "rook-flock",
   ],
-  "theme": "martial",
+  "theme": "celestial",
+}
+`;
+
+exports[`golden snapshot > hall -6,8 level 1 1`] = `
+{
+  "digest": 869607931,
+  "doors": [
+    1,
+    1,
+    2,
+    2,
+  ],
+  "kind": "vestibule",
+  "mood": "serene",
+  "name": "Twenty-Fourth Vestibule",
+  "orientation": "NS",
+  "sample": [
+    "A huge old scholar, one hand raised in greeting, with a cap of carved waves, looking aside; crusted with shellfish.",
+    "A huge figure of Memory, seated with hands in the lap, clasping a closed scroll, alone; crusted with shellfish.",
+  ],
+  "size": [
+    133,
+    214,
+    89,
+  ],
+  "sizeClass": "huge",
+  "slots": 432,
+  "statues": 425,
+  "tags": [
+    "pebble-bank",
+  ],
+  "theme": "scholarly",
 }
 `;
 
@@ -312,6 +404,36 @@ exports[`golden snapshot > hall 0,5 level 1 1`] = `
   "statues": 518,
   "tags": [],
   "theme": "pastoral",
+}
+`;
+
+exports[`golden snapshot > hall 1,-2 level 1 1`] = `
+{
+  "digest": 2485106048,
+  "doors": [
+    1,
+    2,
+    3,
+    4,
+  ],
+  "kind": "vestibule",
+  "mood": "joyful",
+  "name": "Sixth Vestibule",
+  "orientation": "EW",
+  "sample": [
+    "A life-sized captain, arms flung wide, wearing a crown of reeds, an old figure sitting at the feet; crusted with shellfish.",
+    "A life-sized griffin, spinning on one foot, carrying a bow strung with thread, weight on one hip; crusted with shellfish.",
+  ],
+  "size": [
+    213,
+    127,
+    80,
+  ],
+  "sizeClass": "life",
+  "slots": 4424,
+  "statues": 4355,
+  "tags": [],
+  "theme": "martial",
 }
 `;
 

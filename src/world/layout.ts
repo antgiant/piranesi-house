@@ -93,10 +93,18 @@ export type CellKind = 'hall' | 'vestibule';
 const BLOCK = 3;
 
 interface Pin { n: number; x: number; y: number }
-/** n is the vestibule's ordinal. The Ninth is "two halls west and north" of the First; (-2,1) is our reading. */
+/**
+ * n is the vestibule's ordinal. The book's "N halls west and north" is read as N rings out (Chebyshev distance),
+ * since a vestibule cannot sit on a ray. Rooms the book places relative to one another are pinned here.
+ */
 export const PINNED_VESTIBULES: readonly Pin[] = [
   { n: 1, x: 0, y: 0 },
-  { n: 9, x: -2, y: 1 },
+  { n: 6, x: 1, y: -2 }, // its stair floods the Second Southern Hall (0,-2) within minutes of a tide
+  { n: 9, x: -2, y: 1 }, // two halls west and north of the First
+  { n: 10, x: 1, y: 8 }, // a northern tide rises here, flooding the Eighth Northern Hall (0,8)
+  { n: 12, x: -1, y: 8 }, // an eastern tide rises here moments later, flooding the same hall
+  { n: 22, x: -5, y: -4 }, // five halls south and west of the First
+  { n: 24, x: -6, y: 8 }, // between the Sixth North-Western Hall (-6,7) and the Eighteenth (-6,9)
 ];
 
 function pinnedAt(x: number, y: number): Pin | undefined {
@@ -144,7 +152,9 @@ function buildVestibules(world: World, radius: number): VTable {
   natural.sort((a, b) => a.x * a.x + a.y * a.y - (b.x * b.x + b.y * b.y) || a.y - b.y || a.x - b.x);
   const cells: Cell[] = [];
   let ni = 0;
-  for (let n = 1; ; n++) {
+  const maxPin = Math.max(...PINNED_VESTIBULES.map((p) => p.n));
+  if (natural.length + PINNED_VESTIBULES.length < maxPin) throw new Error('vestibule table radius too small for the pins');
+  for (let n = 1; n <= maxPin || ni < natural.length; n++) {
     const pin = PINNED_VESTIBULES.find((p) => p.n === n);
     if (pin) cells.push({ x: pin.x, y: pin.y });
     else if (ni < natural.length) cells.push(natural[ni++] as Cell);
@@ -200,7 +210,31 @@ function lateralWord(ray: Ray, lateral: number): string {
   return `${n} ${n === 1 ? 'row' : 'rows'} ${dir}`;
 }
 
+/**
+ * The book gives some halls relative positions that ring-based numbering cannot satisfy. Each pair below exchanges
+ * the two halls' names, so names stay unique and every room the book locates ends up where it says.
+ */
+export const NAME_SWAPS: readonly (readonly [Cell, Cell])[] = [
+  [{ x: -6, y: 6 }, { x: -6, y: 7 }], // the Sixth North-Western Hall is the thirteenth room from the First Vestibule
+  [{ x: -18, y: 18 }, { x: -6, y: 9 }], // the Eighteenth lies beyond the Twenty-Fourth Vestibule from the Sixth
+  [{ x: -4, y: 4 }, { x: -4, y: 5 }], // the Fourth North-Western Hall adjoins the Fifth (-5,5): the Faun's door
+  [{ x: -3, y: 0 }, { x: -3, y: 1 }], // the Third Western Hall is seven halls from the Eighth Northern Hall
+];
+
+function swapped(x: number, y: number): Cell {
+  for (const [a, b] of NAME_SWAPS) {
+    if (a.x === x && a.y === y) return b;
+    if (b.x === x && b.y === y) return a;
+  }
+  return { x, y };
+}
+
 export function cellName(world: World, x: number, y: number): string {
+  const s = swapped(x, y);
+  return naturalName(world, s.x, s.y);
+}
+
+function naturalName(world: World, x: number, y: number): string {
   if (x === 0 && y === 0) return 'First Vestibule';
   const vn = vestibuleNumber(world, x, y);
   if (vn !== null) return vn <= 9999 ? `${ordinalWord(vn)} Vestibule` : `Vestibule No. ${vn}`;
@@ -216,6 +250,11 @@ const RAY_BY_WORD = new Map<string, Ray>(RAYS.map((r) => [RAY_WORD[r], r]));
 const HALL_RE = /^(.+?) (Northern|North-Eastern|Eastern|South-Eastern|Southern|South-Western|Western|North-Western) Hall(?:, (\d+) rows? (north|south|east|west))?$/;
 
 export function parseCellName(world: World, name: string): Cell | null {
+  const c = parseNaturalName(world, name);
+  return c ? swapped(c.x, c.y) : null;
+}
+
+function parseNaturalName(world: World, name: string): Cell | null {
   const n = name.trim().replace(/\s+/g, ' ');
   const vm = /^(.+) Vestibule$/.exec(n);
   if (vm) {
@@ -238,7 +277,7 @@ export function parseCellName(world: World, name: string): Cell | null {
   }
   const c = cellFromRay(ray, ring, lateral);
   if (!c || cellKind(world, c.x, c.y) !== 'hall') return null;
-  return cellName(world, c.x, c.y) === n ? c : null;
+  return naturalName(world, c.x, c.y) === n ? c : null;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -284,7 +323,25 @@ const EXTRAS: readonly Extra[] = [
   { x: -1, y: -1, side: 'E', door: { pos: 700, to: { x: 0, y: 0 }, corridor: 1 } },
 ];
 
+/** A winding route of exactly thirteen rooms from the First Vestibule to the Sixth North-Western Hall at (-6,7). */
+const ROUTE_13: readonly Cell[] = [
+  { x: 0, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 1 }, { x: -1, y: 2 }, { x: -2, y: 2 }, { x: -2, y: 3 }, { x: -3, y: 3 },
+  { x: -3, y: 4 }, { x: -4, y: 4 }, { x: -4, y: 5 }, { x: -5, y: 5 }, { x: -5, y: 6 }, { x: -6, y: 6 }, { x: -6, y: 7 },
+];
+const FORCED_EDGES: ReadonlySet<string> = new Set(
+  ROUTE_13.slice(1).map((q, i) => {
+    const p = ROUTE_13[i] as Cell;
+    return q.x !== p.x ? `E,${Math.min(p.x, q.x)},${p.y}` : `N,${p.x},${Math.min(p.y, q.y)}`;
+  }),
+);
+
 function edgeDoorPositions(world: World, ex: number, ey: number, axis: 'E' | 'N', level: Level): number[] {
+  const out = edgeDoorPositionsRaw(world, ex, ey, axis, level);
+  if (out.length === 0 && level === 1 && FORCED_EDGES.has(`${axis},${ex},${ey}`)) return [500];
+  return out;
+}
+
+function edgeDoorPositionsRaw(world: World, ex: number, ey: number, axis: 'E' | 'N', level: Level): number[] {
   const pinned = level === 1 ? PINNED_EDGES.get(`${axis},${ex},${ey}`) : undefined;
   if (pinned) return pinned.slice();
   const ax = ex;

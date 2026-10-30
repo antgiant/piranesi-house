@@ -1,0 +1,8 @@
+name: guard
+on: [push, pull_request]
+jobs:
+  no-source-text:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/check-no-source-text.sh

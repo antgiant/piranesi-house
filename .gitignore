@@ -1,0 +1,11 @@
+# Copyrighted source material must NEVER be committed.
+/source/
+/private/
+*.epub
+*.mobi
+*.azw*
+*.pdf
+*.txt
+!robots.txt
+*Piranesi*Clarke*
+*Susanna*Clarke*

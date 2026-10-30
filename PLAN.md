@@ -258,8 +258,10 @@ standing in the same hall hear the same ambience.
   `worldVersion`).
 - **Statue fidelity in 3D** is the largest cost sink. The etched look is the mitigation.
 - **P2P reliability** with no server: be prepared to ship single-player first.
-- **IP**: the book is in copyright. Keep the uploaded text out of the repo (add it to
-  `.gitignore`), store only our own paraphrased facts and short descriptive labels, write
+- **IP**: the book is in copyright and its text must never be committed. Enforced by
+  `.gitignore`, `scripts/check-no-source-text.sh` (run as a pre-commit hook via
+  `git config core.hooksPath .githooks`, and in CI). Keep the source file outside the repo
+  directory entirely. Store only our own paraphrased facts and short descriptive labels, write
   all narration originally, and credit the work as an unofficial fan project. This is a
   consideration, not legal advice.
 

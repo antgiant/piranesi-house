@@ -266,8 +266,8 @@ standing in the same hall hear the same ambience.
 | 5 | **Multiplayer spike → presence → shared items** | two browsers on different networks meet, and state vanishes when both close |
 | 6 | **Side-scroller view**: walking strip with parallax, tiers, tide/cloud/rain, perched birds, statue sprite pipeline, other players | same statue list and tide level as the text view, at the same moment |
 | 7 | **3D view**, fidelity step (a) reusing the sprite pipeline, then (b) | same statue list as text and side views |
-| 9 | **Later pass: mutter** (incoherent speech through hall reverb; see `design/mutter.yaml`), after everything else is locked in | |
 | 8 | **Polish**: accessibility, mobile, PWA offline, performance budget, credits and fan-work notice | |
+| 9 | **Later pass: mutter** (incoherent speech through hall reverb; see `design/mutter.yaml`), after everything else is locked in | |
 
 ## 10. Risks
 

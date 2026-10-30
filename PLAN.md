@@ -262,7 +262,7 @@ standing in the same hall hear the same ambience.
 | 1 | **World core** (layout, pins for the book's relative positions, halls, statues, canon overlay, CLI and 111 tests done; see `design/layout-decisions.md` for the remaining deviations): rng, layout and naming, statue generator, canon overlay, full test suite, CLI to print a hall | invariants and golden tests green; Dog-Fox route works |
 | 2 | **Sim** (DONE: clock, sun, moon, eight tide sources, great join, weather, light, birds, SceneState; see `design/simulation.md`) | tide join at the Ninth Vestibule is computable and tested |
 | 3 | **Playable text + audio v1** (DONE: parser, narrator, live events, procedural Web Audio, web page, browser test, Pages workflow; see `design/audio.md`): parser, narrator, sea bed, reverb, drips, wind, birds, footsteps; Pages deploy | someone can wander and *hear* the difference between a Drowned Hall and a flooded vestibule |
-| 4 | **Map + audio v2**: portals, tide events, fog of war | tide arrival is audible before it is visible |
+| 4 | **Map + audio v2** (DONE: fog-of-war map, doorway sounds with direction, tides heard before seen; see `design/map.md`) | tide arrival is audible before it is visible |
 | 5 | **Multiplayer spike → presence → shared items** | two browsers on different networks meet, and state vanishes when both close |
 | 6 | **Side-scroller view**: walking strip with parallax, tiers, tide/cloud/rain, perched birds, statue sprite pipeline, other players | same statue list and tide level as the text view, at the same moment |
 | 7 | **3D view**, fidelity step (a) reusing the sprite pipeline, then (b) | same statue list as text and side views |

@@ -58,6 +58,8 @@ export interface Game {
   prev: SceneState | null;
   /** Events already announced, so each is said once. */
   said: Set<string>;
+  /** Halls you have been in, as `level:x,y`. The map shows only these and what their doors reveal. Never persisted. */
+  explored: Set<string>;
   /** The way you face: the way you last walked. Sounds through doorways are placed relative to it. */
   facing: Side;
   /** A walk in progress: the visitor is between here and there until the clock reaches `endMs`. */
@@ -85,7 +87,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N',
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(),
   };
 }
 
@@ -134,7 +136,10 @@ export function visibleStatues(g: Game, h: Hall): Seen[] {
   return picked.slice(0, 9).map(sn);
 }
 
+export const exploredKey = (level: Level, x: number, y: number): string => `${level}:${x},${y}`;
+
 export function look(g: Game, realNowMs: number): Line[] {
+  g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
   const t = worldNow(g, realNowMs);
   const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, t);
   const audio = audioFor(g.world, scene, { facing: g.facing });

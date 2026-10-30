@@ -6,6 +6,9 @@ import { AudioEngine } from '../audio/engine';
 import { look, newGame, sceneNow, step, tick, walkStatus, type Game, type GameOptions, type Line } from '../game/game';
 import { BOOK_KMH, MARATHON_KMH, describeDuration, gait, paceFromKmh, stepsPerSecond } from '../game/walk';
 import { formatClock } from '../sim/time';
+import { mapView, type MapCell, type MapView } from '../game/mapdata';
+import type { Level } from '../world/layout';
+import { MapPanel } from './map';
 
 interface Settings {
   volume: number;
@@ -107,6 +110,7 @@ function refresh(): void {
   const s = sceneNow(game, now);
   const a = audioFor(game.world, s, { facing: game.facing });
   engine.setScene(a);
+  if (!$('map-panel').hidden) map.draw();
   $('place').textContent = s.hall.name;
   const ws = walkStatus(game, now);
   $('clock').textContent = ws ? `${formatClock(s.clock)} · walking: ${describeDuration(ws.remainingWorldS)} to go` : formatClock(s.clock);
@@ -115,6 +119,7 @@ function refresh(): void {
 function submit(raw: string): void {
   if (!game) return;
   const cmd = raw.trim();
+  if (/^map$/i.test(cmd)) { toggleMap(); return; }
   const echoEl = echo(cmd || 'look');
   if (cmd) { history.unshift(cmd); hist = -1; }
   const before = `${game.pos.x},${game.pos.y},${game.pos.level}`;
@@ -142,6 +147,7 @@ function startGame(): void {
       game: g, engine,
       teleport(x: number, y: number, level: 0 | 1 | 2) { g.pos = { x, y, level, wall: null, pos: 500 }; print(look(g, Date.now())); refresh(); },
       audio() { return audioFor(g.world, sceneNow(g, Date.now()), { facing: g.facing }); },
+      mapView(level: Level = g.pos.level) { return mapView(g, level, Date.now()); },
       scene() { return sceneNow(g, Date.now()); },
     };
   }
@@ -158,6 +164,36 @@ async function enter(): Promise<void> {
   refresh();
   input.focus();
 }
+
+// --- the map ----------------------------------------------------------------------------------------------------
+const mapEl = $<HTMLElement>('map-panel');
+const mapCaption = $('map-caption');
+const map = new MapPanel(
+  $<HTMLCanvasElement>('map-canvas'),
+  (level: Level): MapView => mapView(game as Game, level, Date.now()),
+  (c: MapCell | null, v: MapView) => {
+    mapCaption.textContent = c
+      ? `${c.name}: ${c.state === 'here' ? 'you are here' : c.state === 'visited' ? 'you have been here' : 'seen through a door, not yet entered'}${c.waterDm > 0 ? `; water ${(c.waterDm / 10).toFixed(1)} m deep` : ''}${c.lake ? '; a still lake' : ''}.`
+      : `${v.visited} halls explored, ${v.known} more seen through doors.`;
+  },
+);
+function toggleMap(open?: boolean): void {
+  const show = open ?? mapEl.hidden;
+  mapEl.hidden = !show;
+  $('open-map').setAttribute('aria-expanded', String(show));
+  if (show && game) { map.level = game.pos.level; setLevelButtons(); map.centre(); }
+}
+function setLevelButtons(): void {
+  document.querySelectorAll<HTMLButtonElement>('.seg button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.level) === map.level)));
+}
+$('open-map').addEventListener('click', () => toggleMap());
+$('map-close').addEventListener('click', () => toggleMap(false));
+$('map-plus').addEventListener('click', () => map.zoom(1.25));
+$('map-minus').addEventListener('click', () => map.zoom(1 / 1.25));
+$('map-centre').addEventListener('click', () => map.centre());
+document.querySelectorAll<HTMLButtonElement>('.seg button').forEach((b) => b.addEventListener('click', () => { map.setLevel(Number(b.dataset.level) as Level); setLevelButtons(); }));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !mapEl.hidden) toggleMap(false); });
+window.addEventListener('resize', () => { if (!mapEl.hidden) map.draw(); });
 
 function paintMute(): void {
   const b = $<HTMLButtonElement>('mute');

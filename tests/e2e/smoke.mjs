@@ -57,6 +57,35 @@ try {
   await page.waitForFunction(() => document.getElementById('place').textContent === 'Fourth Western Hall');
   check((await page.locator('#log').textContent()).toLowerCase().includes('dog-fox'), 'the dog-fox route works from the page');
 
+  // --- the map ---
+  const before = await page.evaluate(() => window.__house.mapView().visited);
+  check(before >= 4, `the map remembers the halls you walked through (${before} explored)`);
+  await page.click('#open-map');
+  check(await page.locator('#map-panel').isVisible(), 'the Map button opens the map');
+  await page.waitForTimeout(300);
+  const ink = await page.evaluate(() => {
+    const c = document.getElementById('map-canvas'); const ctx = c.getContext('2d');
+    const d = ctx.getImageData(0, 0, c.width, c.height).data; const bg = [d[0], d[1], d[2]]; let n = 0;
+    for (let i = 0; i < d.length; i += 4 * 7) if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 40) n++;
+    return n;
+  });
+  check(ink > 300, `something is drawn on the map canvas (${ink} sampled pixels differ from the background)`);
+  const label = await page.locator('#map-canvas').getAttribute('aria-label');
+  check(/middle level: \d+ halls explored/.test(label), `the map has a text description for screen readers (${label})`);
+  const box = await page.locator('#map-canvas').boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  check((await page.locator('#map-caption').textContent()).includes('you are here'), 'tapping the middle of the map names where you are');
+  await page.screenshot({ path: 'tests/e2e/out/map.png' });
+  await page.click('.seg button[data-level="2"]');
+  check((await page.locator('#map-canvas').getAttribute('aria-label')).includes('upper level: 0 halls explored'), 'the upper level is unexplored, so its map is empty');
+  await page.click('.seg button[data-level="1"]');
+  await page.keyboard.press('Escape');
+  check(!(await page.locator('#map-panel').isVisible()), 'Escape closes the map');
+  // typing "map" also opens it
+  await page.fill('#input', 'map'); await page.press('#input', 'Enter');
+  check(await page.locator('#map-panel').isVisible(), 'typing "map" opens it too');
+  await page.click('#map-close');
+
   // --- sounds through doorways ---
   const door = await page.evaluate(() => {
     const h = window.__house;

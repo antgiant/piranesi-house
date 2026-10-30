@@ -13,6 +13,7 @@
     <header class="bar" id="bar" hidden>
       <div class="place"><span id="place">The House</span><span id="clock" class="clock"></span></div>
       <div class="tools">
+        <button id="open-map" type="button" aria-expanded="false" aria-controls="map-panel" title="Show the map of what you have explored">Map</button>
         <button id="mute" type="button" aria-pressed="false" title="Mute or unmute the sound">Sound on</button>
         <button id="open-settings" type="button" title="Settings">Settings</button>
       </div>
@@ -35,6 +36,26 @@
       <button id="enter" type="button" class="primary">Enter the House</button>
       <p class="credit">An unofficial fan project inspired by a novel. It contains none of the book's text. <a href="https://github.com/antgiant/piranesi-house">Source on GitHub</a>.</p>
     </section>
+
+    <aside id="map-panel" class="map" hidden aria-label="Map of the halls you have explored">
+      <div class="map-head">
+        <strong>Map</strong>
+        <div class="seg" role="group" aria-label="Level">
+          <button type="button" data-level="2" aria-pressed="false">Upper</button>
+          <button type="button" data-level="1" aria-pressed="true">Middle</button>
+          <button type="button" data-level="0" aria-pressed="false">Lower</button>
+        </div>
+        <div class="zoom">
+          <button type="button" id="map-minus" aria-label="Zoom out">&minus;</button>
+          <button type="button" id="map-plus" aria-label="Zoom in">+</button>
+          <button type="button" id="map-centre">Centre</button>
+          <button type="button" id="map-close" aria-label="Close the map">&times;</button>
+        </div>
+      </div>
+      <canvas id="map-canvas" role="img" aria-label="Map"></canvas>
+      <p id="map-caption" class="small">Tap a room for its name. Drag to move the map.</p>
+      <p class="small legend">Gold ring: you, and the way you face. Solid: halls you have been in. Dashed: seen through a door, not entered. Blue: water there now. Dashed line: a long passage. The map only remembers this visit.</p>
+    </aside>
 
     <dialog id="settings" aria-labelledby="s-h">
       <form method="dialog">

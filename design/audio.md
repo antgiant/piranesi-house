@@ -32,6 +32,6 @@ sample files, so no licensing and a tiny download. It needs a user gesture to st
 * The Drowned Halls are hushed against weather too, not just against the sea.
 
 ## Not yet done
-* Sounds from neighbouring halls arriving through doorways, with direction (milestone 4).
+* ~~Sounds from neighbouring halls arriving through doorways, with direction~~ (done in milestone 4; see `design/map.md`).
 * Other visitors' footsteps and voices (milestone 5).
 * The muttering (milestone 9; see `design/mutter.yaml`).

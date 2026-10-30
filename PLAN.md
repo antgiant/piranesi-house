@@ -259,7 +259,7 @@ standing in the same hall hear the same ambience.
 | # | Deliverable | Done when |
 |---|---|---|
 | 0 | **Canon extraction** (DRAFT v1 in `canon/`: full pass over Parts 1-4 and 6 done, awaiting your review): full read of the book into `canon/*.yaml` (places, statues, tides, weather, sounds, light, creatures, rules), each with line refs and an in/out-of-scope tag | you have reviewed and signed off the canon |
-| 1 | **World core**: rng, layout and naming, statue generator, canon overlay, full test suite, CLI to print a hall | invariants and golden tests green; Dog-Fox route works |
+| 1 | **World core** (IN PROGRESS: layout, halls, statues, canon overlay, CLI and ~80 tests done; see `design/layout-decisions.md` for known deviations): rng, layout and naming, statue generator, canon overlay, full test suite, CLI to print a hall | invariants and golden tests green; Dog-Fox route works |
 | 2 | **Sim**: tides, weather, light, moon, season | tide join at the Ninth Vestibule is computable and tested |
 | 3 | **Playable text + audio v1**: parser, narrator, sea bed, reverb, drips, wind, birds, footsteps; Pages deploy | someone can wander and *hear* the difference between a Drowned Hall and a flooded vestibule |
 | 4 | **Map + audio v2**: portals, tide events, fog of war | tide arrival is audible before it is visible |

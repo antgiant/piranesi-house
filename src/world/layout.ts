@@ -5,6 +5,8 @@
 // self-consistent; DESIGN CHOICES made here are listed in canon/open_questions.yaml (Q-001, Q-002).
 
 import { Rng, floorDiv, hashInts } from './rng';
+
+export const floorDivExport = floorDiv;
 import { ordinalWord, parseOrdinal } from './words';
 import type { World } from './world';
 
@@ -270,6 +272,7 @@ const PINNED_EDGES: ReadonlyMap<string, readonly number[]> = new Map([
   ['E,-1,0', [500]], // First Vestibule <-> First Western Hall: "the Western Door"
   ['N,-1,0', [120, 180, 400, 640, 860]], // First Western Hall <-> First North-Western Hall (third door on the right from the east)
   ['E,-192,0', [500]], // the dark hall's one door
+  ['E,-5,5', [500]], // a door on the Fifth North-Western Hall's east wall, beside the Faun
 ]);
 
 const EXTRAS: readonly Extra[] = [

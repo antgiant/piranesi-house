@@ -1,0 +1,306 @@
+[
+  {
+    "id": "ST-BEEHIVE-WOMAN",
+    "label": "Woman carrying a beehive",
+    "meaning": "industriousness",
+    "attributes": [
+      "beehive covered in thumb-sized marble bees",
+      "one bee crawls over her left eye"
+    ],
+    "size": "2-3x human height"
+  },
+  {
+    "id": "ST-GARDENER",
+    "label": "Old bent gardener digging",
+    "meaning": "industriousness",
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-FAUN",
+    "label": "Faun with finger to lips (a warning or a promise of quiet)",
+    "meaning": null,
+    "attributes": [
+      "half man, half goat",
+      "head of exuberant curls",
+      "faint smile"
+    ],
+    "size": null
+  },
+  {
+    "id": "ST-GORILLA",
+    "label": "Squatting gorilla leaning on his fists, with a great brow that reads as peace, not threat",
+    "meaning": "peace, tranquillity, strength, endurance",
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-CYMBAL-BOY",
+    "label": "Young boy playing cymbals",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-ELEPHANT-CASTLE",
+    "label": "Elephant carrying a castle",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-KINGS-CHESS",
+    "label": "Two kings playing chess",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-HORNED-GIANTS",
+    "label": "Pair of horned half-figures emerging from the wall at the waist, arms reaching back to push, muscles swelling, faces contorted: Endeavour against a wretched fate",
+    "meaning": null,
+    "attributes": [
+      "bodies emerge ~2 m above floor",
+      "backs leave a marble pocket between giant and wall, usable as shelter"
+    ],
+    "size": "~6 m, larger than everything else in the hall"
+  },
+  {
+    "id": "ST-FATHER-THORN",
+    "label": "Seated father removing a splinter from his little boy's foot, set in a niche with plinth and pediment",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-MINOTAURS",
+    "label": "Eight enormous minotaurs, each different, horns jutting into empty air, solemn inscrutable faces",
+    "meaning": null,
+    "attributes": [],
+    "size": "~9 m"
+  },
+  {
+    "id": "ST-ANGEL-ROSE",
+    "label": "Angel caught on a rose bush",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-DOGFOX",
+    "label": "Aged dog-fox instructing a pair of squirrels and a pair of satyrs (other small creatures too)",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-HIEROPHANT",
+    "label": "Hierophant in a solemn, upright pose",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-ANGEL-TRUMPET",
+    "label": "Angel blowing a trumpet",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-SHIP-WAVES",
+    "label": "Ship travelling on little waves",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-MAN-BOOK",
+    "label": "Man reading from a large book",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-WOMAN-CLOUD-SHIELD",
+    "label": "Woman holding up a big round dish or shield carved with clouds",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-CHILD-FLOWER",
+    "label": "Small child, head covered in curls like petals, bowing to look at a flower in its hand",
+    "meaning": "innocence",
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-GRAIN-MICE",
+    "label": "Sack of grain being eaten by a horde of mice",
+    "meaning": "innocence eroded",
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-TRAMPLED-MAN",
+    "label": "Man flung backwards, trampled by a centaur, great hands palms up with curled fingers; sticks out far over the floor",
+    "meaning": null,
+    "attributes": [],
+    "size": "2-3x human"
+  },
+  {
+    "id": "ST-VIOLENT-SET",
+    "label": "Scenes of men fighting, abductions by centaurs and satyrs, people torn by octopuses; all in violent action",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-DROWNED-GIANTS",
+    "label": "Giant curly-haired bearded men straining out of the wall, upper bodies over the dark water; one leans so far his broad back forms a platform half a metre above the water",
+    "meaning": null,
+    "attributes": [],
+    "size": "15-20 m"
+  },
+  {
+    "id": "ST-MUSSEL-STAIR",
+    "label": "Statue on a staircase nearly buried under dark mussels, with only part of its face and one pale raised arm still visible",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-WOMAN-BEAR-CUB",
+    "label": "Woman offering a broad shallow dish to a thirsty bear cub",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-ELEPHANT-NEST",
+    "label": "Elephant (a gull nest tucked between its legs)",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-OLD-KING-CROWN",
+    "label": "Elderly king (a gull nest sits in his crown)",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-MOON-CROWD",
+    "label": "Crowd turned toward the doorway as if to see the moon: pairs with arms around each other, a man pulling himself forward by a neighbour's shoulder, a child holding its father's hand, a dog on hind legs begging for its master's attention, and at the front a young man with a banner and elation on his face",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-MAN-BOY-STARS",
+    "label": "Man and boy mapping the stars",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-SHEPHERDESS",
+    "label": "Shepherdess cradling a lamb, standing on a plinth in an upper hall above the Second Vestibule stairs",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-OLD-MAN-SHIP",
+    "label": "Old man holding a model of a ship",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-WINGED-HORSE-COLT",
+    "label": "Winged horse and its colt",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-KNEELING-SPHERE",
+    "label": "Man kneeling on his plinth with a sword blade snapped in five lying beside him, surrounded by the fragments of a shattered sphere; he stares at the pieces hoping for knowledge",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-HERETIC-POPE",
+    "label": "Obese pope sprawled on a magnificent throne he threatens to split; laughing triumphantly",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-QUEEN-CHARIOT",
+    "label": "Queen in a chariot, protective, gentle, wise",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-LANTERN-WALKER",
+    "label": "Androgynous figure walking forward holding up a lantern, peering ahead, solitary",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-KING-CITY",
+    "label": "King carrying a miniature fortified town in one hand, other hand lifted in a blessing",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-CHILDREN-FLUTE",
+    "label": "Two laughing children, one holding a flute",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-CORAL-GROUP",
+    "label": "Coral-altered statues: woman crowned with coral whose hands have turned to stars or flowers; figures horned, crucified on branches or pierced with coral arrows; a lion held in a cage of coral; a man holding a small box whose left side is engulfed by red-rose coral like flames",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-HALL-GENERIC-SCHOLARS",
+    "label": "Scholars (statues of academic-looking figures exist somewhere)",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-GARDENER-ROSE",
+    "label": "Gardener pruning a rose bush",
+    "meaning": "industriousness",
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-RECLINING-SNAKES",
+    "label": "Half-reclining man, eyes closed as if asleep, thick snakes and serpents coiled heavily around his limbs",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  },
+  {
+    "id": "ST-OWL-SET",
+    "label": "Statues that incorporate owls (several, unlocated)",
+    "meaning": null,
+    "attributes": [],
+    "size": null
+  }
+]

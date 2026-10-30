@@ -1,0 +1,445 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden snapshot > hall -1,0 level 1 1`] = `
+{
+  "digest": 789899114,
+  "doors": [
+    5,
+    1,
+    3,
+    1,
+  ],
+  "kind": "hall",
+  "mood": "serene",
+  "name": "First Western Hall",
+  "orientation": "EW",
+  "sample": [
+    "A life-sized lute-maker, head slightly bowed, wearing a long hooded cloak, weight on one hip; crusted with shellfish.",
+    "A life-sized weaver, kneeling in quiet attention, wearing a heavy chain of office, with a faint frown; crusted with shellfish.",
+  ],
+  "size": [
+    187,
+    112,
+    28,
+  ],
+  "sizeClass": "life",
+  "slots": 2200,
+  "statues": 2090,
+  "tags": [
+    "horned-giants",
+  ],
+  "theme": "craft",
+}
+`;
+
+exports[`golden snapshot > hall -2,1 level 1 1`] = `
+{
+  "digest": 1678626716,
+  "doors": [
+    3,
+    3,
+    3,
+    4,
+  ],
+  "kind": "vestibule",
+  "mood": "joyful",
+  "name": "Ninth Vestibule",
+  "orientation": "EW",
+  "sample": [
+    "A larger-than-life weaver, singing with open mouth, wearing a crown of reeds, a child clinging to the hem; crusted with shellfish.",
+    "A larger-than-life dyer, spinning on one foot, carrying a folded banner, weight on one hip; crusted with shellfish.",
+  ],
+  "size": [
+    222,
+    130,
+    70,
+  ],
+  "sizeClass": "large",
+  "slots": 1820,
+  "statues": 1785,
+  "tags": [
+    "ninth-vestibule",
+  ],
+  "theme": "craft",
+}
+`;
+
+exports[`golden snapshot > hall -4,0 level 1 1`] = `
+{
+  "digest": 3189111231,
+  "doors": [
+    1,
+    4,
+    1,
+    1,
+  ],
+  "kind": "hall",
+  "mood": "serene",
+  "name": "Fourth Western Hall",
+  "orientation": "NS",
+  "sample": [
+    "A larger-than-life ploughman, seated with hands in the lap, holding a spindle, alone.",
+    "A larger-than-life ploughman, kneeling in quiet attention, wearing a broad-brimmed hat, with a faint frown.",
+  ],
+  "size": [
+    99,
+    182,
+    29,
+  ],
+  "sizeClass": "large",
+  "slots": 256,
+  "statues": 248,
+  "tags": [],
+  "theme": "craft",
+}
+`;
+
+exports[`golden snapshot > hall -6,6 level 1 1`] = `
+{
+  "digest": 4033058835,
+  "doors": [
+    5,
+    2,
+    3,
+    2,
+  ],
+  "kind": "hall",
+  "mood": "serene",
+  "name": "Sixth North-Western Hall",
+  "orientation": "NS",
+  "sample": [
+    "A life-sized captain, head slightly bowed, holding a fan of feathers, head tipped back; hung with seaweed.",
+    "A life-sized figure of Vigilance, kneeling in quiet attention, holding a set of pipes, weight on one hip; hung with seaweed.",
+  ],
+  "size": [
+    121,
+    181,
+    34,
+  ],
+  "sizeClass": "life",
+  "slots": 2568,
+  "statues": 2508,
+  "tags": [
+    "rook-flock",
+  ],
+  "theme": "martial",
+}
+`;
+
+exports[`golden snapshot > hall -10,-50 level 1 1`] = `
+{
+  "digest": 1478980834,
+  "doors": [
+    3,
+    1,
+    3,
+    4,
+  ],
+  "kind": "hall",
+  "mood": "joyful",
+  "name": "Fiftieth Southern Hall, 10 rows west",
+  "orientation": "NS",
+  "sample": [
+    "A life-sized veiled figure of Night, laughing with head thrown back, with an open hand and an empty palm, facing outward; furred over with coral, crusted with shellfish.",
+    "A life-sized star-bearer, running forward, cloak streaming, holding a goblet upside down, head tipped back; furred over with coral, crusted with shellfish.",
+  ],
+  "size": [
+    110,
+    168,
+    27,
+  ],
+  "sizeClass": "life",
+  "slots": 1656,
+  "statues": 1624,
+  "tags": [
+    "coral",
+  ],
+  "theme": "celestial",
+}
+`;
+
+exports[`golden snapshot > hall -33,41 level 0 1`] = `
+{
+  "digest": 1949235321,
+  "doors": [
+    0,
+    1,
+    3,
+    4,
+  ],
+  "kind": "hall",
+  "mood": "joyful",
+  "name": "Forty-First North-Western Hall, 8 rows north",
+  "orientation": "NS",
+  "sample": [
+    "A huge cherub, arms flung wide, holding a short sword, point down, with a faint frown; crusted with shellfish.",
+    "A huge figure of Time, clapping hands overhead, carrying a small bell, a pair of doves above; crusted with shellfish.",
+  ],
+  "size": [
+    131,
+    220,
+    31,
+  ],
+  "sizeClass": "huge",
+  "slots": 180,
+  "statues": 175,
+  "tags": [],
+  "theme": "celestial",
+}
+`;
+
+exports[`golden snapshot > hall -88,0 level 1 1`] = `
+{
+  "digest": 800955746,
+  "doors": [
+    3,
+    5,
+    3,
+    1,
+  ],
+  "kind": "hall",
+  "mood": "serene",
+  "name": "Eighty-Eighth Western Hall",
+  "orientation": "NS",
+  "sample": [
+    "A larger-than-life figure of Mercy, looking down with a faint smile, holding a bowl of carved fire, a sleeping cat in the lap; hung with seaweed.",
+    "A larger-than-life sphinx, standing at rest, with a ring of keys at the belt, weight on one hip; hung with seaweed.",
+  ],
+  "size": [
+    95,
+    174,
+    27,
+  ],
+  "sizeClass": "large",
+  "slots": 328,
+  "statues": 320,
+  "tags": [
+    "gull-colony",
+  ],
+  "theme": "allegorical",
+}
+`;
+
+exports[`golden snapshot > hall -192,0 level 1 1`] = `
+{
+  "digest": 333073155,
+  "doors": [
+    0,
+    1,
+    0,
+    0,
+  ],
+  "kind": "hall",
+  "mood": "crowd",
+  "name": "One-Hundred-and-Ninety-Second Western Hall",
+  "orientation": "EW",
+  "sample": [
+    "A life-sized cartographer, on tiptoe to see over the heads in front, with a cluster of grapes at the hip, a child clinging to the hem.",
+    "A life-sized dancer, an arm around the person beside, wearing a pointed cap, a tortoise on the plinth.",
+  ],
+  "size": [
+    213,
+    135,
+    24,
+  ],
+  "sizeClass": "life",
+  "slots": 2048,
+  "statues": 2012,
+  "tags": [
+    "dark-hall",
+  ],
+  "theme": "maritime",
+}
+`;
+
+exports[`golden snapshot > hall 0,0 level 1 1`] = `
+{
+  "digest": 2227028554,
+  "doors": [
+    3,
+    4,
+    1,
+    2,
+  ],
+  "kind": "vestibule",
+  "mood": "serene",
+  "name": "First Vestibule",
+  "orientation": "EW",
+  "sample": [
+    "A larger-than-life veiled figure of Night, standing at rest, holding a wreath out in front, a sleeping cat in the lap; crusted with shellfish.",
+    "A larger-than-life figure of Hope, resting against a column, holding a bowl of carved fire, facing outward; crusted with shellfish.",
+  ],
+  "size": [
+    182,
+    109,
+    80,
+  ],
+  "sizeClass": "large",
+  "slots": 1440,
+  "statues": 1299,
+  "tags": [
+    "first-vestibule",
+    "minotaurs",
+  ],
+  "theme": "allegorical",
+}
+`;
+
+exports[`golden snapshot > hall 0,5 level 1 1`] = `
+{
+  "digest": 3264143955,
+  "doors": [
+    4,
+    2,
+    4,
+    3,
+  ],
+  "kind": "hall",
+  "mood": "serene",
+  "name": "Fifth Northern Hall",
+  "orientation": "EW",
+  "sample": [
+    "A larger-than-life ox, kneeling in quiet attention, holding a staff topped with a star, alone; crusted with shellfish.",
+    "A larger-than-life reaper, standing at rest, holding a net rolled up, a lamb at the side; hung with seaweed.",
+  ],
+  "size": [
+    160,
+    92,
+    31,
+  ],
+  "sizeClass": "large",
+  "slots": 528,
+  "statues": 518,
+  "tags": [],
+  "theme": "pastoral",
+}
+`;
+
+exports[`golden snapshot > hall 2,2 level 1 1`] = `
+{
+  "digest": 2250017594,
+  "doors": [
+    2,
+    4,
+    1,
+    2,
+  ],
+  "kind": "hall",
+  "mood": "serene",
+  "name": "Second North-Eastern Hall",
+  "orientation": "EW",
+  "sample": [
+    "A larger-than-life figure of Mercy, resting against a column, carrying a folded banner, facing outward; crusted with shellfish.",
+    "A larger-than-life figure of Vigilance, arms folded peacefully, with a coil of rope over one arm, looking aside; crusted with shellfish.",
+  ],
+  "size": [
+    166,
+    95,
+    26,
+  ],
+  "sizeClass": "large",
+  "slots": 186,
+  "statues": 181,
+  "tags": [
+    "ruinous",
+  ],
+  "theme": "allegorical",
+}
+`;
+
+exports[`golden snapshot > hall 6,0 level 1 1`] = `
+{
+  "digest": 1198244087,
+  "doors": [
+    1,
+    0,
+    3,
+    1,
+  ],
+  "kind": "hall",
+  "mood": "effort",
+  "name": "Sixth Eastern Hall",
+  "orientation": "NS",
+  "sample": [
+    "A colossal wind spirit, straining out of the wall, chest and arms reaching over the dark water, with one sleeve rolled to the shoulder, alone.",
+    "A colossal river god, twisting out of the wall with head thrown back, with one sleeve rolled to the shoulder, a pair of fish carved at the base.",
+  ],
+  "size": [
+    142,
+    254,
+    30,
+  ],
+  "sizeClass": "colossal",
+  "slots": 24,
+  "statues": 24,
+  "tags": [
+    "drowned",
+    "ruinous",
+  ],
+  "theme": "mythic",
+}
+`;
+
+exports[`golden snapshot > hall 12,-7 level 1 1`] = `
+{
+  "digest": 3405794107,
+  "doors": [
+    2,
+    1,
+    1,
+    3,
+  ],
+  "kind": "vestibule",
+  "mood": "solemn",
+  "name": "Sixty-Eighth Vestibule",
+  "orientation": "EW",
+  "sample": [
+    "A life-sized river god, kneeling with head bowed low, holding a ladder-like staff, with a small hound at the feet; crusted with shellfish.",
+    "A life-sized river god, looking straight ahead without expression, carrying a bundle of keys, with a faint frown; crusted with shellfish.",
+  ],
+  "size": [
+    220,
+    119,
+    55,
+  ],
+  "sizeClass": "life",
+  "slots": 4032,
+  "statues": 3971,
+  "tags": [
+    "ruinous",
+  ],
+  "theme": "mythic",
+}
+`;
+
+exports[`golden snapshot > hall 19,0 level 2 1`] = `
+{
+  "digest": 2193160755,
+  "doors": [
+    3,
+    1,
+    2,
+    2,
+  ],
+  "kind": "hall",
+  "mood": "violent",
+  "name": "Nineteenth Eastern Hall",
+  "orientation": "EW",
+  "sample": [
+    "A life-sized mermaid, stabbing downward at a fallen man, wearing a pointed cap, alone.",
+    "A life-sized ox, fleeing with a face twisted in terror, wearing a laurel crown, with a faint frown.",
+  ],
+  "size": [
+    178,
+    101,
+    24,
+  ],
+  "sizeClass": "life",
+  "slots": 1584,
+  "statues": 1536,
+  "tags": [
+    "ruinous",
+  ],
+  "theme": "mythic",
+}
+`;

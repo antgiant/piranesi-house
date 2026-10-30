@@ -125,11 +125,11 @@ is a full extraction pass; the facts below are a starting point, not the full ca
  time ──► sim/   tide(), weather(), light(), moon()   (pure of seed + UTC)
                          ▼
                  SceneState  ◄── net/ (Yjs awareness + shared items; peers appear here)
-        ┌────────┬───────┴────────┬──────────────┐
-        ▼        ▼                ▼              ▼
-     text/    audio/            map/           view3d/
-   (parser +  (Web Audio,      (2D canvas,    (three.js,
-   narrator)  procedural)      fog of war)    Piranesi-etching look)
+        ┌────────┬───────┴────────┬────────────┬────────┐
+        ▼        ▼                ▼            ▼        ▼
+     text/    audio/            map/        side/        view3d/
+   (parser +  (Web Audio,      (2D canvas, (2D parallax (three.js,
+   narrator)  procedural)      fog of war) side-scroller) etching look)
 ```
 
 **Stack**: TypeScript, Vite, vanilla DOM or Preact for UI. Vitest and fast-check for
@@ -212,8 +212,19 @@ standing in the same hall hear the same ambience.
 1. **Schematic map**: 2D canvas, fog of war (per player, ephemeral), level slider, live
    tide shading.
 2. **Cutaway section**: three-level cross-section showing water, cloud and your height.
-3. **First-person 3D** (three.js): box halls with instanced tiers. The honest cost is
-   statues. Plan a fidelity ladder: (a) etched relief cards generated on canvas,
+3. **Side-scroller (2D)**: you walk along one wall of a hall and across doors into the
+   next, with parallax depth layers (far wall, near pillars, windows with sky and stars).
+   Tiers of statues rise up the wall; stairs and ladders-of-masonry let you climb. The tide
+   rises visibly up the lower tiers and over the pavement; cloud drifts in at the top;
+   rain streaks down walls; birds perch on the right statues. Other players appear as
+   figures in the same strip. This is the intermediate step before 3D because:
+   - it needs the same **statue sprite pipeline** (generate an etched 2D figure from
+     `subject + pose + attributes + condition`), which 3D later extrapolates from;
+   - it exercises the SceneState → renderer contract with a real-time animated view;
+   - it is cheap to run on phones (Canvas 2D or PixiJS, no WebGL requirement).
+   Statues beyond the canon set start as stylised silhouettes and are upgraded over time.
+4. **First-person 3D** (three.js): box halls with instanced tiers. The honest cost is
+   statues. Plan a fidelity ladder: (a) etched relief cards generated on canvas (shared with the side-scroller),
    (b) parametric low-poly figures from pose and attributes, (c) a library of ~100
    glTF canon subjects later. A hatching or etching post-process, in the spirit of the
    real Piranesi prints, hides a lot of low-poly sins and suits the setting.
@@ -249,15 +260,16 @@ standing in the same hall hear the same ambience.
 | 3 | **Playable text + audio v1**: parser, narrator, sea bed, reverb, drips, wind, birds, footsteps; Pages deploy | someone can wander and *hear* the difference between a Drowned Hall and a flooded vestibule |
 | 4 | **Map + audio v2**: portals, tide events, fog of war | tide arrival is audible before it is visible |
 | 5 | **Multiplayer spike → presence → shared items** | two browsers on different networks meet, and state vanishes when both close |
-| 6 | **3D view**, fidelity step (a), then (b) | same statue list as text view |
-| 7 | **Polish**: accessibility, mobile, PWA offline, performance budget, credits and fan-work notice | |
+| 6 | **Side-scroller view**: walking strip with parallax, tiers, tide/cloud/rain, perched birds, statue sprite pipeline, other players | same statue list and tide level as the text view, at the same moment |
+| 7 | **3D view**, fidelity step (a) reusing the sprite pipeline, then (b) | same statue list as text and side views |
+| 8 | **Polish**: accessibility, mobile, PWA offline, performance budget, credits and fan-work notice | |
 
 ## 10. Risks
 
 - **Canon fidelity** depends on a full, careful extraction. Budget real time for M0.
 - **Determinism drift** from careless generator edits (mitigated by golden tests and
   `worldVersion`).
-- **Statue fidelity in 3D** is the largest cost sink. The etched look is the mitigation.
+- **Statue fidelity** is the largest visual cost sink. The etched look is the mitigation, and the side-scroller gives us the sprite pipeline cheaply before 3D.
 - **P2P reliability** with no server: be prepared to ship single-player first.
 - **IP**: the book is in copyright and its text must never be committed. Enforced by
   `.gitignore`, `scripts/check-no-source-text.sh` (run as a pre-commit hook via

@@ -37,6 +37,10 @@ distance), because a vestibule can never sit on a ray.
 | The Twenty-Second Vestibule is five halls south and west | Vestibule 22 at `(-5, -4)` |
 | The Sixth Vestibule's stair floods the Second Southern Hall | Vestibule 6 at `(1, -2)`, next to `(0, -2)` |
 | The Tenth and Twelfth Vestibules both flood the Eighth Northern Hall | Vestibules 10 and 12 at `(1, 8)` and `(-1, 8)`, either side of `(0, 8)` |
+| The Thirteenth Vestibule's stair climbs to the hall above the Eighteenth North-Eastern Hall | Vestibule 13 at `(17, 18)`, beside `(18, 18)` |
+| The Seventeenth Vestibule is passed through from the Twelfth South-Eastern Hall | Vestibule 17 at `(12, -11)`, beside `(12, -12)` |
+| The Forty-Third Vestibule's stair leads to the lower hall beneath the Thirty-Seventh South-Western Hall | Vestibule 43 at `(-37, -36)`, beside `(-37, -37)` |
+| The Forty-Fifth and Seventy-Eighth Vestibules lie on the road west to the dark hall | Vestibules 45 and 78 at `(-45, 1)` and `(-78, -1)` |
 | The Sixth North-Western Hall is 13 rooms from the First Vestibule | It is `(-6, 7)`, 13 steps away, with a winding route of doors forced open; shortest path is exactly 13 |
 | The Twenty-Fourth Vestibule lies between the Sixth and Eighteenth North-Western Halls | Vestibule 24 at `(-6, 8)`; the Eighteenth is `(-6, 9)`; doors on both sides |
 | The Fourth and Fifth North-Western Halls share a door (the Faun) | The Fourth is `(-4, 5)`, beside the Fifth `(-5, 5)`; the shared door is pinned |
@@ -54,6 +58,6 @@ it says they are.
 | 20 km to the 192nd Western Hall in 3.76 h | We do not yet model walking time; halls on the west axis are 105-250 m wide | Distance model arrives with the simulation (milestone 2) |
 | Absolute positions in metres | Topological only in M1 | Not needed until the 2D/3D views |
 | Statues whose hall the book does not give (Cymbal Boy, Elephant with a Castle, Two Kings, ...) | Deterministic hash places each within 3-14 steps of the origin on a ray | Marked `guess: true` in `src/data/canonPlacement.ts` |
-| Other numbered rooms (the 8th, 17th, 18th, 32nd, 43rd, 45th, 78th Vestibules, and so on) | Placed by distance from the origin | The book gives no relative position for them |
+| Other numbered rooms (the 2nd, 8th, 16th, 18th, 32nd Vestibules, and so on) | Placed by distance from the origin | The book gives no relative position for them |
 
 If you spot a place where the generator contradicts the text and it is not listed here, that is a bug: please say so.

@@ -103,8 +103,13 @@ export const PINNED_VESTIBULES: readonly Pin[] = [
   { n: 9, x: -2, y: 1 }, // two halls west and north of the First
   { n: 10, x: 1, y: 8 }, // a northern tide rises here, flooding the Eighth Northern Hall (0,8)
   { n: 12, x: -1, y: 8 }, // an eastern tide rises here moments later, flooding the same hall
+  { n: 13, x: 17, y: 18 }, // its stair climbs to sunlit upper halls; the hall above the Eighteenth North-Eastern (18,18) is next to it
+  { n: 17, x: 12, y: -11 }, // passed through from the Twelfth South-Eastern Hall (12,-12); autumn murmurations
   { n: 22, x: -5, y: -4 }, // five halls south and west of the First
   { n: 24, x: -6, y: 8 }, // between the Sixth North-Western Hall (-6,7) and the Eighteenth (-6,9)
+  { n: 43, x: -37, y: -36 }, // its stair leads to the lower hall beneath the Thirty-Seventh South-Western Hall (-37,-37); the albatross nest
+  { n: 45, x: -45, y: 1 }, // on the westward road to the dark hall: a stair carpeted with mussels
+  { n: 78, x: -78, y: -1 }, // on the same road: rubble and a thin sheet of water
 ];
 
 function pinnedAt(x: number, y: number): Pin | undefined {
@@ -168,7 +173,15 @@ function buildVestibules(world: World, radius: number): VTable {
 function vtable(world: World, minRadius: number): VTable {
   let t = vcache.get(world);
   if (!t || t.radius < minRadius) {
-    t = buildVestibules(world, Math.max(12, minRadius * 2));
+    let radius = Math.max(12, minRadius * 2);
+    for (;;) {
+      try {
+        t = buildVestibules(world, radius);
+        break;
+      } catch {
+        radius *= 2; // too few natural vestibules to reach the highest pinned number
+      }
+    }
     vcache.set(world, t);
   }
   return t;

@@ -7,6 +7,7 @@ import {
   DARK_HALL, SIDES, cellKind, cellName, cellFromRay, floorDivExport, isVestibule, vestibuleNumber, wallDoors,
 } from './layout';
 import { Rng, hashInts } from './rng';
+import { regularReachDm } from './tidegeo';
 import type { Regions } from './regions';
 import { regionsAt } from './regions';
 import type { World } from './world';
@@ -21,7 +22,7 @@ const SIZE_DM: Record<SizeClass, readonly [number, number]> = {
 
 export type HallTag =
   | 'first-vestibule' | 'ninth-vestibule' | 'dark-hall' | 'gull-colony' | 'rook-flock' | 'albatross-nest'
-  | 'mussel-stair' | 'pebble-bank' | 'murmuration' | 'bird-shelter' | 'horned-giants' | 'minotaurs'
+  | 'mussel-stair' | 'pebble-bank' | 'golden-wall' | 'murmuration' | 'bird-shelter' | 'horned-giants' | 'minotaurs'
   | 'drowned' | 'coral' | 'cloud-zone' | 'ruinous';
 
 export interface Stair { wall: Side; pos: number; name: string }
@@ -174,14 +175,7 @@ function buildHall(world: World, x: number, y: number, level: Level, id: string)
   // --- water ---------------------------------------------------------------------------------------------------
   let tideReachDm = 0;
   if (level === 0) tideReachDm = heightM * 10; // lower halls are submerged for part of every cycle
-  else if (level === 1 && !regions.drowned && !isDark) {
-    let d = 99;
-    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-      if (isVestibule(world, x + dx, y + dy)) d = Math.min(d, Math.abs(dx) + Math.abs(dy));
-    }
-    const base = 16 - 5 * d; // ordinary tides: about waist height on the first tier at a vestibule, fading over three halls
-    tideReachDm = base > 0 ? base + rng.range(0, 4) : 0;
-  }
+  else if (level === 1 && !regions.drowned && !isDark) tideReachDm = regularReachDm(world, x, y);
   const falls = rng.chance(35, 100)
     ? { wall: rng.pick(SIDES), from: rng.range(100, 600), to: 0 }
     : null;
@@ -238,6 +232,7 @@ function buildHall(world: World, x: number, y: number, level: Level, id: string)
   if (x === -88 && y === 0) tags.push('gull-colony');
   if (name === 'Sixth North-Western Hall') tags.push('rook-flock');
   if (name === 'Sixth Western Hall') tags.push('bird-shelter');
+  if (name === 'Fifty-Second Western Hall') tags.push('golden-wall');
   if (regions.drowned && level === 1) tags.push('drowned');
   if (regions.coral) tags.push('coral');
   if (regions.cloud) tags.push('cloud-zone');

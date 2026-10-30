@@ -8,8 +8,8 @@ This is an unofficial fan project inspired by a novel. It contains no text from 
 `canon/` for the facts it is built from (in our own words), and `design/` for our own design decisions.
 
 ## Status
-Milestone 0 (canon) is a draft awaiting review. Milestone 1 (world core) is underway: deterministic layout, naming,
-doors, halls, and the statue generator with canon overlay and a consistency test suite. Nothing is playable yet.
+Milestone 0 (canon) is a draft awaiting review. Milestones 1 and 2 are done: a deterministic world (layout, naming, doors, halls, statues with canon overlay) and a
+simulation of time, tides, weather, light and birds, with about 150 tests. Nothing is playable yet.
 
 ## Develop
 ```sh
@@ -20,6 +20,7 @@ npm run build:canon             # regenerate src/generated/canon-statues.json af
 npm run hall -- "Ninth Vestibule"             # print a hall
 npm run hall -- --xy 6 0 --statues 5          # a Drowned Hall
 npm run hall -- "Third North-Western Hall" --no-dead
+npm run now -- "Ninth Vestibule" --join       # the moment of the next great join of three tides
 ```
 
 ## Rules for contributors

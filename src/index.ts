@@ -6,3 +6,8 @@ export { describeStatue, signature, workshopMark, type Slot, type Statue, type C
 export { regionsAt, DROWNED, CORAL, type Regions } from './world/regions';
 export { ordinalWord, parseOrdinal } from './world/words';
 export { shortestRooms } from './world/path';
+export * from './sim/time';
+export { weatherAt, localWeather, southness, type Weather, type LocalWeather } from './sim/weather';
+export { tideAt, forecast, nextJoin, vestibuleTide, joinOffsetMs, TIDE_COUNT, TIDE_CHARACTER, sourcesFor, type HallTide, type TideEvent, type TideSource } from './sim/tides';
+export { lightAt, birdsAt, type Light, type BirdScene } from './sim/light';
+export { sceneAt, sceneAtWorldTime, type SceneState } from './sim/scene';

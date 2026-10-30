@@ -8,7 +8,8 @@
     "build:canon": "node scripts/build-canon.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "hall": "tsx src/cli.ts"
+    "hall": "tsx src/cli.ts",
+    "now": "tsx src/now.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

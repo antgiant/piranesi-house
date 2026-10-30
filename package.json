@@ -1,0 +1,21 @@
+{
+  "name": "the-house",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "An explorable, sound-first, procedurally generated House. Static site; no server.",
+  "scripts": {
+    "build:canon": "node scripts/build-canon.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "hall": "tsx src/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "fast-check": "^3.23.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "yaml": "^2.6.0"
+  }
+}

@@ -9,3 +9,8 @@
 !robots.txt
 *Piranesi*Clarke*
 *Susanna*Clarke*
+
+# build output / deps
+node_modules/
+dist/
+coverage/

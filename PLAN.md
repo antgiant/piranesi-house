@@ -309,7 +309,11 @@ standing in the same hall hear the same ambience.
    to be used, which is the natural limit on marks. Marks and dropped items follow a
    witness rule: a hall's shared state exists only while a connected visitor who has seen
    that hall carries it. See `design/inventory.yaml` and `design/packs.yaml`.
+8. **Previous visitors**: the initial world state contains very rare, anonymous leftovers
+   (litter and a sleeping bag near the First Vestibule, torn scraps in the 88th Western
+   Hall's gull nests, faded chalk marks on doorframes, a damp note now and then). Placed
+   deterministically from the seed. Any wording is our own and always partly illegible.
 
 ### Config (draft)
-`seed`, `worldVersion`, `timeScale`, `showDead`, `packs.outsideTraces`, `packs.visitorMarks`, `inventory`, `audio.master`, `view` (`text` | `map` |
+`seed`, `worldVersion`, `timeScale`, `showDead`, `packs.outsideTraces`, `packs.visitorMarks`, `packs.previousVisitors`, `relicDensity`, `inventory`, `audio.master`, `view` (`text` | `map` |
 `3d`), `multiplayer` (`off` | `on`), `roomName`.

@@ -2,8 +2,9 @@
 version: 0
 config_defaults:
   showDead: false
-  packs: {outside_traces: false, visitor_marks: true}
+  packs: {outside_traces: false, visitor_marks: true, previous_visitors: true}
   inventory: true
+  relicDensity: 1.0   # multiplier; 0 turns relics off
 
 packs:
   - id: outside_traces
@@ -50,3 +51,26 @@ packs:
       note: "Pebble messages are pictures only, never letters."
     ambient_rare:
       - "Very rarely, a preset mark is found with no visible author, so the hall seems to have been visited. Generated from the seed and time, no meaning, same presets."
+
+  - id: previous_visitors
+    default: true
+    from_canon: [RC-001, RC-002, RC-003, RC-004, RC-005, RC-006, RC-008]
+    intent: "Very rare leftovers from earlier, anonymous visitors, already present in the world when you arrive, there to be found."
+    rules:
+      - "Part of the initial world state: placed deterministically from the seed, so the same seed has the same relics for everyone. They are not generated per player."
+      - "Very rare by design. Densities (before relicDensity): First Vestibule and halls within 5 steps about 1 in 25 halls; beyond that about 1 in 400 halls. The far halls are almost empty."
+      - "Anonymous: no names, no dates, no story identification. Nothing links relics to each other."
+      - "Taking, moving or dropping a relic changes shared state under the witness rule from visitor_marks.memory; a fresh join of the same seed sees them back where they began."
+    kinds:
+      - {kind: litter, where: "First Vestibule and nearby halls, especially the hollow under the Great Staircase", items: [packet, cardboard-box, wrapper], pick_up: true, usable: false, note: "Can be piled up; burn-able as fuel if fire is ever added."}
+      - {kind: old-sleeping-bag, where: "exactly one, in the hollow under the Great Staircase of the First Vestibule", pick_up: true, usable: "warmth in cloud or winter"}
+      - {kind: crumpled-note, where: "rare, blowing about the First Vestibule region or caught in corners", frequency: "about 1 in 1500 halls beyond the origin zone", text: "from our authored fragment list below, always partly illegible"}
+      - {kind: torn-scraps, where: "88th Western Hall (pavement, gull nests); easiest to gather in late summer or early autumn", counts: "10 to 20 on the pavement, 5 to 10 in nests", text: "illegible except for the authored fragments; collecting several lets a visitor read a longer fragment"}
+      - {kind: old-door-marks, where: "faded chalk arrows and tally strokes on doorframes below a tall person's eye level, in short runs of 5 to 13 doors", frequency: "about 1 run per 200 halls", marks: "presets only (arrows, tally, circle); never words"}
+      - {kind: small-stray, where: "very rare", items: [pen, empty-tin, scrap-of-cloth]}
+    authored_fragments:
+      note: "Written by us, original, generic and kind. Always damaged: only a few words visible. No names, places outside the House, or story references."
+      list: ["...the sea was loud all night...", "...keep the small door on your left...", "...bring something warm...", "...I counted forty-one steps...", "...do not go east after the rain...", "...the birds were restless...", "...mark the doors as you go...", "...the water rose to my knees...", "...somewhere dry to rest..."]
+    discovery:
+      - "Examining a relic shows our authored description; no relic gives a reward."
+      - "Each visitor may keep a private, local-only list of what they have found. Not shared, not stored on any server."

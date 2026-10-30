@@ -16,4 +16,5 @@ excluded:
   - {id: X-010, what: "The inhabitant's personal named constellations and year names", decision: excluded, why: "Character piece. The engine ships neutral sky names."}
   - {id: X-011, what: "In-world explanations of why the statues exist, and talk of the House causing forgetting", decision: excluded, why: "Lore from characters. The statues' origin stays unexplained."}
   - {id: X-012, what: "Perfumes, a torch/phone, a kayak-style boat, a firearm", decision: excluded, why: "Character items."}
+  - {id: X-014, what: "The specific story content of earlier-visitor leftovers: the lunch-and-directions note, the angry notebook pages, the yellow-chalk route and its messages, the pebble-letter question", decision: excluded, why: "Story. The generic idea (litter, a sleeping bag, notes, scraps, old door marks) is in, as the previous_visitors pack. Our own authored fragments replace any wording."}
   - {id: X-013, what: "A body placed in the lower halls and later among the Dead", decision: excluded, why: "Story event."}

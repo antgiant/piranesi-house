@@ -46,6 +46,7 @@ before every commit that touches `canon/`**. Last run: 0 overlaps at N=7.
 | `life.yaml` | birds, sea life, plants, food, and the optional skeletal Dead |
 | `senses.yaml` | sound, smell, touch and light descriptors for the audio and text layers |
 | `rules.yaml` | testable invariants distilled from the above (these become tests in M1) |
+| `relics.yaml` | traces of earlier visitors already present in the world (litter, sleeping bag, scraps, door marks) |
 | `excluded.yaml` | everything deliberately left out as plot or out-of-world |
 | `open_questions.yaml` | ambiguities and decisions still needed |
 

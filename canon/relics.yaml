@@ -1,0 +1,12 @@
+# Traces of earlier visitors that are already present in the world. Own-words paraphrase; src = line in owner's text export.
+# Setting: before the story. These are anonymous leftovers; no one is identified and the story's own notes and routes are not used.
+version: 0
+relics:
+  - {id: RC-001, fact: "Litter from earlier visitors turns up in and around the First Vestibule: crisp-style packets, food-box cardboard, pastry wrappings. Once a constant nuisance there, it is scarce when tidy.", src: 1181, confidence: stated}
+  - {id: RC-002, fact: "Much of that litter gathers in the pale, cave-like hollow beneath the Great Staircase of the First Vestibule.", src: [1181, 1742], confidence: stated}
+  - {id: RC-003, fact: "A dirty, evil-smelling sleeping bag lies under the sweep of the Great Staircase in the First Vestibule (one object).", src: 1181, confidence: stated}
+  - {id: RC-004, fact: "A handwritten note, crumpled, can blow along a pavement among the packets and be mistaken for one. It is paper on a clean page with a request and a reply space.", src: 1183, confidence: stated}
+  - {id: RC-005, fact: "Torn handwritten pages lie scattered across the pavement of the 88th Western Hall, with more woven into the gulls' nests (dozens of scraps in all). The writing is hasty and hard to read. They are easiest to gather in late summer or early autumn, when the gulls have left.", src: [895-909, 1771], confidence: stated}
+  - {id: RC-006, fact: "Old chalk marks on doorframes and floors, made by someone afraid of getting lost, can survive years of flood, wind, rain and mist. They sit below a tall person's eye level.", src: [1865, 1883], confidence: stated}
+  - {id: RC-007, fact: "A skeleton can be found displayed with a red biscuit tin of small bones (this is the optional Dead).", src: 157, confidence: stated, scope: optional}
+  - {id: RC-008, fact: "Relics are rare. Almost none lie in the far halls; the neighbourhood of the First Vestibule is where earlier visitors came and went.", src: [1181, 1203], confidence: inferred}

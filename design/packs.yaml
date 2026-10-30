@@ -1,14 +1,14 @@
 # Design (not canon): opt-in content packs and their rules. Each is a config toggle.
 version: 0
 config_defaults:
-  showDead: false
-  packs: {outside_traces: false, visitor_marks: true, previous_visitors: true}
+  showDead: true      # every setting defaults to on; visitors turn off what they don't want
+  packs: {outside_traces: true, visitor_marks: true, previous_visitors: true}
   inventory: true
   relicDensity: 1.0   # multiplier; 0 turns relics off
 
 packs:
   - id: outside_traces
-    default: false
+    default: true
     from_canon: [X-004, X-009]
     intent: "Very rare hints that an outside exists. Nothing to enter, no one to meet."
     rules:
@@ -65,7 +65,7 @@ packs:
       - {kind: litter, where: "First Vestibule and nearby halls, especially the hollow under the Great Staircase", items: [packet, cardboard-box, wrapper], pick_up: true, usable: false, note: "Can be piled up; burn-able as fuel if fire is ever added."}
       - {kind: old-sleeping-bag, where: "exactly one, in the hollow under the Great Staircase of the First Vestibule", pick_up: true, usable: "warmth in cloud or winter"}
       - {kind: crumpled-note, where: "rare, blowing about the First Vestibule region or caught in corners", frequency: "about 1 in 1500 halls beyond the origin zone", text: "from our authored fragment list below, always partly illegible"}
-      - {kind: torn-scraps, where: "88th Western Hall (pavement, gull nests); easiest to gather in late summer or early autumn", counts: "10 to 20 on the pavement, 5 to 10 in nests", text: "illegible except for the authored fragments; collecting several lets a visitor read a longer fragment"}
+      - {kind: torn-scraps, where: "88th Western Hall (pavement, gull nests); easiest to gather in late summer or early autumn", counts: "10 to 20 on the pavement, 5 to 10 in nests", text: "each scrap is illegible except for at most one authored fragment; collecting scraps does not unlock anything"}
       - {kind: old-door-marks, where: "faded chalk arrows and tally strokes on doorframes below a tall person's eye level, in short runs of 5 to 13 doors", frequency: "about 1 run per 200 halls", marks: "presets only (arrows, tally, circle); never words"}
       - {kind: small-stray, where: "very rare", items: [pen, empty-tin, scrap-of-cloth]}
     authored_fragments:

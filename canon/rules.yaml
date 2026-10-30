@@ -38,6 +38,6 @@ rules:
   - {id: RL-028, kind: fixture, test: "The Sixth North-Western Hall is 13 halls from the First Vestibule by path and lies two vestibule-steps from the Twenty-Fourth Vestibule.", from: [P-010, P-011]}
   - {id: RL-029, kind: fixture, test: "The First Vestibule opens to the First Northern, Western and Eastern Halls and a corridor to the First South-Western Hall.", from: [P-012]}
   - {id: RL-036, kind: sim, test: "The tide table is deterministic: given (seed, UTC time) the next conjunction can be computed years ahead.", from: [T-018]}
-  - {id: RL-042, kind: consistency, test: "With showDead=true the four bone sites hold 13 individual skeletons plus one monkey; with showDead=false none.", from: [dead-sites]}
+  - {id: RL-042, kind: consistency, test: "With showDead=true (the default) the four bone sites hold 13 individual skeletons plus one monkey; with showDead=false none.", from: [dead-sites]}
   - {id: RL-040, kind: consistency, test: "Text, side-scroller and 3D builders yield the same statue list for the same hall, viewpoint and time.", from: [project-plan]}
   - {id: RL-041, kind: consistency, test: "With showDead=false, the hall layout and all statue ids are identical to showDead=true; only the contents of the four bone sites differ.", from: [config]}

@@ -15,5 +15,5 @@ questions:
   - {id: Q-014, q: "How long do visitor marks last?", decision: "As long as someone is connected who has, or could have, seen them: witness-based, per hall (see design/packs.yaml). The author leaving does not erase a mark another visitor has seen.", status: done}
   - {id: Q-015, q: "Witness rule: a visitor counts as a witness if they were in the hall or in one of its doorways.", decision: "Confirmed.", status: done}
   - {id: Q-016, q: "Do visitors need to eat and drink?", decision: "No survival. Food is flavour and craft material only.", status: done}
-  - {id: Q-017, q: "Should a visitor's character occasionally mutter incoherent, Markov-style speech rendered as audio? (toggle `mutter`)", status: open, notes: "See assistant recommendation in the conversation: yes with guardrails; train only on our own authored corpus, never the book."}
+  - {id: Q-017, q: "Occasional incoherent muttering from the visitor's character.", decision: "Yes, but deferred to a later pass after the other pieces are locked in. Needs reverb and effects, so it goes through Web Audio. See design/mutter.yaml.", status: deferred}
   - {id: Q-012, q: "Are the Dead on by default?", decision: "Yes. All settings default to on, including showDead; visitors choose to turn things off.", status: done}

@@ -266,6 +266,7 @@ standing in the same hall hear the same ambience.
 | 5 | **Multiplayer spike → presence → shared items** | two browsers on different networks meet, and state vanishes when both close |
 | 6 | **Side-scroller view**: walking strip with parallax, tiers, tide/cloud/rain, perched birds, statue sprite pipeline, other players | same statue list and tide level as the text view, at the same moment |
 | 7 | **3D view**, fidelity step (a) reusing the sprite pipeline, then (b) | same statue list as text and side views |
+| 9 | **Later pass: mutter** (incoherent speech through hall reverb; see `design/mutter.yaml`), after everything else is locked in | |
 | 8 | **Polish**: accessibility, mobile, PWA offline, performance budget, credits and fan-work notice | |
 
 ## 10. Risks
@@ -313,6 +314,8 @@ standing in the same hall hear the same ambience.
    (litter and a sleeping bag near the First Vestibule, torn scraps in the 88th Western
    Hall's gull nests, faded chalk marks on doorframes, a damp note now and then). Placed
    deterministically from the seed. Any wording is our own and always partly illegible.
+9. **Mutter**: deferred to a later pass. When built it must run through Web Audio so it gets
+   reverb and effects, generated only from our own corpus, with a toggle (`mutter`).
 
 ### Config (draft)
 `seed`, `worldVersion`, `timeScale`, `showDead`, `packs.outsideTraces`, `packs.visitorMarks`, `packs.previousVisitors`, `relicDensity`, `inventory`, `audio.master`, `view` (`text` | `map` |

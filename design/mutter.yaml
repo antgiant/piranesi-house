@@ -1,0 +1,19 @@
+# Design (not canon): occasional incoherent muttering from the visitor's character.
+# STATUS: deferred to a later pass, after the other pieces are locked in. Do not build before milestone 8.
+version: 0
+status: deferred
+config: {mutter: true, mutterCaptions: false}   # on by default like everything else; visitors can turn it off
+intent: "A rare, quiet, half-sensible murmur that makes the House feel inhabited. Heard through the hall's own reverb and muffling."
+requirements:
+  audio: "Must go through the Web Audio graph so it gets hall reverb, doorway muffling and the underwater hush. The browser's built-in speech engine (Web Speech API) cannot be routed through Web Audio effects, so it is NOT the engine."
+  engine_options:
+    - "A small bundled speech engine compiled to WebAssembly that outputs audio buffers (check licences first: eSpeak NG is, to my knowledge, GPL-3.0, which would affect the licence of the whole site; verify before adopting)."
+    - "A permissively licensed engine (for example a small neural TTS) at the cost of download size."
+    - "Our own syllable/formant babble synthesiser in Web Audio, driven by the generated text. Since the speech is meant to be incoherent, intelligibility is not required; no third-party licence; fully effectable. Probably the best fit; decide at implementation time."
+  text: "Markov-style generation from OUR OWN authored corpus (canon descriptions in our words plus authored House phrases). NEVER trained on the book. Closed, curated vocabulary. No visitor text ever feeds it."
+guardrails:
+  - "Add a check that no run of 7 or more words in generated output matches the book (mirror of scripts/check-canon-not-verbatim.py)."
+  - "Quiet and rare. Silent during tide events and in the Drowned Halls and the dark hall."
+  - "Optional captions for people who cannot hear it and for screen readers."
+  - "Per-visitor and cosmetic: not canon, does not affect the deterministic world."
+  - "Other visitors hear it only if close, through the same acoustics; they can mute it separately."

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Flag any run of N consecutive words in canon/ that also appears in the (private) source text.
+"""Flag any run of N consecutive words in our own files (canon/, src/, design/, tests/, docs) that also appears in the
+(private) source text.
 
 Usage: python3 -I scripts/check-canon-not-verbatim.py /path/to/source.txt [N=7]
 The source path is an argument; the source itself never lives in the repo.
@@ -23,7 +24,9 @@ def main():
     src = words(open(src_path, encoding="utf-8", errors="ignore").read())
     grams = {tuple(src[i:i+n]) for i in range(len(src) - n + 1)}
     bad = 0
-    for f in sorted(glob.glob("canon/**/*.*", recursive=True)):
+    PATTERNS = ["canon/**/*.*", "src/**/*.ts", "design/**/*.*", "tests/**/*.ts", "PLAN.md", "README.md"]
+    files = sorted({f for pat in PATTERNS for f in glob.glob(pat, recursive=True) if "generated" not in f and "__snapshots__" not in f})
+    for f in files:
         for ln, line in enumerate(open(f, encoding="utf-8"), 1):
             w = words(re.sub(r"\bsrc\b.*$", "", line))
             for i in range(len(w) - n + 1):

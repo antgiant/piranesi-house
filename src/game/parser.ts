@@ -1,0 +1,69 @@
+import type { Side } from '../world/layout';
+
+export type Command =
+  | { t: 'empty' }
+  | { t: 'look' }
+  | { t: 'listen' }
+  | { t: 'go'; side?: Side; n?: number }
+  | { t: 'walk'; wall: Side }
+  | { t: 'stairs'; dir: 'up' | 'down' }
+  | { t: 'examine'; what: string }
+  | { t: 'wait'; minutes: number }
+  | { t: 'time' }
+  | { t: 'where' }
+  | { t: 'help' }
+  | { t: 'unknown'; input: string };
+
+const DIRS: Record<string, Side> = { n: 'N', north: 'N', e: 'E', east: 'E', s: 'S', south: 'S', w: 'W', west: 'W' };
+const ARTICLES = new Set(['the', 'a', 'an', 'to', 'at', 'through', 'toward', 'towards', 'on', 'of', 'into', 'wall', 'door', 'doors', 'exit']);
+
+export function parse(input: string): Command {
+  const words = input.toLowerCase().replace(/[^a-z0-9\s'-]/g, ' ').split(/\s+/).filter(Boolean);
+  if (words.length === 0) return { t: 'empty' };
+  const verb = words[0] as string;
+  const rest = words.slice(1);
+  const content = rest.filter((w) => !ARTICLES.has(w));
+  const num = (ws: string[]): number | undefined => {
+    const n = ws.find((w) => /^\d+$/.test(w));
+    return n === undefined ? undefined : Number(n);
+  };
+
+  if (verb in DIRS && words.length <= 2) return { t: 'go', side: DIRS[verb] as Side, n: num(rest) };
+  switch (verb) {
+    case 'l': case 'look': case 'around': case 'again':
+      if (content.length > 0 && verb === 'look' && !['around', 'again'].includes(content[0] as string)) return { t: 'examine', what: content.join(' ') };
+      return { t: 'look' };
+    case 'x': case 'examine': case 'inspect': case 'study': case 'read': case 'statue':
+      return content.length ? { t: 'examine', what: content.join(' ') } : { t: 'unknown', input };
+    case 'listen': case 'hear':
+      return { t: 'listen' };
+    case 'go': case 'walk': case 'head': case 'move': case 'run': case 'enter': case 'leave': case 'exit': case 'door': {
+      const side = content.map((w) => DIRS[w]).find(Boolean);
+      const toWall = rest.includes('wall') || verb === 'walk';
+      if (verb === 'walk' || (toWall && side)) {
+        if (side && (verb === 'walk' || rest.includes('to') || rest.includes('wall'))) return { t: 'walk', wall: side };
+      }
+      if (content.includes('up')) return { t: 'stairs', dir: 'up' };
+      if (content.includes('down')) return { t: 'stairs', dir: 'down' };
+      const n = num(rest);
+      if (side || n !== undefined) return { t: 'go', side, n };
+      return { t: 'unknown', input };
+    }
+    case 'u': case 'up': case 'ascend': return { t: 'stairs', dir: 'up' };
+    case 'd': case 'down': case 'descend': return { t: 'stairs', dir: 'down' };
+    case 'climb':
+      if (content.includes('down')) return { t: 'stairs', dir: 'down' };
+      return { t: 'stairs', dir: 'up' };
+    case 'wait': case 'rest': case 'sit': case 'pause':
+      return { t: 'wait', minutes: num(rest) ?? 5 };
+    case 'time': case 'sky': case 'date': case 'clock': case 'moon':
+      return { t: 'time' };
+    case 'where': case 'whereami': case 'name':
+      return { t: 'where' };
+    case 'help': case 'h': case '?': case 'commands':
+      return { t: 'help' };
+    default:
+      if (/^\d+$/.test(verb) && words.length === 1) return { t: 'go', n: Number(verb) };
+      return { t: 'unknown', input };
+  }
+}

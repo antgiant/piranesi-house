@@ -68,7 +68,7 @@ export interface Hall {
   slotCount: number;
 }
 
-const ARCH_COLUMNS = ['plain', 'fluted', 'paired', 'spiral-carved', 'clustered', 'square piers'] as const;
+const ARCH_COLUMNS = ['plain columns', 'fluted columns', 'paired columns', 'spiral-carved columns', 'clustered columns', 'square piers'] as const;
 const ARCH_PILASTERS = ['flat', 'fluted', 'banded', 'panelled'] as const;
 const ARCH_NICHES = ['round-headed', 'square', 'shell-headed', 'pointed', 'stepped'] as const;
 const ARCH_PEDIMENTS = ['triangular', 'segmental', 'broken', 'none'] as const;
@@ -213,7 +213,7 @@ function buildHall(world: World, x: number, y: number, level: Level, id: string)
     features.push({ id: 'plinth-6-se', kind: 'plinth', wall: 'S', occupant: dead ? 'child-skeleton' : null, note: 'an empty plinth' });
   }
   if (level === 2 && x === dc.concealed.x && y === dc.concealed.y) {
-    features.push({ id: 'gap-above-18-ne', kind: 'niche', wall: 'W', occupant: dead ? 'wedged-skeleton' : null, note: 'a narrow space between a plinth and the wall' });
+    features.push({ id: 'gap-above-18-ne', kind: 'niche', wall: 'W', occupant: dead ? 'wedged-skeleton' : null, note: 'a gap behind a plinth' });
   }
 
   // --- tags (what the audio and text layers key off) -------------------------------------------------------------

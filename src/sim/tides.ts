@@ -32,12 +32,12 @@ export interface TideCharacter {
 
 // E, W, N follow the book's descriptions of the three tides that join; the rest are our own design (confidence: guess).
 export const TIDE_CHARACTER: Readonly<Record<TideSource, TideCharacter>> = {
-  E: { colour: 'almost colourless', foam: 'milky streaks marbling a grey mirror', sound: 'a quiet hush', richness: 'empty' },
+  E: { colour: 'almost colourless', foam: 'streaked milky over a grey mirror of water', sound: 'a quiet hush', richness: 'empty' },
   W: { colour: 'pewter', foam: 'white as old fishbones', sound: 'a thunder and a great clap against the far wall', richness: 'fair' },
-  N: { colour: 'ice-white', foam: 'glittering, explosive', sound: 'a rush like struck glass', richness: 'fair' },
+  N: { colour: 'ice-white', foam: 'glittering and explosive', sound: 'a rush like struck glass', richness: 'fair' },
   S: { colour: 'blue-green', foam: 'pale and lacy', sound: 'a long, even surge', richness: 'rich' },
   NE: { colour: 'slate-green', foam: 'grey and sparse', sound: 'a low, steady pour', richness: 'lean' },
-  SE: { colour: 'amber-brown', foam: 'yellowish, thick with weed', sound: 'a slow wash', richness: 'rich' },
+  SE: { colour: 'amber-brown', foam: 'yellowish and thick with weed', sound: 'a slow wash', richness: 'rich' },
   SW: { colour: 'deep blue', foam: 'bright and quick', sound: 'a bright, rattling rush', richness: 'rich' },
   NW: { colour: 'silver-grey', foam: 'fine as sleet', sound: 'a sibilant hiss', richness: 'lean' },
 };

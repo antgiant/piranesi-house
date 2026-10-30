@@ -64,7 +64,7 @@ is a full extraction pass; the facts below are a starting point, not the full ca
   Western Hall), Gardener, Angel blowing trumpet, Ship on little waves, Man reading a big
   book, Woman with a dish showing clouds, Child with curls looking at a flower, Sack of
   grain eaten by mice, Hierophant (19th Southern Hall), Angel caught on a rose bush
-  (2nd Northern Hall, NE corner), Dog-fox teaching two squirrels and two satyrs (4th
+  (2nd Northern Hall, NE corner), Dog-fox with an audience of squirrels and satyrs (4th
   Western Hall, NW corner), Old man with a ship model and Winged horse with colt (1st
   Northern Hall), Shepherdess with lamb, Man and boy mapping stars, Woman giving a bear
   cub a dish, Eight Minotaurs (First Vestibule, ≈9 m, each different), the Trampled Man

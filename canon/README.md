@@ -33,7 +33,7 @@ by about ten lines. Ranges are written `a-b`.
 
 ### Keeping the canon free of the book's wording
 `scripts/check-canon-not-verbatim.py <path-to-your-private-copy> [N]` fails if any run of N (default 7)
-consecutive words in `canon/` also appears in the source. Numbered place names ("Fifth North-Western Hall")
+consecutive words in any file we wrote (`canon/`, `src/`, `design/`, tests, docs) also appears in the source. Numbered place names ("Fifth North-Western Hall")
 are factual identifiers and are ignored. CI cannot run this (it has no copy of the book), so **run it locally
 before every commit that touches `canon/`**. Last run: 0 overlaps at N=7.
 

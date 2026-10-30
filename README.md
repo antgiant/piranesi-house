@@ -26,6 +26,7 @@ npm run now -- "Ninth Vestibule" --join       # the moment of the next great joi
 ## Rules for contributors
 - Never commit the source text. `scripts/check-no-source-text.sh` runs as a pre-commit hook
   (`git config core.hooksPath .githooks`) and in CI.
-- Before committing changes to `canon/` or generated wording, run
-  `python3 -I scripts/check-canon-not-verbatim.py /path/to/private/copy 7` (CI cannot).
+- Before committing anything with prose in it (`canon/`, `src/`, `design/`, tests, docs), run
+  `python3 -I scripts/check-canon-not-verbatim.py /path/to/private/copy 7` (CI cannot). It scans every file we wrote
+  for runs of 7 or more words shared with the book.
 - Changing generation changes the world. Bump `WORLD_VERSION` and update the golden snapshot on purpose.

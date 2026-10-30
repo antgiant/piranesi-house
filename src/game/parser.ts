@@ -10,6 +10,7 @@ export type Command =
   | { t: 'examine'; what: string }
   | { t: 'wait'; minutes: number }
   | { t: 'stop' }
+  | { t: 'found' }
   | { t: 'time' }
   | { t: 'where' }
   | { t: 'help' }
@@ -55,6 +56,8 @@ export function parse(input: string): Command {
     case 'climb':
       if (content.includes('down')) return { t: 'stairs', dir: 'down' };
       return { t: 'stairs', dir: 'up' };
+    case 'found': case 'finds': case 'discoveries': case 'remember':
+      return { t: 'found' };
     case 'stop': case 'halt': case 'cancel':
       return { t: 'stop' };
     case 'wait': case 'rest': case 'sit': case 'pause':

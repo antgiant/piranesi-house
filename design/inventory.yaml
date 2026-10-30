@@ -1,6 +1,7 @@
 # Design (not canon): visitor inventory. Items marked origin: house exist in the book's House;
 # origin: outside are rare strays from beyond it (see packs.yaml / outside_traces).
 version: 0
+# STATUS: planned for milestone 8 (multiplayer), together with visitor marks and picking up relics.
 rules:
   - "Each visit starts with a small randomly generated kit. It is drawn from (world seed + a fresh per-visit random value), so it is NOT tied to identity and is not stored anywhere. Leaving loses it."
   - "Capacity: 6 stacks. Kit size at arrival: 3 to 5 stacks."

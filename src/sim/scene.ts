@@ -6,6 +6,7 @@ import { getHall } from '../world/hall';
 import type { Level } from '../world/layout';
 import type { World } from '../world/world';
 import { birdsAt, lightAt, type BirdScene, type Light } from './light';
+import { outsideAt, type OutsideNow } from './outside';
 import { clock, defaultSimConfig, moon, worldTime, type Clock, type Moon, type SimConfig } from './time';
 import { forecast, tideAt, type HallTide, type TideEvent } from './tides';
 import { localWeather, weatherAt, type LocalWeather, type Weather } from './weather';
@@ -22,9 +23,11 @@ export interface SceneState {
   light: Light;
   moon: Moon;
   birds: BirdScene;
+  /** A hint of the world outside, if one is happening in this hall right now (rare). */
+  outside: OutsideNow | null;
 }
 
-export function sceneAtWorldTime(world: World, x: number, y: number, level: Level, t: number, opts: { forecast?: boolean } = {}): SceneState {
+export function sceneAtWorldTime(world: World, x: number, y: number, level: Level, t: number, opts: { forecast?: boolean; outside?: boolean } = {}): SceneState {
   const hall = getHall(world, x, y, level);
   const weather = weatherAt(world, t);
   const here = localWeather(hall, weather);
@@ -34,6 +37,7 @@ export function sceneAtWorldTime(world: World, x: number, y: number, level: Leve
   const nextTide = horizon.find((e) => e.endMs > t && !(e.startMs <= t && tide.depthDm > 0)) ?? null;
   return {
     t, clock: clock(t), hall, tide, nextTide, weather, here, light, moon: moon(world, t), birds: birdsAt(hall, t, weather, here, light),
+    outside: opts.outside === false ? null : outsideAt(world, hall, t),
   };
 }
 

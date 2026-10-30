@@ -4,6 +4,7 @@
 import { sceneAtWorldTime, type SceneState } from '../sim/scene';
 import type { BirdMode } from '../sim/light';
 import { exits as hallExits, type Side } from '../world/layout';
+import type { OutsideKind } from '../sim/outside';
 import { getHall } from '../world/hall';
 import { nearbyVestibules } from '../world/tidegeo';
 import type { World } from '../world/world';
@@ -67,6 +68,8 @@ export interface AudioScene {
   space: 'small' | 'large' | 'vast';
   /** What drifts in through the doorways from the neighbouring halls, loudest first. */
   portals: Portal[];
+  /** A rare hint of a world outside, happening now in this hall. */
+  outside: { kind: OutsideKind; gain: number; id: string; bearing: Bearing } | null;
 }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
@@ -189,5 +192,6 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     surface,
     space,
     portals: opts.portals === false ? [] : portalsFor(world, s, opts.facing ?? null),
+    outside: s.outside ? { kind: s.outside.event.kind, gain: s.outside.gain, id: s.outside.id, bearing: bearing(s.outside.event.wall, opts.facing ?? null) } : null,
   };
 }

@@ -263,12 +263,13 @@ standing in the same hall hear the same ambience.
 | 2 | **Sim** (DONE: clock, sun, moon, eight tide sources, great join, weather, light, birds, SceneState; see `design/simulation.md`) | tide join at the Ninth Vestibule is computable and tested |
 | 3 | **Playable text + audio v1** (DONE: parser, narrator, live events, procedural Web Audio, web page, browser test, Pages workflow; see `design/audio.md`): parser, narrator, sea bed, reverb, drips, wind, birds, footsteps; Pages deploy | someone can wander and *hear* the difference between a Drowned Hall and a flooded vestibule |
 | 4 | **Map + audio v2** (DONE: fog-of-war map, doorway sounds with direction, tides heard before seen; see `design/map.md`) | tide arrival is audible before it is visible |
-| 5 | **Multiplayer spike → presence → shared items** | two browsers on different networks meet, and state vanishes when both close |
-| 6 | **Side-scroller view**: walking strip with parallax, tiers, tide/cloud/rain, perched birds, statue sprite pipeline, other players | same statue list and tide level as the text view, at the same moment |
-| 7 | **3D view**, fidelity step (a) reusing the sprite pipeline, then (b) | same statue list as text and side views |
-| 8 | **Polish**: accessibility, mobile, PWA offline, performance budget, credits and fan-work notice | |
-| 9 | **Later pass: mutter** (incoherent speech through hall reverb; see `design/mutter.yaml`), after everything else is locked in | |
-
+| 4b | **Earlier visitors and outside traces** (DONE: very rare relics already in the world, with a private list of what you have noticed; rare draughts, almost-voices and the skitter of a wrapper from the First Vestibule's south-east corner; see `design/relics-and-outside.md`) | the First Vestibule shows what was left behind; an outside hint can be heard in a real browser |
+| 5 | **Read the unread book sections properly** (NEXT): a careful, complete reading of Part 5 and the unread middle of Part 7 (everything so far was searched, not read). Fold anything new into `canon/` (places, statues, sounds, rules), add or adjust tests, record what the reading found. | `canon/README.md` coverage reads "read in full" for every part, and nothing new is left unrecorded |
+| 6 | **Mutter**: the occasional incoherent murmur of the visitor's character, generated only from our own writing, through the hall's reverb (see `design/mutter.yaml`); toggle on by default | it can be heard in different halls with different reverb, and turned off |
+| 7 | **Side-scroller view**: walking strip with parallax, tiers, tide/cloud/rain, perched birds, and the statue sprite pipeline | same statue list and tide level as the text view, at the same moment |
+| 8 | **Multiplayer**: spike to find a working signalling method for a static site, then presence and other visitors' footsteps and sounds, then **inventory** (random starting kit, take, drop, give) and **visitor marks** (preset chalk and pebble messages that need chalk or pebbles), all shared and ephemeral under the witness rule; relics become pick-up-able here; other visitors appear in the side-scroller | two browsers on different networks meet, marks and dropped items are seen by both, and all of it vanishes when both close |
+| 9 | **3D view**, fidelity step (a) reusing the sprite pipeline, then (b) | same statue list as text and side views |
+| 10 | **Polish**: accessibility, mobile, PWA offline, performance budget, credits and fan-work notice | a checklist written at the start |
 ## 10. Risks
 
 - **Canon fidelity** depends on a full, careful extraction. Budget real time for M0.
@@ -314,7 +315,7 @@ standing in the same hall hear the same ambience.
    (litter and a sleeping bag near the First Vestibule, torn scraps in the 88th Western
    Hall's gull nests, faded chalk marks on doorframes, a damp note now and then). Placed
    deterministically from the seed. Any wording is our own and always partly illegible.
-9. **Mutter**: deferred to a later pass. When built it must run through Web Audio so it gets
+9. **Mutter**: milestone 6, after the unread book sections are properly read. When built it must run through Web Audio so it gets
    reverb and effects, generated only from our own corpus, with a toggle (`mutter`).
 
 ### Config (draft)

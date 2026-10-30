@@ -9,11 +9,12 @@ import { OPPOSITE, SIDES, exits as hallExits, type Exit, type Level, type Side }
 import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
 import { createWorld, type World } from '../world/world';
+import { relicsIn, type Relic } from '../world/relics';
 import { hashInts } from '../world/rng';
 import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance, describeDuration, distanceM, gait, terrainFactor, walkSeconds } from './walk';
 import { parse, type Command } from './parser';
 import {
-  describeHall, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
+  describeHall, outsideSentence, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
   type NamedExit, type Seen, type Style,
 } from './narrator';
 
@@ -24,6 +25,10 @@ export interface GameOptions {
   style: Style;
   /** Walking pace multiplier: 1 is the book's pace (about 1.5 m/s); 4 brisk; 20 fast; Infinity is instant. */
   walkPace: number;
+  /** How many earlier-visitor relics lie about: 1 is the default rarity, 0 turns them off. */
+  relicDensity: number;
+  /** Rare hints of a world outside (a draught, muffled sounds). */
+  outsideTraces: boolean;
   /** If set, world time at start (ms). Otherwise world time follows the real clock. */
   startAtWorldMs?: number;
 }
@@ -58,6 +63,10 @@ export interface Game {
   prev: SceneState | null;
   /** Events already announced, so each is said once. */
   said: Set<string>;
+  /** Relics in view, numbered after the statues. */
+  relicsListed: Relic[];
+  /** What you have noticed that earlier visitors left behind: id to what and where. Private to you, never shared. */
+  found: Map<string, { label: string; hall: string }>;
   /** Halls you have been in, as `level:x,y`. The map shows only these and what their doors reveal. Never persisted. */
   explored: Set<string>;
   /** The way you face: the way you last walked. Sounds through doorways are placed relative to it. */
@@ -81,20 +90,20 @@ export interface Walk {
 }
 
 export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
-  const o: GameOptions = { seed: 'the-house', timeScale: 1, showDead: true, style: 'plain', walkPace: 1, ...opts };
+  const o: GameOptions = { seed: 'the-house', timeScale: 1, showDead: true, style: 'plain', walkPace: 1, relicDensity: 1, outsideTraces: true, ...opts };
   const world = createWorld(o.seed, { showDead: o.showDead });
   const cfg: SimConfig = { ...defaultSimConfig, timeScale: o.timeScale };
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(),
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(),
   };
 }
 
 export const worldNow = (g: Game, realNowMs: number): number => worldTime(g.cfg, realNowMs);
 
 export function sceneNow(g: Game, realNowMs: number): SceneState {
-  return sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, worldNow(g, realNowMs));
+  return sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, worldNow(g, realNowMs), { outside: g.opts.outsideTraces });
 }
 
 const text = (g: Game, s: string, links?: Link[]): Line => ({ kind: 'text', text: stylise(s, g.opts.style), links });
@@ -141,15 +150,17 @@ export const exploredKey = (level: Level, x: number, y: number): string => `${le
 export function look(g: Game, realNowMs: number): Line[] {
   g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
   const t = worldNow(g, realNowMs);
-  const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, t);
+  const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, t, { outside: g.opts.outsideTraces });
   const audio = audioFor(g.world, scene, { facing: g.facing });
   g.exitsListed = listExits(g, g.pos.level);
   g.seenListed = visibleStatues(g, scene.hall);
+  g.relicsListed = g.walk ? [] : relicsIn(g.world, scene.hall, scene.clock.month, g.opts.relicDensity);
   g.prev = scene;
-  const paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed);
+  const paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed);
   const links: Link[] = [
     ...g.exitsListed.map((e) => ({ label: `${e.index} ${sideWord(e.side)}`, command: `go ${e.index}` })),
     ...g.seenListed.map((_, i) => ({ label: `examine ${i + 1}`, command: `examine ${i + 1}` })),
+    ...g.relicsListed.map((r, i) => ({ label: `examine ${g.seenListed.length + i + 1}`, command: `examine ${g.seenListed.length + i + 1}` })),
     { label: 'listen', command: 'listen' },
   ];
   if (scene.hall.kind === 'vestibule' && scene.hall.stairs.length > 0) {
@@ -243,7 +254,7 @@ export function go(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const blocked = blockedBy(g, e, realNowMs);
   if (blocked) return blocked;
   const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
-  const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, worldNow(g, realNowMs));
+  const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, worldNow(g, realNowMs), { outside: g.opts.outsideTraces });
   const meters = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall: e.side, pos: e.pos }) + DOORWAY_M + e.corridor * CORRIDOR_HALL_M;
   const seconds = walkSeconds(meters, terrainFactor(h, scene.tide.depthDm));
   const dest = getHall(g.world, e.to.x, e.to.y, g.pos.level);
@@ -343,6 +354,13 @@ function walkingLine(g: Game, realNowMs: number): Line {
 // Examining
 // ---------------------------------------------------------------------------------------------------------------
 
+/** Looking closely at something left behind: shows our description, and notes it in your private list. */
+function noticeRelic(g: Game, r: Relic, h: Hall): string {
+  const first = !g.found.has(r.id);
+  g.found.set(r.id, { label: r.label, hall: h.name });
+  return `${r.detail}${first ? ' (You make a note of it. Type "found" to see what you have noticed.)' : ''}`;
+}
+
 const STOP = new Set(['the', 'and', 'with', 'statue', 'that', 'this']);
 
 function examine(g: Game, what: string, realNowMs: number): Line[] {
@@ -353,9 +371,13 @@ function examine(g: Game, what: string, realNowMs: number): Line[] {
     const n = Number(num[1]);
     const sn = g.seenListed[n - 1];
     if (sn) return [text(g, statueDetail(h, sn))];
-    return [text(g, g.seenListed.length ? `There is no statue numbered ${n} in view.` : 'Look around first, to see what is in view.')];
+    const r = g.relicsListed[n - g.seenListed.length - 1];
+    if (r) return [text(g, noticeRelic(g, r, h))];
+    return [text(g, g.seenListed.length ? `There is nothing numbered ${n} in view.` : 'Look around first, to see what is in view.')];
   }
   const words = what.split(' ');
+  const rhit = g.relicsListed.find((r) => words.some((w) => w.length >= 3 && !STOP.has(w) && r.label.toLowerCase().includes(w)));
+  if (rhit && !g.seenListed.some((sn) => words.some((w) => w.length >= 3 && !STOP.has(w) && (`${sn.statue.canonLabel ?? ''} ${sn.statue.figure}`).toLowerCase().includes(w)))) return [text(g, noticeRelic(g, rhit, h))];
   const hit = g.seenListed.find((sn) => words.some((w) => w.length >= 3 && !STOP.has(w) && (`${sn.statue.canonLabel ?? ''} ${sn.statue.figure}`).toLowerCase().includes(w)));
   if (hit) return [text(g, statueDetail(h, hit))];
   if (words.some((w) => ['water', 'sea', 'tide', 'tides', 'lake'].includes(w))) return [text(g, waterSentence(h, scene) || 'There is no water here to speak of.')];
@@ -387,6 +409,11 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
   if (g.walk && MOVING.has(cmd.t)) return [text(g, 'You are already on your way. Type "stop" to stop, or wait until you arrive.'), walkingLine(g, realNowMs)];
   switch (cmd.t) {
     case 'stop': return stopWalk(g, realNowMs);
+    case 'found': {
+      if (g.found.size === 0) return [text(g, 'You have not yet noticed anything that earlier visitors left behind. Look closely at things with "examine".')];
+      const lines = [...g.found.values()].map((f, i) => `${i + 1}. ${f.label} (${f.hall})`);
+      return [text(g, `What you have noticed that was left behind, in your own list (nobody else can see it):\n${lines.join('\n')}`)];
+    }
     case 'empty': return look(g, realNowMs);
     case 'look': return look(g, realNowMs);
     case 'listen': {
@@ -440,6 +467,7 @@ export function diffScenes(prev: SceneState, next: SceneState, audio: AudioScene
   if (prev.here.rainHere > 0 && next.here.rainHere === 0) out.push('The rain stops.');
   if (!prev.weather.storm && next.weather.storm) out.push('A storm is rising out of the west.');
   if (!prev.light.moonInDoorway && next.light.moonInDoorway) out.push('The full moon rises into the single doorway and floods the hall with pale light.');
+  if (next.outside && prev.outside?.id !== next.outside.id) out.push(outsideSentence(next.outside, next.hall));
   if (prev.birds.mode !== 'murmuration' && next.birds.mode === 'murmuration') out.push('The birds rise all at once and fill the air with a smoke of wings.');
   if (prev.birds.mode === 'murmuration' && next.birds.mode !== 'murmuration') out.push('The great flock settles and falls quiet.');
   return out;

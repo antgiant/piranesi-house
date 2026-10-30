@@ -8,6 +8,7 @@ config_defaults:
 
 packs:
   - id: outside_traces
+    status: "IMPLEMENTED (milestone 4b). See design/relics-and-outside.md."
     default: true
     from_canon: [X-004, X-009]
     intent: "Very rare hints that an outside exists. Nothing to enter, no one to meet."
@@ -19,6 +20,7 @@ packs:
       - "Voices: wordless or unintelligible; no real speech, no names, no story dialogue."
       - "Never explained."
   - id: visitor_marks
+    status: "PLANNED for milestone 8 (multiplayer), together with the inventory."
     default: true
     from_canon: [X-006]
     intent: "Visitors leave simple chalk marks and pebble patterns that other visitors can see, from a fixed preset list, using materials they carry."
@@ -60,17 +62,18 @@ packs:
       - "Part of the initial world state: placed deterministically from the seed, so the same seed has the same relics for everyone. They are not generated per player."
       - "Very rare by design. Densities (before relicDensity): First Vestibule and halls within 5 steps about 1 in 25 halls; beyond that about 1 in 400 halls. The far halls are almost empty."
       - "Anonymous: no names, no dates, no story identification. Nothing links relics to each other."
-      - "Taking, moving or dropping a relic changes shared state under the witness rule from visitor_marks.memory; a fresh join of the same seed sees them back where they began."
+      - "Taking, moving or dropping a relic changes shared state under the witness rule from visitor_marks.memory; a fresh join of the same seed sees them back where they began. NOTE: picking them up needs the inventory, so it arrives with multiplayer (milestone 8). Until then relics are examine-only."
     kinds:
       - {kind: litter, where: "First Vestibule and nearby halls, especially the hollow under the Great Staircase", items: [packet, cardboard-box, wrapper], pick_up: true, usable: false, note: "Can be piled up; burn-able as fuel if fire is ever added."}
       - {kind: old-sleeping-bag, where: "exactly one, in the hollow under the Great Staircase of the First Vestibule", pick_up: true, usable: "warmth in cloud or winter"}
       - {kind: crumpled-note, where: "rare, blowing about the First Vestibule region or caught in corners", frequency: "about 1 in 1500 halls beyond the origin zone", text: "from our authored fragment list below, always partly illegible"}
       - {kind: torn-scraps, where: "88th Western Hall (pavement, gull nests); easiest to gather in late summer or early autumn", counts: "10 to 20 on the pavement, 5 to 10 in nests", text: "each scrap is illegible except for at most one authored fragment; collecting scraps does not unlock anything"}
-      - {kind: old-door-marks, where: "faded chalk arrows and tally strokes on doorframes below a tall person's eye level, in short runs of 5 to 13 doors", frequency: "about 1 run per 200 halls", marks: "presets only (arrows, tally, circle); never words"}
+      - {kind: old-door-marks, where: "faded chalk arrows and tally strokes on doorframes below a tall person's eye level, in short runs of 5 to 13 doors", frequency: "about 1 run per 500 halls (each run covers 5 to 13 halls, so about 2% of halls carry a mark). 1 per 200 would have meant nearly 5% of halls, which is not very rare.", marks: "presets only (arrows, tally, circle); never words"}
       - {kind: small-stray, where: "very rare", items: [pen, empty-tin, scrap-of-cloth]}
     authored_fragments:
       note: "Written by us, original, generic and kind. Always damaged: only a few words visible. No names, places outside the House, or story references."
       list: ["...the sea was loud all night...", "...keep the small door on your left...", "...bring something warm...", "...I counted forty-one steps...", "...do not go east after the rain...", "...the birds were restless...", "...mark the doors as you go...", "...the water rose to my knees...", "...somewhere dry to rest..."]
     discovery:
       - "Examining a relic shows our authored description; no relic gives a reward."
-      - "Each visitor may keep a private, local-only list of what they have found. Not shared, not stored on any server."
+      - "Each visitor may keep a private, local-only list of what they have found. Not shared, not stored on any server. Implemented: the `found` command; the list is kept in this device's browser storage, per world seed."
+    status: "IMPLEMENTED (milestone 4b), examine-only. See design/relics-and-outside.md."

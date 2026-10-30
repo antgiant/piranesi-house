@@ -47,6 +47,9 @@ export class AudioEngine {
   private scene: AudioScene | null = null;
   private voices: PortalVoice[] = [];
   private portalEvents = 0;
+  private outsideEvents = 0;
+  private outsideId = '';
+  private nextVoice = 0;
   private irKey = '';
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBird = 0;
@@ -65,6 +68,14 @@ export class AudioEngine {
   private windFilter!: BiquadFilterNode;
   private whistleGain!: GainNode;
   private whistleOsc: OscillatorNode[] = [];
+  private outBus!: GainNode;
+  private outLp!: BiquadFilterNode;
+  private outPan!: StereoPannerNode;
+  private draughtGain!: GainNode;
+  private hissGain!: GainNode;
+  private ringGain!: GainNode;
+  private trafficGain!: GainNode;
+  private trafficFilter!: BiquadFilterNode;
 
   get started(): boolean { return this.ctx !== null; }
 
@@ -122,8 +133,8 @@ export class AudioEngine {
   }
 
   /** How many doorway voices exist and how many sounds they have emitted. Used by the end-to-end tests. */
-  stats(): { voices: number; portalEvents: number } {
-    return { voices: this.voices.length, portalEvents: this.portalEvents };
+  stats(): { voices: number; portalEvents: number; outsideEvents: number } {
+    return { voices: this.voices.length, portalEvents: this.portalEvents, outsideEvents: this.outsideEvents };
   }
 
   /** RMS of what is currently coming out (0..1). Used by the end-to-end tests. */
@@ -247,6 +258,42 @@ export class AudioEngine {
       this.whistleOsc.push(o);
     }
     this.whistleGain.connect(this.bus);
+
+    // hints of a world outside: always heard muffled and indistinct, as if through a wall
+    this.outLp = ctx.createBiquadFilter();
+    this.outLp.type = 'lowpass';
+    this.outLp.frequency.value = 1300;
+    this.outPan = ctx.createStereoPanner();
+    this.outBus = ctx.createGain();
+    this.outBus.connect(this.outLp).connect(this.outPan).connect(this.bus);
+    const draughtFilter = ctx.createBiquadFilter();
+    draughtFilter.type = 'lowpass';
+    draughtFilter.frequency.value = 420;
+    this.draughtGain = ctx.createGain();
+    this.draughtGain.gain.value = 0;
+    this.loop(this.brown).connect(draughtFilter).connect(this.draughtGain).connect(this.outBus);
+    const hissFilter = ctx.createBiquadFilter();
+    hissFilter.type = 'highpass';
+    hissFilter.frequency.value = 4500;
+    this.hissGain = ctx.createGain();
+    this.hissGain.gain.value = 0;
+    this.loop(this.noise).connect(hissFilter).connect(this.hissGain).connect(this.outBus);
+    this.ringGain = ctx.createGain();
+    this.ringGain.gain.value = 0;
+    for (const f of [1180, 1203]) {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f;
+      o.connect(this.ringGain);
+      o.start();
+    }
+    this.ringGain.connect(this.outBus);
+    this.trafficFilter = ctx.createBiquadFilter();
+    this.trafficFilter.type = 'lowpass';
+    this.trafficFilter.frequency.value = 300;
+    this.trafficGain = ctx.createGain();
+    this.trafficGain.gain.value = 0;
+    this.loop(this.brown).connect(this.trafficFilter).connect(this.trafficGain).connect(this.outBus);
   }
 
   private rebuildReverb(decaySec: number, dampHz: number): void {
@@ -274,6 +321,57 @@ export class AudioEngine {
     const old = this.convolver;
     this.convolver = next;
     if (old) setTimeout(() => { old.disconnect(); }, 2500);
+  }
+
+  private applyOutside(a: AudioScene): void {
+    const ctx = this.ctx as AudioContext;
+    const now = ctx.currentTime;
+    const o = a.outside;
+    const ease = (p: AudioParam, v: number, tc = 0.5) => p.setTargetAtTime(v, now, tc);
+    ease(this.draughtGain.gain, o?.kind === 'draught' ? o.gain * 0.45 : 0);
+    ease(this.hissGain.gain, o?.kind === 'draught' ? o.gain * 0.05 : 0);
+    ease(this.ringGain.gain, o?.kind === 'draught' ? o.gain * 0.01 : 0);
+    ease(this.trafficGain.gain, o?.kind === 'traffic' ? o.gain * 0.5 : 0);
+    ease(this.trafficFilter.frequency, 250 + (o?.kind === 'traffic' ? o.gain * 650 : 0), 1.2);
+    ease(this.outPan.pan, !o ? 0 : o.bearing === 'left' ? -0.8 : o.bearing === 'right' ? 0.8 : 0);
+    ease(this.outLp.frequency, o?.bearing === 'behind' ? 700 : 1300);
+    const id = o?.id ?? '';
+    if (id !== this.outsideId) {
+      this.outsideId = id;
+      if (o) {
+        this.outsideEvents++;
+        if (o.kind === 'wrapper') this.skitter(now + 0.05);
+      }
+    }
+  }
+
+  /** A scrap of wrapper skittering over stone: a few irregular little ticks. */
+  private skitter(t: number): void {
+    const n = 9 + Math.floor(Math.random() * 6);
+    let at = t;
+    for (let i = 0; i < n; i++) {
+      at += rand(0.05, 0.28);
+      this.burst(at, 0.04, 'bandpass', rand(2500, 4500), 4, 0.07, 0, 0.002, this.outBus);
+    }
+  }
+
+  /** One syllable of something that is almost a voice: a glide of buzz through a vowel-like band, muffled. */
+  private syllable(t: number): void {
+    const ctx = this.ctx as AudioContext;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    const f0 = rand(95, 150);
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.linearRampToValueAtTime(f0 * rand(0.8, 1.25), t + 0.25);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = rand(500, 1500);
+    f.Q.value = 3;
+    const g = ctx.createGain();
+    this.env(g, t, 0.04, 0.08, rand(0.12, 0.25), 0.12);
+    o.connect(f).connect(g).connect(this.outBus);
+    o.start(t);
+    o.stop(t + 0.5);
   }
 
   private syncPortals(list: Portal[]): void {
@@ -313,6 +411,7 @@ export class AudioEngine {
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
     ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));
     this.syncPortals(a.portals);
+    this.applyOutside(a);
     ease(this.fallsGain.gain, a.falls.gain * 0.22);
     ease(this.rainGain.gain, a.rain.gain * 0.3);
     ease(this.windGain.gain, a.wind.gain * 0.3);
@@ -338,6 +437,12 @@ export class AudioEngine {
     if (a.tide.kind !== 'none' && a.tide.kind !== 'submerged' && t >= this.nextBoom) {
       this.boom(t + 0.02, a.tide.kind === 'approach' ? 0.18 * a.tide.gain * 2 : 0.5 * a.tide.gain);
       this.nextBoom = t + a.tide.strikeEverySec * rand(0.75, 1.3);
+    }
+    // almost-voices: short bursts of near-speech while the event lasts
+    if (a.outside?.kind === 'voices' && a.outside.gain > 0.1 && t >= this.nextVoice) {
+      this.syllable(t + 0.02);
+      this.outsideEvents++;
+      this.nextVoice = t + rand(0.3, 0.8);
     }
     // what drifts in through the doorways
     for (const v of this.voices) {

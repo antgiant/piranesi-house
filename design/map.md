@@ -31,5 +31,5 @@
 
 ## Not yet done
 * Sound from rooms more than one door away, and from long passages' far ends.
-* Other visitors on the map and in the soundscape (milestone 5).
+* Other visitors on the map and in the soundscape (milestone 8).
 * The map does not show the statues or any detail inside a hall.

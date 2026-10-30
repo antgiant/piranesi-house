@@ -10,7 +10,7 @@ This is an unofficial fan project inspired by a novel. It contains no text from 
 ## Status
 Milestone 0 (canon) is a draft awaiting review. Milestones 1-3 are done: a deterministic world (layout, naming, doors, halls, statues with canon overlay), a simulation
 of time, tides, weather, light and birds, and a playable text adventure with a procedural soundscape, with 200+ tests
-a fog-of-war map, sound through doorways, and a real-browser test that measures the audio. Next: multiplayer.
+a fog-of-war map, sound through doorways, and a real-browser test that measures the audio. Next: a careful reading of the book sections that were only searched, then the muttering, a side-scrolling view, and multiplayer.
 
 ## Play
 ```sh

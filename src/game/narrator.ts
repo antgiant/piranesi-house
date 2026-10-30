@@ -9,6 +9,8 @@ import type { Hall } from '../world/hall';
 import type { Exit, Side } from '../world/layout';
 import { hashInts } from '../world/rng';
 import { describeStatue, type Statue } from '../world/statues';
+import type { OutsideNow } from '../sim/outside';
+import type { Relic } from '../world/relics';
 
 export type Style = 'plain' | 'diary';
 
@@ -358,6 +360,7 @@ export function soundParagraph(a: AudioScene, s: SceneState): string {
     else bits.push('Small birds twitter and flutter.');
   } else if (b.mode === 'silent' && s.hall.level === 1 && !a.hush) bits.push('There are no birdsong or wingbeats.');
   bits.push(...portalSentences(a));
+  if (s.outside) bits.push(outsideSentence(s.outside, s.hall));
   if (bits.length === 0) bits.push('You hear almost nothing: the echo of your own breathing.');
   return bits.join(' ');
 }
@@ -366,7 +369,31 @@ export function soundParagraph(a: AudioScene, s: SceneState): string {
 // The whole hall
 // ---------------------------------------------------------------------------------------------------------------
 
-export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[]): string[] {
+/** What the hint of the outside is like, in our own words. Never explained. */
+export function outsideSentence(o: OutsideNow, _h?: Hall): string {
+  const from = o.event.corner ? 'the south-east corner, in the shadow between the two minotaurs' : `the ${SIDE_WORD[o.event.wall]} wall`;
+  switch (o.event.kind) {
+    case 'draught': return `A cold draught creeps out of ${from}, across your ankles, smelling of rain and metal. It is not a smell of the House.`;
+    case 'voices': return `For a few seconds, faint sounds that are almost voices murmur out of ${from}, in no words you can follow, and are gone.`;
+    case 'traffic': return `A low, steady rushing comes and goes in ${from}, like nothing the House has ever made.`;
+    case 'wrapper': return `A crumpled scrap of wrapper skitters across the pavement from ${from}, and is gone before you can reach it.`;
+  }
+}
+
+/** Where a relic lies, in words. */
+function relicPlace(r: Relic): string {
+  if (!r.wall) return 'on the pavement';
+  if (r.kind === 'old-sleeping-bag') return `under the ${SIDE_WORD[r.wall]} wall's great stair`;
+  return `on the ${SIDE_WORD[r.wall]} wall`;
+}
+
+export function relicsParagraph(relics: Relic[], startNumber: number): string {
+  if (relics.length === 0) return '';
+  const lines = relics.map((r, i) => `[${startNumber + i}] ${r.label}, ${relicPlace(r)}`);
+  return `Left behind by someone, long ago:\n${lines.join('\n')}`;
+}
+
+export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[] = []): string[] {
   const lvl = LEVEL_WORD[h.level];
   const out: string[] = [];
   out.push(`${h.name}\nThe ${lvl} level.`);
@@ -377,6 +404,8 @@ export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: N
   out.push(soundParagraph(audio, s));
   const sp = seenParagraph(seen, h);
   if (sp) out.push(sp);
+  const rp = relicsParagraph(relics, seen.length + 1);
+  if (rp) out.push(rp);
   out.push(exitsParagraph(exits));
   return out.filter(Boolean);
 }

@@ -16,11 +16,13 @@ interface Settings {
   timeScale: number;
   showDead: boolean;
   diary: boolean;
+  relics: boolean;
+  outside: boolean;
   seed: string;
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -61,6 +63,8 @@ function gameOptions(): Partial<GameOptions> {
     seed: q.get('seed') ?? settings.seed,
     timeScale: Number(q.get('scale') ?? settings.timeScale) || 1,
     showDead: settings.showDead,
+    relicDensity: settings.relics ? 1 : 0,
+    outsideTraces: settings.outside,
     style: settings.diary ? 'diary' : 'plain',
     // `#pace=instant` is a developer override for tests; the settings panel only offers the book's pace up to a marathon.
     walkPace: q.get('pace') === 'instant' ? Infinity : paceFromKmh(settings.speedKmh),
@@ -126,6 +130,7 @@ function submit(raw: string): void {
   const out = step(game, cmd, Date.now());
   print(out);
   logEl.scrollTop = echoEl.offsetTop - logEl.offsetTop - 8;
+  saveFound();
   refresh();
   // An instant move (pace "instant", or a very short walk) gets a few footsteps; a real walk gets them continuously below.
   const moved = before !== `${game.pos.x},${game.pos.y},${game.pos.level}`;
@@ -135,8 +140,25 @@ function submit(raw: string): void {
   }
 }
 
+// What you have noticed that earlier visitors left behind is a private note on this device, per world. Never shared.
+const foundKey = (seed: string): string => `the-house.found.v1.${seed}`;
+function loadFound(g: Game): void {
+  try {
+    const raw = localStorage.getItem(foundKey(g.opts.seed));
+    if (raw) for (const [id, v] of JSON.parse(raw) as [string, { label: string; hall: string }][]) g.found.set(id, v);
+  } catch { /* storage can be blocked */ }
+}
+let savedFound = 0;
+function saveFound(): void {
+  if (!game || game.found.size === savedFound) return;
+  savedFound = game.found.size;
+  try { localStorage.setItem(foundKey(game.opts.seed), JSON.stringify([...game.found])); } catch { /* ignore */ }
+}
+
 function startGame(): void {
   game = newGame(gameOptions(), Date.now());
+  loadFound(game);
+  savedFound = game.found.size;
   logEl.textContent = '';
   print([{ kind: 'system', text: 'You arrive. Type "help" at any time, or use the buttons under each description.' }]);
   print(look(game, Date.now()));
@@ -148,6 +170,7 @@ function startGame(): void {
       teleport(x: number, y: number, level: 0 | 1 | 2) { g.pos = { x, y, level, wall: null, pos: 500 }; print(look(g, Date.now())); refresh(); },
       audio() { return audioFor(g.world, sceneNow(g, Date.now()), { facing: g.facing }); },
       mapView(level: Level = g.pos.level) { return mapView(g, level, Date.now()); },
+      relics() { return g.relicsListed; },
       scene() { return sceneNow(g, Date.now()); },
     };
   }
@@ -215,6 +238,8 @@ function fillSettings(): void {
   $<HTMLInputElement>('s-volume').value = String(settings.volume);
   $<HTMLInputElement>('s-dead').checked = settings.showDead;
   $<HTMLInputElement>('s-diary').checked = settings.diary;
+  $<HTMLInputElement>('s-relics').checked = settings.relics;
+  $<HTMLInputElement>('s-outside').checked = settings.outside;
   $<HTMLSelectElement>('s-scale').value = String(settings.timeScale);
   const sp = $<HTMLInputElement>('s-speed');
   sp.value = String(settings.speedKmh);
@@ -237,11 +262,13 @@ $('s-save').addEventListener('click', (e) => {
     muted: settings.muted,
     showDead: $<HTMLInputElement>('s-dead').checked,
     diary: $<HTMLInputElement>('s-diary').checked,
+    relics: $<HTMLInputElement>('s-relics').checked,
+    outside: $<HTMLInputElement>('s-outside').checked,
     timeScale: Number($<HTMLSelectElement>('s-scale').value) || 1,
     seed: $<HTMLInputElement>('s-seed').value.trim() || DEFAULTS.seed,
     speedKmh: Math.max(BOOK_KMH, Math.min(MARATHON_KMH, Number($<HTMLInputElement>('s-speed').value) || DEFAULTS.speedKmh)),
   };
-  const restart = next.showDead !== settings.showDead || next.timeScale !== settings.timeScale || next.seed !== settings.seed;
+  const restart = next.showDead !== settings.showDead || next.timeScale !== settings.timeScale || next.seed !== settings.seed || next.relics !== settings.relics || next.outside !== settings.outside;
   const restyle = next.diary !== settings.diary;
   settings = next;
   saveSettings(settings);

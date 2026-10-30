@@ -31,5 +31,5 @@ the hypothesis recorded as D-H1 in `canon/world.yaml`; before this, the road was
 * If the water has risen too deep by the time you reach the door, you wait in the doorway instead of wading in.
 
 ## Not done
-* Other visitors walking (multiplayer, milestone 5).
+* Other visitors walking (multiplayer, milestone 8).
 * Fatigue, rest stops: no survival, by decision (Q-016).

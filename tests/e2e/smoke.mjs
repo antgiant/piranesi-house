@@ -1,6 +1,6 @@
 // End-to-end smoke test in a real browser (Chromium via Playwright). Run: npm run build && npm run test:e2e
 // Checks the page loads without errors, the game plays, sound is actually produced, and sound differs by place.
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 
@@ -142,6 +142,52 @@ try {
   await page.screenshot({ path: 'tests/e2e/out/screenshot.png' });
   await page.setViewportSize({ width: 390, height: 780 });
   await page.screenshot({ path: 'tests/e2e/out/screenshot-mobile.png' });
+
+  // --- what earlier visitors left behind ---
+  {
+    const r = await browser.newPage({ viewport: { width: 900, height: 700 } });
+    r.on('pageerror', (e) => errors.push(String(e)));
+    await r.goto(URL);
+    await r.click('#enter');
+    await r.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    const text0 = await r.locator('#log').textContent();
+    check(text0.includes('Left behind by someone, long ago') && /sleeping bag/.test(text0), 'the First Vestibule shows what earlier visitors left');
+    await r.fill('#input', 'examine sleeping bag');
+    await r.press('#input', 'Enter');
+    await r.waitForFunction(() => document.getElementById('log').textContent.includes('You make a note of it'));
+    await r.fill('#input', 'found');
+    await r.press('#input', 'Enter');
+    check((await r.locator('#log').textContent()).includes('1. a stiff old sleeping bag'), '"found" lists what you noticed');
+    await r.reload();
+    await r.click('#enter');
+    await r.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await r.fill('#input', 'found');
+    await r.press('#input', 'Enter');
+    check((await r.locator('#log').textContent()).includes('1. a stiff old sleeping bag'), 'your private list is still there after a reload (kept on your device only)');
+    await r.close();
+  }
+
+  // --- a hint of the outside, at a moment computed from the simulation ---
+  {
+    const iso = execFileSync('npx', ['tsx', '-e', `
+      import { createWorld } from './src/world/world';
+      import { outsideEventForDay } from './src/sim/outside';
+      const w = createWorld('the-house');
+      for (let d = 0; d < 400; d++) { const e = outsideEventForDay(w, d); if (e && e.x === 0 && e.y === 0 && e.kind === 'draught') { console.log(new Date(Date.UTC(2026, 0, 1) + Math.floor((e.startMs + e.endMs) / 2)).toISOString()); break; } }
+    `], { encoding: 'utf8' }).trim();
+    const o = await browser.newPage({ viewport: { width: 900, height: 700 } });
+    o.on('pageerror', (e) => errors.push(String(e)));
+    await o.goto(`http://localhost:${PORT}/#debug&pace=instant&at=${iso}`);
+    await o.click('#enter');
+    await o.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    const t = await o.locator('#log').textContent();
+    check(/cold draught creeps out of the south-east corner, in the shadow between the two minotaurs/.test(t) && /rain and metal/.test(t), `a draught from the south-east corner is described while it lasts (${iso})`);
+    check(!/another world|outside the House/i.test(t.replace(/Rare hints of a world outside/g, '')), 'and is never explained');
+    await o.waitForTimeout(2500);
+    const scene = await o.evaluate(() => ({ kind: window.__house.audio().outside?.kind ?? null, stats: window.__house.engine.stats() }));
+    check(scene.kind === 'draught' && scene.stats.outsideEvents >= 1, `the engine plays it (${JSON.stringify(scene)})`);
+    await o.close();
+  }
 
   // --- walking takes time ---
   for (const pace of ['real', 'fast']) {

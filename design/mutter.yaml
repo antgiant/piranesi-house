@@ -1,7 +1,7 @@
 # Design (not canon): occasional incoherent muttering from the visitor's character.
-# STATUS: deferred to a later pass, after the other pieces are locked in. Do not build before milestone 8.
+# STATUS: planned for milestone 6, after the unread book sections are properly read (milestone 5).
 version: 0
-status: deferred
+status: planned
 config: {mutter: true, mutterCaptions: false}   # on by default like everything else; visitors can turn it off
 intent: "A rare, quiet, half-sensible murmur that makes the House feel inhabited. Heard through the hall's own reverb and muffling."
 requirements:

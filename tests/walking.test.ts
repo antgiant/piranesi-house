@@ -91,10 +91,11 @@ describe('walking in the game', () => {
     const g = start();
     step(g, 'go west', NOW);
     const w = g.walk!;
-    expect(w.beatMs).not.toBeNull();
-    const mid = all(tick(g, w.beatMs! + 10));
+    expect(w.beats.length).toBe(1);
+    const at = w.beats[0]!.atMs;
+    const mid = all(tick(g, at + 10));
     expect(mid).toMatch(/About halfway, you pass/);
-    expect(all(tick(g, w.beatMs! + 20))).not.toMatch(/About halfway/);
+    expect(all(tick(g, at + 20))).not.toMatch(/About halfway/);
   });
   it('while you walk, moving again is refused and looking shows progress', () => {
     const g = start();
@@ -161,7 +162,7 @@ describe('walking in the game', () => {
   it('if the water rises while you walk, you wait in the doorway instead of wading in', () => {
     const g = start();
     const e = g.exitsListed.find((x) => x.side === 'W' && x.corridor === 0)!;
-    g.walk = { kind: 'door', startMs: NOW, endMs: NOW + 1000, meters: 100, exit: e, beatMs: null, beatText: '', label: 'First Western Hall' };
+    g.walk = { kind: 'door', startMs: NOW, endMs: NOW + 1000, meters: 100, exit: e, beats: [], label: 'First Western Hall' };
     // finishing is checked against the world at arrival; calm weather here, so this just arrives
     expect(all(tick(g, NOW + 2000))).toContain('First Western Hall');
   });

@@ -1,6 +1,7 @@
 // The narrator: prose built from the hall record, the simulation scene and the audio scene. All wording here is our own.
 // Every claim comes from data (never invented on the spot), so the text, the sound and the later views cannot disagree.
 
+import type { Flourish } from '../world/flourishes';
 import canonStatues from '../generated/canon-statues.json';
 import type { AudioScene, Portal } from '../audio/director';
 import type { SceneState } from '../sim/scene';
@@ -134,7 +135,7 @@ function structureParagraph(h: Hall): string {
   return bits.join(' ');
 }
 
-function lightSentence(h: Hall, s: SceneState): string {
+export function lightSentence(h: Hall, s: SceneState): string {
   const l = s.light;
   if (h.tags.includes('dark-hall')) {
     return l.moonInDoorway ? 'The full moon stands centred in the single doorway and fills the hall with pale light; the statues seem to have just turned to look at it.' : 'There is no light at all here. The dark is complete.';
@@ -171,7 +172,7 @@ export function waterSentence(h: Hall, s: SceneState): string {
   return `The whole hall is a heaving mass of ${water} ${m} metres deep and higher than your head${trend}.${tail}`;
 }
 
-function weatherSentences(h: Hall, s: SceneState): string[] {
+export function weatherSentences(h: Hall, s: SceneState): string[] {
   const out: string[] = [];
   if (h.tags.includes('dark-hall')) return out;
   if (s.here.cloudHere >= 500) out.push('Cold grey cloud fills the hall; statues loom out of it one at a time and vanish.');
@@ -183,7 +184,7 @@ function weatherSentences(h: Hall, s: SceneState): string[] {
   return out;
 }
 
-function birdSentence(s: SceneState): string {
+export function birdSentence(s: SceneState): string {
   const b = s.birds;
   switch (b.mode) {
     case 'none': return '';
@@ -399,12 +400,13 @@ export function relicsParagraph(relics: Relic[], startNumber: number): string {
   return `Left behind by someone, long ago:\n${lines.join('\n')}`;
 }
 
-export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[] = []): string[] {
+export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[] = [], flourishes: readonly Flourish[] = []): string[] {
   const lvl = LEVEL_WORD[h.level];
   const out: string[] = [];
   out.push(`${h.name}\nThe ${lvl} level.`);
   out.push(`${sizeSentence(h)} ${statuesParagraph(h, s)}`);
   out.push(structureParagraph(h));
+  if (flourishes.length > 0) out.push(`Above the statues the building does stranger things. ${flourishes.map((f) => f.text).join(' ')}`);
   const env = [lightSentence(h, s), waterSentence(h, s), ...weatherSentences(h, s), birdSentence(s), ...featureSentences(h)].filter(Boolean);
   out.push(env.join(' '));
   out.push(soundParagraph(audio, s));

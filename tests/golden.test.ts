@@ -16,7 +16,7 @@ const CELLS: [number, number, Level][] = [
 
 describe('golden snapshot', () => {
   const w = createWorld('the-house');
-  it('world version', () => expect(WORLD_VERSION).toBe(2));
+  it('world version', () => expect(WORLD_VERSION).toBe(3));
   it.each(CELLS)('hall %i,%i level %i', (x, y, l) => {
     const h = getHall(w, x, y, l);
     const st = hallStatues(w, h);

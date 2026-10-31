@@ -334,6 +334,36 @@ try {
     await tr.close();
   }
 
+  // Narrated walking: with narration on, a real-pace walk gives no distance or time, and the setting off is spoken.
+  {
+    const nw = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    await nw.addInitScript(() => {
+      window.__spoken = [];
+      window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+      Object.defineProperty(window, 'speechSynthesis', { value: { speaking: false, getVoices: () => [], addEventListener() {}, cancel() {}, speak(u) { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend(), 10); } } });
+    });
+    nw.on('pageerror', (e) => errors.push(String(e)));
+    await nw.goto(URL_WALK('real'));
+    await nw.click('#enter');
+    await nw.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await nw.fill('#input', 'go west');
+    await nw.press('#input', 'Enter');
+    await nw.waitForFunction(() => document.getElementById('log').textContent.includes('It will take'));
+    check(true, '[not narrated] a walk gives its distance and time');
+    await nw.fill('#input', 'stop');
+    await nw.press('#input', 'Enter');
+    await nw.click('#open-settings');
+    await nw.check('#s-narrate');
+    await nw.click('#s-save');
+    await nw.fill('#input', 'go west');
+    await nw.press('#input', 'Enter');
+    await nw.waitForFunction(() => (document.getElementById('log').textContent.match(/You set off for the west door/g) || []).length >= 1);
+    const log = await nw.locator('#log').textContent();
+    const tail = log.slice(log.lastIndexOf('go west'));
+    check(!/It will take|metres away/.test(tail), '[narrated] the walk does not read out its distance or time');
+    await nw.close();
+  }
+
   check(errors.length === 0, `no console or page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await browser.close();
 } catch (e) {

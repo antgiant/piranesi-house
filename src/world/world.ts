@@ -2,9 +2,9 @@ import { hashInts, strHash } from './rng';
 
 /**
  * Bump when generator behaviour changes. Golden snapshot tests will fail until you do it on purpose. Peers in a shared world
- * must agree on it. Version 2: a far wider catalogue of statue subjects (layout, tides and weather are unchanged).
+ * must agree on it. Version 2: a far wider catalogue of statue subjects. Version 3: architectural flourishes in every hall. (Layout, tides and weather are unchanged by both.)
  */
-export const WORLD_VERSION = 2;
+export const WORLD_VERSION = 3;
 
 /**
  * What the seed is mixed with. It is NOT the world version: bumping the version for a change to one part of the world (such as

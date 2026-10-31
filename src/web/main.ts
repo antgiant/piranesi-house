@@ -197,6 +197,7 @@ function saveFound(): void {
 
 function startGame(): void {
   game = newGame(gameOptions(), Date.now());
+  syncWalkNarration();
   loadFound(game);
   savedFound = game.found.size;
   loadMarks(game);
@@ -351,6 +352,7 @@ function fillVoices(): void {
 }
 function applyNarration(): void {
   narrator.enabled = settings.narrate && narrator.supported;
+  syncWalkNarration();
   narrator.rate = settings.narrateRate;
   narrator.voiceURI = settings.voiceURI;
   if (!settings.narrate) narrator.cancel();
@@ -366,8 +368,13 @@ $<HTMLInputElement>('s-rate').addEventListener('input', (e) => { $('s-rate-out')
 // Wander: the visitor lets the House carry them. It describes, listens, looks at a statue, and moves on, for ever,
 // until any key is typed or the button is pressed again. It waits for the reading to finish (or a reading-time pause).
 let wandering = false;
+/** Narrated walking (no times, walks described as they go) whenever the House is being read aloud or is wandering on its own. */
+function syncWalkNarration(): void {
+  if (game) game.opts.walkNarration = narrator.enabled || wandering;
+}
 function setWandering(on: boolean): void {
   wandering = on && game !== null;
+  syncWalkNarration();
   const b = $('wander');
   b.setAttribute('aria-pressed', String(wandering));
   b.textContent = wandering ? 'Wandering…' : 'Wander';

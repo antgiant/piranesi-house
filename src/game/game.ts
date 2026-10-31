@@ -10,6 +10,8 @@ import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
 import { createWorld, type World } from '../world/world';
 import { relicsIn, type Relic } from '../world/relics';
+import { flourishesFor } from '../world/flourishes';
+import { strollBeats } from './stroll';
 import { hashInts } from '../world/rng';
 import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance, describeDuration, distanceM, gait, terrainFactor, walkSeconds } from './walk';
 import { parse, type Command } from './parser';
@@ -30,6 +32,11 @@ export interface GameOptions {
   relicDensity: number;
   /** Rare hints of a world outside (a draught, muffled sounds). */
   outsideTraces: boolean;
+  /**
+   * The slower, narrated way of walking: no distances or times, and the walk is described as it goes, with silences between.
+   * Off, a walk is a short note and a countdown.
+   */
+  walkNarration: boolean;
   /** If set, world time at start (ms). Otherwise world time follows the real clock. */
   startAtWorldMs?: number;
 }
@@ -95,8 +102,8 @@ export interface Walk {
   exit?: NamedExit;
   wall?: Side;
   dir?: 'up' | 'down';
-  beatMs: number | null;
-  beatText: string;
+  /** Things to say on the way, each at its moment. Spent as they are said. */
+  beats: { atMs: number; text: string }[];
   /** Where along the wall to stand at the end (0..1000), and a line to add on arrival (approaching a statue). */
   pos?: number;
   note?: string;
@@ -105,7 +112,7 @@ export interface Walk {
 }
 
 export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
-  const o: GameOptions = { seed: 'the-house', timeScale: 1, showDead: true, style: 'plain', walkPace: 1, relicDensity: 1, outsideTraces: true, ...opts };
+  const o: GameOptions = { seed: 'the-house', timeScale: 1, showDead: true, style: 'plain', walkPace: 1, relicDensity: 1, outsideTraces: true, walkNarration: false, ...opts };
   const world = createWorld(o.seed, { showDead: o.showDead });
   const cfg: SimConfig = { ...defaultSimConfig, timeScale: o.timeScale };
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
@@ -171,7 +178,7 @@ export function look(g: Game, realNowMs: number): Line[] {
   g.seenListed = visibleStatues(g, scene.hall);
   g.relicsListed = g.walk ? [] : relicsIn(g.world, scene.hall, scene.clock.month, g.opts.relicDensity);
   g.prev = scene;
-  const paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed);
+  const paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, flourishesFor(g.world, scene.hall));
   const links: Link[] = [
     ...g.exitsListed.map((e) => ({ label: `${e.index} ${sideWord(e.side)}`, command: `go ${e.index}` })),
     ...g.seenListed.map((_, i) => ({ label: `examine ${i + 1}`, command: `examine ${i + 1}` })),
@@ -242,12 +249,12 @@ function beatFor(g: Game, h: Hall, key: string): string {
   return `About halfway, you ${gait(g.opts.walkPace) === 'walk' ? 'pass' : 'sweep past'} ${desc.charAt(0).toLowerCase()}${desc.slice(1)}, on the ${sideWord(st.wall)} wall.`;
 }
 
-function startWalk(g: Game, w: Omit<Walk, 'startMs' | 'endMs' | 'beatMs'> & { seconds: number }, now: number): Walk | null {
+function startWalk(g: Game, w: Omit<Walk, 'startMs' | 'endMs' | 'beats'> & { seconds: number; beats: { frac: number; text: string }[] }, now: number): Walk | null {
   const ms = realMsFor(g, w.seconds);
   if (!Number.isFinite(ms) || ms < INSTANT_MS) return null;
-  const { seconds, ...rest } = w;
+  const { seconds, beats, ...rest } = w;
   void seconds;
-  const walk: Walk = { ...rest, startMs: now, endMs: now + ms, beatMs: w.meters >= 80 ? now + ms / 2 : null };
+  const walk: Walk = { ...rest, startMs: now, endMs: now + ms, beats: beats.map((b) => ({ atMs: now + b.frac * ms, text: b.text })).sort((a, b) => a.atMs - b.atMs) };
   g.walk = walk;
   return walk;
 }
@@ -274,9 +281,15 @@ export function go(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const seconds = walkSeconds(meters, terrainFactor(h, scene.tide.depthDm));
   const dest = getHall(g.world, e.to.x, e.to.y, g.pos.level);
   g.facing = e.side;
-  const walk = startWalk(g, { kind: 'door', meters, seconds, exit: e, beatText: beatFor(g, h, `${e.index}${e.side}`), label: dest.name }, realNowMs);
+  const key = `${e.index}${e.side}`;
+  const realS = seconds / g.opts.walkPace;
+  const beats = g.opts.walkNarration
+    ? strollBeats(g, h, scene, e.side, realS, key)
+    : meters >= 80 ? [{ frac: 0.5, text: beatFor(g, h, key) }] : [];
+  const walk = startWalk(g, { kind: 'door', meters, seconds, exit: e, beats, label: dest.name }, realNowMs);
   if (!walk) return finishDoor(g, e, realNowMs);
   const where = e.corridor > 0 ? 'a long passage' : `the ${sideWord(e.side)} door`;
+  if (g.opts.walkNarration) return [text(g, `${startVerb(g)} ${where}.`)];
   return [text(g, `${startVerb(g)} ${where}, ${describeDistance(meters)} away. It will take ${describeDuration(seconds / g.opts.walkPace)}.`)];
 }
 
@@ -316,8 +329,13 @@ export function stairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
   const approach = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall: stair.wall, pos: stair.pos });
   const seconds = walkSeconds(approach) + (dir === 'up' ? STAIR_UP_S : STAIR_DOWN_S);
   const label = `the ${(['lower', 'middle', 'upper'] as const)[target]} halls`;
-  const walk = startWalk(g, { kind: 'stairs', meters: approach + 45, seconds, dir, beatText: '', label }, realNowMs);
+  const sbeats = g.opts.walkNarration && Number.isFinite(g.opts.walkPace) && seconds / g.opts.walkPace > 12
+    ? [{ frac: 0.35, text: dir === 'up' ? 'Step follows enormous step, each almost as high as your knee, and the hall falls away below.' : 'Step follows enormous step down, and the sounds of the sea grow nearer.' },
+       { frac: 0.7, text: dir === 'up' ? 'The stair turns, and turns again; the air changes a little as you climb.' : 'The stair turns again, and the stone beneath your feet is damp.' }]
+    : [];
+  const walk = startWalk(g, { kind: 'stairs', meters: approach + 45, seconds, dir, beats: sbeats, label }, realNowMs);
   if (!walk) return finishStairs(g, dir, realNowMs);
+  if (g.opts.walkNarration) return [text(g, `${startVerb(g)} the great stair, ${dir === 'up' ? 'climbing' : 'going down'}.`)];
   return [text(g, `${startVerb(g)} the great stair and the climb ${dir === 'up' ? 'up' : 'down'}, ${describeDuration(seconds / g.opts.walkPace)} in all.`)];
 }
 
@@ -340,8 +358,11 @@ export function walkTo(g: Game, wall: Side, realNowMs: number, pos = 500, note?:
   const meters = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall, pos });
   const seconds = walkSeconds(meters);
   g.facing = wall;
-  const walk = startWalk(g, { kind: 'wall', meters, seconds, wall, pos, note, beatText: '', label: label ?? `the ${sideWord(wall)} wall` }, realNowMs);
+  const scene = sceneNow(g, realNowMs);
+  const wbeats = g.opts.walkNarration ? strollBeats(g, h, scene, wall, seconds / g.opts.walkPace, `w${wall}${pos}`) : [];
+  const walk = startWalk(g, { kind: 'wall', meters, seconds, wall, pos, note, beats: wbeats, label: label ?? `the ${sideWord(wall)} wall` }, realNowMs);
   if (!walk) return finishWall(g, wall, realNowMs, pos, note);
+  if (g.opts.walkNarration) return [text(g, `${startVerb(g)} the ${sideWord(wall)} wall.`)];
   return [text(g, `${startVerb(g)} the ${sideWord(wall)} wall, ${describeDistance(meters)} away. It will take ${describeDuration(seconds / g.opts.walkPace)}.`)];
 }
 
@@ -361,6 +382,7 @@ function finishWalk(g: Game, w: Walk, realNowMs: number): Line[] {
 
 // --- journeys: a long way, one leg at a time ----------------------------------------------------------------------
 
+const withThe = (name: string): string => (/^the /i.test(name) ? name : `the ${name}`);
 const here = (g: Game): Spot => ({ x: g.pos.x, y: g.pos.y, level: g.pos.level });
 
 /**
@@ -375,7 +397,7 @@ function passThrough(g: Game, name: string, depthDm: number, realNowMs: number):
   g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
   g.prev = sceneNow(g, realNowMs);
   const wet = depthDm >= 9 ? ', wading' : depthDm > 0 ? ', through shallow water' : '';
-  return [{ kind: 'event', text: stylise(`You pass through ${name}${wet}.`, g.opts.style) }];
+  return [{ kind: 'event', text: stylise(`You pass through ${withThe(name)}${wet}.`, g.opts.style) }];
 }
 
 function startLeg(g: Game, realNowMs: number): Line[] {
@@ -437,7 +459,9 @@ function beginJourney(g: Game, route: Step[], destName: string, realNowMs: numbe
   if (route.length === 0) return [text(g, 'You are already there.')];
   g.journey = { destName, route, idx: 0 };
   const rough = describeDuration(walkSeconds(route.length * 180) / g.opts.walkPace);
-  const intro = text(g, `You set out for ${destName}, ${route.length === 1 ? 'one hall' : `${route.length} halls`} away; about ${rough} on foot at your pace. Type "stop" to stop.`);
+  const intro = g.opts.walkNarration
+    ? text(g, `You set out for ${withThe(destName)}.`)
+    : text(g, `You set out for ${withThe(destName)}, ${route.length === 1 ? 'one hall' : `${route.length} halls`} away; about ${rough} on foot at your pace. Type "stop" to stop.`);
   return [intro, ...runJourney(g, realNowMs)];
 }
 
@@ -490,6 +514,7 @@ function stopWalk(g: Game, realNowMs: number): Line[] {
 
 function walkingLine(g: Game, realNowMs: number): Line {
   const st = walkStatus(g, realNowMs) as NonNullable<ReturnType<typeof walkStatus>>;
+  if (g.opts.walkNarration) return text(g, `You are on your way to ${g.journey ? g.journey.destName : st.label}. Type "stop" to stop.`);
   return text(g, `You are on your way to ${st.label}, ${Math.round(st.fraction * 100)}% of the way there, with ${describeDuration(st.remainingWorldS)} to go. Type "stop" to stop.`);
 }
 
@@ -636,9 +661,9 @@ export function tick(g: Game, realNowMs: number, force = false): Line[] {
   const w = g.walk;
   if (w) {
     if (realNowMs >= w.endMs) return finishWalk(g, w, realNowMs);
-    if (w.beatMs !== null && realNowMs >= w.beatMs && w.beatText) {
-      w.beatMs = null;
-      out.push({ kind: 'event', text: stylise(w.beatText, g.opts.style) });
+    while (w.beats.length > 0 && realNowMs >= (w.beats[0] as { atMs: number }).atMs) {
+      const b = w.beats.shift() as { atMs: number; text: string };
+      out.push({ kind: 'event', text: stylise(b.text, g.opts.style) });
     }
   }
   const scene = sceneNow(g, realNowMs);

@@ -266,6 +266,44 @@ try {
     await n.close();
   }
 
+  // The address bar names the room, and a copied address leads back to it.
+  {
+    const ad = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    ad.on('pageerror', (e) => errors.push(String(e)));
+    await ad.goto(URL);
+    await ad.click('#enter');
+    await ad.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    check((await ad.evaluate(() => location.hash)).includes('room=First+Vestibule'), 'the address names the room you start in');
+    await ad.fill('#input', 'travel to the third western hall');
+    await ad.press('#input', 'Enter');
+    await ad.waitForFunction(() => document.getElementById('place').textContent === 'Third Western Hall', null, { timeout: 15000 });
+    const hash = await ad.evaluate(() => location.hash);
+    check(hash.includes('room=Third+Western+Hall') && hash.includes('pace=instant'), `the address follows you and keeps other settings (${hash})`);
+    check((await ad.evaluate(() => history.length)) <= 3, 'moving does not fill the back button with history');
+    await ad.fill('#input', 'up');
+    await ad.press('#input', 'Enter');
+    await ad.waitForTimeout(300);
+    // a link opened in a fresh tab goes to the same room
+    const friend = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    friend.on('pageerror', (e) => errors.push(String(e)));
+    await friend.goto(`http://localhost:${PORT}/${await ad.evaluate(() => location.hash)}`);
+    await friend.click('#enter');
+    await friend.waitForFunction(() => document.getElementById('log').textContent.includes('arrive'));
+    check((await friend.locator('#place').textContent()) === (await ad.locator('#place').textContent()), `a shared link leads to the same room (${await friend.locator('#place').textContent()})`);
+    check((await friend.locator('#log').textContent()).includes('link you were sent'), 'and says so');
+    // editing the address in the same tab moves you
+    await friend.evaluate(() => { location.hash = '#debug&pace=instant&room=Second+Western+Hall'; });
+    await friend.waitForFunction(() => document.getElementById('place').textContent === 'Second Western Hall', null, { timeout: 5000 });
+    check(true, 'changing the address while playing takes you to that room');
+    // a link to a room that does not exist is ignored
+    const lost = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    await lost.goto(`http://localhost:${PORT}/#room=nowhere+at+all`);
+    await lost.click('#enter');
+    await lost.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    check(true, 'a link to a place that does not exist starts at the First Vestibule');
+    await friend.close(); await lost.close(); await ad.close();
+  }
+
   // Every kind of bird call, and thunder, can be played without error, and each is counted.
   {
     const species = ['sparrow', 'gull', 'rook', 'albatross', 'flock', 'rustle', 'blackbird', 'swift', 'wader', 'dove', 'owl', 'starling', 'thunder'];

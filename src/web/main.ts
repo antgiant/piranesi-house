@@ -10,6 +10,7 @@ import { mapView, type MapCell, type MapView } from '../game/mapdata';
 import type { Level } from '../world/layout';
 import { MapPanel } from './map';
 import { Narrator } from './speech';
+import { parseRoom, withRoom, withoutRoom } from './urlstate';
 import { ScreenWake } from './wakelock';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
@@ -74,7 +75,8 @@ let hist = -1;
 function gameOptions(): Partial<GameOptions> {
   const q = hashParams();
   const opts: Partial<GameOptions> = {
-    seed: q.get('seed') ?? settings.seed,
+    // a link that names a room but no world means the usual world, whatever this browser's settings say
+    seed: q.get('seed') ?? (q.has('room') ? DEFAULT_SEED : settings.seed),
     timeScale: Number(q.get('scale') ?? settings.timeScale) || 1,
     showDead: settings.showDead,
     relicDensity: settings.relics ? 1 : 0,
@@ -128,6 +130,34 @@ function echo(cmd: string): HTMLElement {
   return p;
 }
 
+/** Keep the address bar naming the room you are in, without adding a history entry for every step. */
+let lastRoomKey = '';
+function syncAddress(): void {
+  if (!game) return;
+  const key = `${game.pos.level}:${game.pos.x},${game.pos.y}:${game.opts.seed}`;
+  if (key === lastRoomKey) return;
+  lastRoomKey = key;
+  const hash = withRoom(location.hash, game.world, { x: game.pos.x, y: game.pos.y, level: game.pos.level }, game.opts.seed, DEFAULT_SEED);
+  if (hash !== location.hash) window.history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+}
+
+/** Someone pasted a different room into the address bar (or followed a link in this tab): go there. */
+window.addEventListener('hashchange', () => {
+  if (!game) return;
+  // a link to a different world: start over in it
+  const wanted = new URLSearchParams(location.hash.replace(/^#/, '')).get('seed') ?? DEFAULT_SEED;
+  if (new URLSearchParams(location.hash.replace(/^#/, '')).has('room') && wanted !== game.opts.seed) { location.reload(); return; }
+  const spot = parseRoom(game.world, location.hash);
+  if (!spot || (spot.x === game.pos.x && spot.y === game.pos.y && spot.level === game.pos.level)) return;
+  game.walk = null;
+  game.journey = null;
+  game.pos = { x: spot.x, y: spot.y, level: spot.level, wall: null, pos: 500 };
+  game.said.clear();
+  print(look(game, Date.now()));
+  lastRoomKey = '';
+  refresh();
+});
+
 function refresh(): void {
   if (!game) return;
   const now = Date.now();
@@ -136,6 +166,7 @@ function refresh(): void {
   engine.setScene(a);
   if (!$('map-panel').hidden) map.draw();
   $('place').textContent = s.hall.name;
+  syncAddress();
   const ws = walkStatus(game, now);
   $('clock').textContent = ws ? `${formatClock(s.clock)} · walking: ${describeDuration(ws.remainingWorldS)} to go` : formatClock(s.clock);
 }
@@ -195,15 +226,19 @@ function saveFound(): void {
   try { localStorage.setItem(foundKey(game.opts.seed), JSON.stringify([...game.found])); } catch { /* ignore */ }
 }
 
-function startGame(): void {
+const DEFAULT_SEED = 'the-house';
+/** Start (or restart). A shared address puts you in the hall it names, on the first start only. */
+function startGame(fromHash = false): void {
   game = newGame(gameOptions(), Date.now());
+  const shared = fromHash ? parseRoom(game.world, location.hash) : null;
+  if (shared) game.pos = { x: shared.x, y: shared.y, level: shared.level, wall: null, pos: 500 };
   syncWalkNarration();
   loadFound(game);
   savedFound = game.found.size;
   loadMarks(game);
   savedMarks = JSON.stringify([...game.marks]);
   logEl.textContent = '';
-  print([{ kind: 'system', text: 'You arrive. Type "help" at any time, or use the buttons under each description.' }]);
+  print([{ kind: 'system', text: shared ? 'You arrive where the link you were sent leads. Type "help" at any time, or use the buttons under each description.' : 'You arrive. Type "help" at any time, or use the buttons under each description.' }]);
   print(look(game, Date.now()));
   refresh();
   if (hashParams().has('debug')) {
@@ -225,7 +260,7 @@ async function enter(): Promise<void> {
   $('cmd').hidden = false;
   engine.setVolume(settings.volume / 100);
   engine.setMuted(settings.muted);
-  startGame();
+  startGame(true);
   try { await engine.start(); } catch { print([{ kind: 'system', text: 'Sound could not be started in this browser. The House is still here to read.' }]); }
   refresh();
   input.focus();
@@ -333,6 +368,7 @@ $('s-save').addEventListener('click', (e) => {
     seed: $<HTMLInputElement>('s-seed').value.trim() || DEFAULTS.seed,
     speedKmh: Math.max(BOOK_KMH, Math.min(MARATHON_KMH, Number($<HTMLInputElement>('s-speed').value) || DEFAULTS.speedKmh)),
   };
+  const prevSeed = settings.seed;
   const restart = next.showDead !== settings.showDead || next.timeScale !== settings.timeScale || next.seed !== settings.seed || next.relics !== settings.relics || next.outside !== settings.outside;
   const restyle = next.diary !== settings.diary;
   settings = next;
@@ -341,7 +377,14 @@ $('s-save').addEventListener('click', (e) => {
   applyNarration();
   if (game && hashParams().get('pace') !== 'instant') game.opts.walkPace = paceFromKmh(settings.speedKmh);
   dlg.close();
-  if (restart || restyle) { startGame(); input.focus(); }
+  if (restart || restyle) {
+    // starting again at the First Vestibule: forget the old room, and a seed the settings have just replaced
+    const q = new URLSearchParams(withoutRoom(location.hash).replace(/^#/, ''));
+    if (next.seed !== prevSeed) q.delete('seed');
+    window.history.replaceState(null, '', `${location.pathname}${location.search}${q.toString() ? `#${q}` : ''}`);
+    startGame();
+    input.focus();
+  }
 });
 
 function fillVoices(): void {

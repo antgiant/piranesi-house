@@ -292,9 +292,9 @@ describe('determinism', () => {
     const a = createWorld('seed-one');
     const b = createWorld('seed-one');
     const c = createWorld('seed-two');
-    const sa = hallStatues(a, getHall(a, 7, 9, 1)).map(describeStatue.bind(null, getHall(a, 7, 9, 1)));
-    const sb = hallStatues(b, getHall(b, 7, 9, 1)).map(describeStatue.bind(null, getHall(b, 7, 9, 1)));
-    const sc = hallStatues(c, getHall(c, 7, 9, 1)).map(describeStatue.bind(null, getHall(c, 7, 9, 1)));
+    const sa = hallStatues(a, getHall(a, 7, 9, 1)).map((s) => describeStatue(getHall(a, 7, 9, 1), s));
+    const sb = hallStatues(b, getHall(b, 7, 9, 1)).map((s) => describeStatue(getHall(b, 7, 9, 1), s));
+    const sc = hallStatues(c, getHall(c, 7, 9, 1)).map((s) => describeStatue(getHall(c, 7, 9, 1), s));
     expect(sa).toEqual(sb);
     expect(sa).not.toEqual(sc);
   });

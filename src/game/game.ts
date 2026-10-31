@@ -83,6 +83,11 @@ export interface Game {
   walk: Walk | null;
   /** A longer trip, a leg at a time, to a named place or straight along a line of halls. */
   journey: Journey | null;
+  /** What has been said about each hall in a narrated glance, so that looking again brings new things. */
+  told: Map<string, { keys: Set<string>; at: number }>;
+  /** The hall last glanced at, and the last description given, for "repeat". */
+  lastGlance: string | null;
+  lastLook: Line[] | null;
   /** Places the visitor has marked to find again: label to where. Private to the visitor and kept on their device. */
   marks: Map<string, { x: number; y: number; level: Level; hall: string }>;
 }
@@ -118,7 +123,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(),
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), told: new Map(), lastGlance: null, lastLook: null,
   };
 }
 
@@ -169,7 +174,8 @@ export function visibleStatues(g: Game, h: Hall): Seen[] {
 
 export const exploredKey = (level: Level, x: number, y: number): string => `${level}:${x},${y}`;
 
-export function look(g: Game, realNowMs: number, full = false): Line[] {
+/** Take in where you are without saying anything: what the exits, statues and relics are, and note the hall as explored. */
+function prepareHall(g: Game, realNowMs: number): { scene: SceneState; audio: AudioScene } {
   g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
   const t = worldNow(g, realNowMs);
   const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, t, { outside: g.opts.outsideTraces });
@@ -178,12 +184,38 @@ export function look(g: Game, realNowMs: number, full = false): Line[] {
   g.seenListed = visibleStatues(g, scene.hall);
   g.relicsListed = g.walk ? [] : relicsIn(g.world, scene.hall, scene.clock.month, g.opts.relicDensity);
   g.prev = scene;
-  // Narrated, a hall is glanced at, as a person would, not surveyed; "look closely" gives everything.
+  return { scene, audio };
+}
+
+/** After this long (in the world's time) away from a hall, a visitor notices things afresh. */
+const FORGET_MS = 2 * 3_600_000;
+
+/**
+ * Look around. Narrated, a hall is glanced at as a person would, not surveyed: a few striking things, and a different few each
+ * time you look again in the same place, since nobody describes the same room the same way twice. "look closely" gives
+ * everything, and `repeat` says the last description again, word for word.
+ */
+export function look(g: Game, realNowMs: number, full = false, repeat = false): Line[] {
+  if (repeat && g.lastLook) return g.lastLook;
+  const { scene, audio } = prepareHall(g, realNowMs);
   const brief = g.opts.walkNarration && !full;
   const fl = flourishesFor(g.world, scene.hall);
-  const paras = brief
-    ? glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene))
-    : describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl);
+  let paras: string[];
+  if (brief) {
+    const hid = scene.hall.id;
+    let rec = g.told.get(hid);
+    if (rec && scene.t - rec.at > FORGET_MS) { g.told.delete(hid); rec = undefined; }
+    const mode = !rec ? 'first' : g.lastGlance === hid ? 'again' : 'return';
+    const r = glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene, rec?.keys.size ?? 0), rec?.keys ?? new Set(), mode);
+    paras = r.paras;
+    const keys = rec?.keys ?? new Set<string>();
+    for (const k of r.said) keys.add(k);
+    g.told.set(hid, { keys, at: scene.t });
+    g.lastGlance = hid;
+  } else {
+    paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl);
+    g.lastGlance = null;
+  }
   const links: Link[] = [
     ...g.exitsListed.map((e) => ({ label: `${e.index} ${sideWord(e.side)}`, command: `go ${e.index}` })),
     ...(brief ? [{ label: 'look closely', command: 'look closely' }] : [
@@ -196,7 +228,9 @@ export function look(g: Game, realNowMs: number, full = false): Line[] {
     if (g.pos.level < 2) links.push({ label: 'go up', command: 'up' });
     if (g.pos.level > 0) links.push({ label: 'go down', command: 'down' });
   }
-  return paras.map((p, i) => text(g, p, i === paras.length - 1 ? links : undefined));
+  const lines = paras.map((p, i) => text(g, p, i === paras.length - 1 ? links : undefined));
+  g.lastLook = lines;
+  return lines;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -501,7 +535,7 @@ export function trek(g: Game, side: Side, n: number | undefined, realNowMs: numb
 }
 
 export function approach(g: Game, n: number, realNowMs: number): Line[] {
-  if (g.seenListed.length === 0) look(g, realNowMs);
+  if (g.seenListed.length === 0) prepareHall(g, realNowMs);
   const s = g.seenListed[n - 1];
   if (!s) return [text(g, `There is no statue numbered ${n} in view. Look around to see the list.`)];
   const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
@@ -581,7 +615,7 @@ export const HELP = [
 const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs', 'travel', 'trek', 'approach']);
 
 export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
-  if (g.walk && (cmd.t === 'empty' || cmd.t === 'look' || cmd.t === 'where')) return [walkingLine(g, realNowMs)];
+  if (g.walk && (cmd.t === 'empty' || (cmd.t === 'look' && !cmd.repeat) || cmd.t === 'where')) return [walkingLine(g, realNowMs)];
   if (g.walk && MOVING.has(cmd.t)) return [text(g, 'You are already on your way. Type "stop" to stop, or wait until you arrive.'), walkingLine(g, realNowMs)];
   switch (cmd.t) {
     case 'stop': return stopWalk(g, realNowMs);
@@ -591,13 +625,13 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
       return [text(g, `What you have noticed that was left behind, in your own list (nobody else can see it):\n${lines.join('\n')}`)];
     }
     case 'empty': return look(g, realNowMs);
-    case 'look': return look(g, realNowMs, cmd.full === true);
+    case 'look': return look(g, realNowMs, cmd.full === true, cmd.repeat === true);
     case 'listen': {
       const s = sceneNow(g, realNowMs);
       return [text(g, soundParagraph(audioFor(g.world, s, { facing: g.facing }), s))];
     }
     case 'go': {
-      if (g.exitsListed.length === 0) look(g, realNowMs);
+      if (g.exitsListed.length === 0) prepareHall(g, realNowMs);
       const r = chooseExit(g, cmd.side, cmd.n);
       return typeof r === 'string' ? [text(g, r)] : go(g, r, realNowMs);
     }

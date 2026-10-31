@@ -266,6 +266,21 @@ try {
     await n.close();
   }
 
+  // Every kind of bird call, and thunder, can be played without error, and each is counted.
+  {
+    const species = ['sparrow', 'gull', 'rook', 'albatross', 'flock', 'rustle', 'blackbird', 'swift', 'wader', 'dove', 'owl', 'starling', 'thunder'];
+    const before = await page.evaluate(() => window.__house.engine.stats().calls);
+    for (const s of species) await page.evaluate((k) => window.__house.engine.demo(k), s);
+    const after = await page.evaluate(() => window.__house.engine.stats().calls);
+    check(after - before === species.length, `all ${species.length} distinct bird calls and thunder play (${after - before} played)`);
+    let base = 0, peak = 0;
+    for (let i = 0; i < 6; i++) { base += await page.evaluate(() => window.__house.engine.level()); await page.waitForTimeout(40); }
+    base /= 6;
+    await page.evaluate(() => window.__house.engine.demo('thunder'));
+    for (let i = 0; i < 30; i++) { peak = Math.max(peak, await page.evaluate(() => window.__house.engine.level())); await page.waitForTimeout(60); }
+    check(peak > base * 1.15, `thunder is audible over the House (peak ${peak.toFixed(3)} vs ${base.toFixed(3)})`);
+  }
+
   // The visitor's murmuring: `mutter=2` makes it every 2 s so we need not wait minutes.
   {
     const m = await browser.newPage({ viewport: { width: 900, height: 900 } });

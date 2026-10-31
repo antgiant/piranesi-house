@@ -5,19 +5,19 @@
 import { babblePlan, type BabbleEvent } from './babble';
 import type { AudioScene, Portal, Surface } from './director';
 
-type Species = 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle';
+export type Species = 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
 
-function speciesFor(mode: AudioScene['birds']['mode']): Species[] {
+export function speciesFor(mode: AudioScene['birds']['mode']): Species[] {
   switch (mode) {
     case 'nesting': return ['gull'];
     case 'noisy': return ['rook'];
     case 'chick': return ['albatross', 'albatross', 'rustle'];
-    case 'murmuration': return ['flock'];
-    case 'roosting': return ['rustle'];
-    case 'sheltering': return ['sparrow', 'sparrow', 'rook'];
-    case 'foraging': return ['sparrow', 'sparrow', 'sparrow', 'rustle'];
-    case 'soaring': return ['gull', 'sparrow', 'rook'];
-    case 'shore': return ['gull', 'rustle', 'gull'];
+    case 'murmuration': return ['flock', 'starling', 'starling'];
+    case 'roosting': return ['rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'owl'];
+    case 'sheltering': return ['sparrow', 'sparrow', 'blackbird', 'rook', 'dove'];
+    case 'foraging': return ['sparrow', 'sparrow', 'blackbird', 'blackbird', 'dove', 'rustle'];
+    case 'soaring': return ['gull', 'swift', 'swift', 'swift'];
+    case 'shore': return ['gull', 'wader', 'wader', 'rustle'];
     default: return [];
   }
 }
@@ -58,6 +58,9 @@ export class AudioEngine {
   private nextBird = 0;
   private nextDrip = 0;
   private nextBoom = 0;
+  private nextThunder = 0;
+  /** Bird calls and thunderclaps played, for the end-to-end tests. */
+  private calls = 0;
   private volume = 0.8;
   private muted = false;
 
@@ -159,8 +162,16 @@ export class AudioEngine {
   }
 
   /** How many doorway voices exist and how many sounds they have emitted. Used by the end-to-end tests. */
-  stats(): { voices: number; portalEvents: number; outsideEvents: number } {
-    return { voices: this.voices.length, portalEvents: this.portalEvents, outsideEvents: this.outsideEvents };
+  stats(): { voices: number; portalEvents: number; outsideEvents: number; calls: number } {
+    return { voices: this.voices.length, portalEvents: this.portalEvents, outsideEvents: this.outsideEvents, calls: this.calls };
+  }
+
+  /** Play one bird call, or thunder, now. For the end-to-end tests and for trying the sounds out. */
+  demo(kind: Species | 'thunder'): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (kind === 'thunder') this.thunder(ctx.currentTime + 0.02, 0.8);
+    else this.bird(kind, ctx.currentTime + 0.02, 0.8);
   }
 
   /** RMS of what is currently coming out (0..1). Used by the end-to-end tests. */
@@ -489,12 +500,47 @@ export class AudioEngine {
         v.nextDrip = t + rand(0.5, 1.5) / Math.max(0.1, (p.falls + p.rain) * 3);
       }
     }
+    // thunder: a crack and a long rumble, far off, more often when the lightning is near
+    if (a.thunder > 0.02 && t >= this.nextThunder) {
+      this.thunder(t + 0.05, a.thunder);
+      this.nextThunder = t + rand(7, 24) / Math.max(0.2, a.thunder);
+    }
     // birds
     const kinds = speciesFor(a.birds.mode);
     if (a.birds.perMinute > 0 && kinds.length > 0 && t >= this.nextBird) {
       this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness);
       this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6);
     }
+  }
+
+  /** Thunder: a crack that only the nearest storms have, then a long low rumble that rolls and dies away. */
+  private thunder(t: number, strength: number): void {
+    this.calls++;
+    const ctx = this.ctx as AudioContext;
+    if (strength > 0.5) this.burst(t, 0.12, 'highpass', 1500, 0.5, 0.1 + strength * 0.2, 0, 0.002);
+    const dur = rand(2.5, 5) * (0.6 + strength * 0.6);
+    const s = ctx.createBufferSource();
+    s.buffer = this.brown;
+    s.loop = true;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(260 + strength * 220, t);
+    lp.frequency.exponentialRampToValueAtTime(70, t + dur);
+    const g = ctx.createGain();
+    const peak = 0.12 + strength * 0.5;
+    g.gain.setValueAtTime(0.0001, t);
+    // it rolls: three or four swells, each smaller than the last
+    let at = t + 0.05;
+    for (let i = 0; i < 4; i++) {
+      const p = peak * Math.pow(0.6, i) * rand(0.7, 1.1);
+      g.gain.linearRampToValueAtTime(p, at + 0.25);
+      g.gain.linearRampToValueAtTime(p * 0.3, at + dur / 4);
+      at += dur / 4;
+    }
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.6);
+    s.connect(lp).connect(g).connect(this.bus);
+    s.start(t, Math.random() * 6);
+    s.stop(t + dur + 0.8);
   }
 
   private env(g: GainNode, t: number, attack: number, hold: number, release: number, peak: number): void {
@@ -547,6 +593,7 @@ export class AudioEngine {
 
   /** A bird call. Through a doorway it keeps the doorway's own placement (pan 0 here; the portal bus pans it). */
   private bird(sp: Species, t: number, loud: number, out?: AudioNode): void {
+    this.calls++;
     const pan = out ? 0 : rand(-0.9, 0.9);
     const v = 0.05 + loud * 0.08;
     switch (sp) {
@@ -577,6 +624,56 @@ export class AudioEngine {
         const n = 7 + Math.floor(Math.random() * 6);
         for (let i = 0; i < n; i++) this.burst(t + i * 0.045, 0.025, 'bandpass', rand(1800, 2600), 6, v * 1.4, pan, 0.001, out);
         this.tone(t + 0.1, 110, 85, 0.7, 'sawtooth', v * 0.35, pan, 0.1, out);
+        break;
+      }
+      case 'blackbird': {
+        // a phrase of rich, fluting notes that rise and fall, with a pause, and sometimes a second phrase
+        const phrases = 1 + Math.floor(Math.random() * 2);
+        let at = t;
+        for (let p = 0; p < phrases; p++) {
+          const n = 4 + Math.floor(Math.random() * 4);
+          for (let i = 0; i < n; i++) {
+            const base = rand(1400, 2600);
+            this.tone(at, base, base * rand(0.8, 1.35), rand(0.09, 0.2), 'sine', v * 1.1, pan, 0.012, out);
+            at += rand(0.11, 0.22);
+          }
+          at += rand(0.5, 0.9);
+        }
+        break;
+      }
+      case 'swift': {
+        // a high thin scream: a fast descending trill, with a second bird answering a little way behind
+        const n = 8 + Math.floor(Math.random() * 6);
+        for (let i = 0; i < n; i++) this.tone(t + i * 0.052, 7400 - i * 90, 6000 - i * 90, 0.05, 'sine', v * 0.8, pan, 0.004, out);
+        for (let i = 0; i < n - 3; i++) this.tone(t + 0.35 + i * 0.05, 6600 - i * 80, 5600 - i * 80, 0.05, 'sine', v * 0.5, -pan, 0.004, out);
+        break;
+      }
+      case 'wader': {
+        // a clear rising "tew-tew-tew" over the water
+        const n = 3 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < n; i++) this.tone(t + i * 0.2, 2100, 2800, 0.13, 'sine', v * 1.0, pan, 0.01, out);
+        break;
+      }
+      case 'dove': {
+        // a soft, low, rolling coo-coo-coo, three notes, the middle one longest
+        this.tone(t, 360, 330, 0.18, 'sine', v * 0.9, pan, 0.04, out);
+        this.tone(t + 0.26, 400, 340, 0.36, 'sine', v * 1.0, pan, 0.05, out);
+        this.tone(t + 0.78, 370, 320, 0.3, 'sine', v * 0.8, pan, 0.05, out);
+        break;
+      }
+      case 'owl': {
+        // two slow, hollow hoots, the second lower
+        this.tone(t, 330, 300, 0.45, 'sine', v * 1.1, pan, 0.08, out);
+        this.burst(t, 0.4, 'lowpass', 600, 0.5, v * 0.25, pan, 0.08, out);
+        this.tone(t + 0.8, 300, 250, 0.7, 'sine', v * 1.0, pan, 0.08, out);
+        break;
+      }
+      case 'starling': {
+        // a chatter of clicks and short whistles, over in a moment
+        for (let i = 0; i < 12; i++) {
+          if (Math.random() < 0.6) this.burst(t + i * rand(0.04, 0.09), 0.02, 'bandpass', rand(3000, 6500), 6, v * 0.9, pan, 0.001, out);
+          else this.tone(t + i * 0.07, rand(2200, 4200), rand(2200, 4200), 0.07, 'sine', v * 0.7, pan, 0.005, out);
+        }
         break;
       }
       case 'flock':

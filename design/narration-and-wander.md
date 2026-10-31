@@ -37,3 +37,14 @@ While Wander is on, or while anything is being read aloud, the page asks the bro
 Wake Lock API) so a phone does not lock and silence the House. It is let go a second after both stop, and taken again
 if you switch away and come back. Browsers without the API, or that refuse (low battery), are simply left alone.
 Not requested merely for playing the soundscape or for a plain walk.
+
+## Saying things the way a person would (milestone 4g, further)
+* **Size is said once, and only if it is unusual.** Statues in a hall are alike in size, so a narrated description never puts
+  a size on each statue ("a ferryman at a river crossing", not "a larger-than-life ferryman"), and never says "life-sized" at
+  all. If the hall's statues are small, very large, huge or colossal, that is said once, for the hall.
+* **Looking again shows something new.** Each hall remembers what has already been said about it. `look` in the same place
+  says other things (no name, size or door list again, and a short lead-in such as "Looking about you again, ..."); when
+  nothing new stands out it says so. Coming back to a hall greets you ("You are back in the First Vestibule.") with something
+  new. After two hours of the world's time, the hall is seen afresh. `repeat` (or `again`, `look again`) says the last
+  description again exactly; `look closely` gives the whole.
+* Unnarrated play is unchanged: `look` is a reference description and gives the same full text each time.

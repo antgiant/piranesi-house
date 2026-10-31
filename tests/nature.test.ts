@@ -108,3 +108,80 @@ describe('a glance, as a person would', () => {
     expect(sea).toBeGreaterThan(30);
   });
 });
+
+describe('what is said, and not said again', () => {
+  const narrated = (): Game => newGame({ walkPace: Infinity, walkNarration: true, relicDensity: 0, outsideTraces: false }, NOW);
+  const SIZE = /life-sized|larger-than-life|colossal|\bhuge\b/;
+
+  it('never calls anything life-sized, and does not put a size on each statue', () => {
+    const g = narrated();
+    for (let x = -6; x <= 6; x++) for (let y = -4; y <= 4; y++) {
+      g.pos = { x, y, level: 1, wall: null, pos: 500 };
+      const txt = all(look(g, NOW));
+      expect(txt).not.toMatch(/life-sized/);
+      expect(txt).not.toMatch(/Your eye is caught by an? (larger-than-life|life-sized|small|huge|colossal)/);
+    }
+  });
+  it('says how big the statues are once, for the hall, and only when that is out of the ordinary', () => {
+    const g = narrated();
+    let withScale = 0, without = 0;
+    for (let x = -10; x <= 10; x++) for (let y = -6; y <= 6; y++) {
+      g.pos = { x, y, level: 1, wall: null, pos: 500 };
+      g.told.clear(); g.lastGlance = null;
+      const txt = all(look(g, NOW));
+      const hall = getHall(w, x, y, 1);
+      if (hall.sizeClass === 'life') { expect(txt).not.toMatch(/about your own height/); without++; }
+      else { expect(txt).toMatch(/none of them higher than your shoulder|two or three times your height|towering six to nine metres|fifteen to twenty metres tall/); withScale++; }
+      expect((txt.match(/two or three times your height/g) ?? []).length).toBeLessThanOrEqual(1);
+    }
+    expect(withScale).toBeGreaterThan(20);
+    expect(without).toBeGreaterThan(5);
+  });
+  it('describes new things each time you look again in the same place, and does not repeat itself until asked', () => {
+    const g = narrated();
+    const first = all(look(g, NOW));
+    expect(first).toMatch(/The middle level\./);
+    const seen = [first];
+    for (let i = 0; i < 4; i++) {
+      const again = all(step(g, 'look', NOW + i * 1000));
+      expect(again).not.toMatch(/The middle level\./); // no name, size or door list again
+      expect(again).not.toMatch(/Doors lead/);
+      seen.push(again);
+    }
+    // no sentence told twice
+    const sentences = seen.join(' ').split(/(?<=[.!?])\s+/).filter((s) => s.length > 40);
+    const dupes = sentences.filter((s, i) => sentences.indexOf(s) !== i);
+    expect(dupes).toEqual([]);
+  });
+  it('says so when there is nothing new, rather than repeating', () => {
+    const g = narrated();
+    look(g, NOW);
+    let said = '';
+    for (let i = 0; i < 30; i++) said = all(step(g, 'look', NOW + i * 1000));
+    expect(said).toMatch(/nothing new|taken in the main things/);
+  });
+  it('repeats exactly when asked to', () => {
+    const g = narrated();
+    look(g, NOW);
+    const second = all(step(g, 'look', NOW + 1000));
+    expect(all(step(g, 'repeat', NOW + 2000))).toBe(second);
+    expect(all(step(g, 'look again', NOW + 3000))).toBe(second);
+    expect(all(step(g, 'again', NOW + 4000))).toBe(second);
+  });
+  it('greets a hall you come back to, with something new', () => {
+    const g = narrated();
+    const a = all(look(g, NOW));
+    expect(a).toMatch(/Doors lead/);
+    g.pos = { x: -1, y: 0, level: 1, wall: null, pos: 500 };
+    look(g, NOW + 5000);
+    g.pos = { x: 0, y: 0, level: 1, wall: null, pos: 500 };
+    const back = all(look(g, NOW + 10000));
+    expect(back).toMatch(/You are back in the First Vestibule\./);
+    for (const s of a.split(/(?<=[.!?])\s+/).filter((q) => q.length > 60 && !/Doors lead/.test(q))) expect(back).not.toContain(s);
+  });
+  it('is the full, unchanging description when not narrated', () => {
+    const g = newGame({ walkPace: Infinity, relicDensity: 0, outsideTraces: false }, NOW);
+    expect(all(look(g, NOW))).toBe(all(look(g, NOW)));
+    expect(all(look(g, NOW))).toMatch(/life-sized|larger-than-life|small|huge|colossal/);
+  });
+});

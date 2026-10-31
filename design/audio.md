@@ -35,3 +35,22 @@ sample files, so no licensing and a tiny download. It needs a user gesture to st
 * ~~Sounds from neighbouring halls arriving through doorways, with direction~~ (done in milestone 4; see `design/map.md`).
 * Other visitors' footsteps and voices (milestone 8).
 * The muttering (milestone 6; see `design/mutter.yaml`).
+
+## Weather, by level (checked in `tests/weather-sound.test.ts`)
+| | Rain | Snow | Wind | Thunder |
+|---|---|---|---|---|
+| Upper halls (half-open roof) | all of it, loudest | none; a soft hush (muffle) | loud, whistling in the cornices | loudest |
+| Vestibules | all of it | hush | loud | loud (80%) |
+| Ordinary middle halls | on the windows (30%), more near falls | none | soft | about half |
+| Lower halls | a faint hiss through the sea (15%) | none | very soft | a quarter, far off |
+| Drowned Halls, the dark hall | almost none / none | none | almost none | none |
+
+Snow makes no rain sound (it used to). Thunder is new: a crack (only close storms) and a long low rumble that rolls in three or
+four swells; far more often when lightning is near, rarer in a plain storm.
+
+## Bird calls, one voice each (`speciesFor` in `src/audio/engine.ts`)
+Sparrow chirps; blackbird's fluting phrases; dove's coo; swift's high descending scream; gull's cry; wader's "tew-tew";
+rook's caw; albatross's clatter and low groan; starling's chatter (with the murmuration's rushing); owl's two hoots (rare, only
+roosting); and the rustle of wings. Which are heard depends on where: sparrows, blackbirds and doves in the middle halls by day;
+gulls and swifts above the upper halls; gulls and waders on lower pavements at low tide; rooks in their hall; gulls on their
+nests; a starling flock at the murmuration; an owl, very rarely, at night.

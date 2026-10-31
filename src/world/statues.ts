@@ -224,9 +224,15 @@ export function sizeWord(hall: Hall): string {
   return SIZE_WORD[hall.sizeClass];
 }
 
-export function describeStatue(hall: Hall, s: Statue): string {
+/**
+ * One statue in words. By default the size is part of it ("A larger-than-life ..."). Narrating a hall, size is said once for the
+ * hall and left out of each statue (`omitSize`): all the statues in a hall are alike in size, and nobody says "life-sized" of
+ * what is ordinary.
+ */
+export function describeStatue(hall: Hall, s: Statue, omitSize = false): string {
   if (s.canonLabel) return s.canonLabel;
-  const article = /^[aeiou]/i.test(sizeWord(hall)) ? 'An' : 'A';
+  const size = omitSize ? '' : `${sizeWord(hall)} `;
+  const article = /^[aeiou]/i.test(omitSize ? s.figure : sizeWord(hall)) ? 'An' : 'A';
   const withBit = `, ${s.companion}`;
   const cond: string[] = [];
   if (s.condition.broken) cond.push('cracked and partly fallen');
@@ -235,10 +241,12 @@ export function describeStatue(hall: Hall, s: Statue): string {
   else if (s.condition.seaweed) cond.push('hung with seaweed');
   if (s.condition.waterWorn) cond.push('worn by falling water');
   if (s.condition.droppings) cond.push('streaked with bird droppings');
+  const tail = `, ${s.pose}, ${s.attribute}${withBit}${cond.length ? `; ${cond.join(', ')}` : ''}.`;
   // a subject written as a scene or an idea ("the fox and the crow") reads as a carving of it
-  const subject = /^the /i.test(s.figure) ? `carving of ${s.figure}` : s.figure;
-  // a group of figures has no article: "Life-sized children in a ring dance"
+  const the = /^the /i.test(s.figure);
+  const subject = the ? `carving of ${s.figure}` : s.figure;
+  // a group of figures has no article: "Children in a ring dance"
   const plural = /^(children|siblings|lovers|actors|mermaids|sailors|girls|boys|two |pair of|the (card|dice|chess|gamblers|orphans|pilgrims|founders|builders|planets|three|four|five|twin|seven|poor|four))/i.test(s.figure);
-  if (plural && !/^the /i.test(s.figure)) return `${sizeWord(hall).charAt(0).toUpperCase()}${sizeWord(hall).slice(1)} ${s.figure}, ${s.pose}, ${s.attribute}${withBit}${cond.length ? `; ${cond.join(', ')}` : ''}.`;
-  return `${article} ${sizeWord(hall)} ${subject}, ${s.pose}, ${s.attribute}${withBit}${cond.length ? `; ${cond.join(', ')}` : ''}.`;
+  if (plural && !the) return `${(size + s.figure).charAt(0).toUpperCase()}${(size + s.figure).slice(1)}${tail}`;
+  return `${article} ${size}${subject}${tail}`;
 }

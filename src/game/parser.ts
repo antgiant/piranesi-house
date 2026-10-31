@@ -2,7 +2,7 @@ import type { Side } from '../world/layout';
 
 export type Command =
   | { t: 'empty' }
-  | { t: 'look'; full?: boolean }
+  | { t: 'look'; full?: boolean; repeat?: boolean }
   | { t: 'listen' }
   | { t: 'go'; side?: Side; n?: number }
   | { t: 'walk'; wall: Side }
@@ -38,7 +38,10 @@ export function parse(input: string): Command {
 
   if (verb in DIRS && words.length <= 2) return { t: 'go', side: DIRS[verb] as Side, n: num(rest) };
   switch (verb) {
-    case 'l': case 'look': case 'around': case 'again':
+    case 'repeat': case 'again': case 'encore':
+      return { t: 'look', repeat: true };
+    case 'l': case 'look': case 'around':
+      if (content.some((w) => w === 'again' || w === 'repeat')) return { t: 'look', repeat: true };
       if (content.some((w) => ['closely', 'carefully', 'fully', 'properly', 'everything', 'details'].includes(w))) return { t: 'look', full: true };
       if (content.length > 0 && verb === 'look' && !['around', 'again'].includes(content[0] as string)) return { t: 'examine', what: content.join(' ') };
       return { t: 'look' };

@@ -66,6 +66,8 @@ export interface AudioScene {
   surface: Surface;
   /** Rough size of the space for the narrator. */
   space: 'small' | 'large' | 'vast';
+  /** Thunder, 0..1: how much of a storm's thunder reaches here (the upper halls, open to the sky, hear it most). */
+  thunder: number;
   /** What drifts in through the doorways from the neighbouring halls, loudest first. */
   portals: Portal[];
   /** A rare hint of a world outside, happening now in this hall. */
@@ -166,7 +168,16 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const falls = !drowned && h.falls ? 0.3 : 0;
   const streams = s.here.streams && !h.falls ? 0.18 : 0;
   // The Drowned Halls are cut off: windows half-submerged or choked with rubble, so little weather reaches them.
-  const rain = clamp((s.here.rainHere / 1000) * (drowned ? 0.2 : 0.75), 0, 0.75);
+  // How much of the rain outside is heard, by where you are: the upper halls have half a roof, so they hear all of it; a
+  // vestibule is open to the courtyards and hears it all; an ordinary hall hears it on its windows; the lower halls hear
+  // only a hiss, through the sea; the Drowned Halls are mostly cut off. Snow makes none, only a soft hush.
+  const w = s.weather;
+  const raining = w.precip === 'rain' ? w.rain / 1000 : 0;
+  const rainSeen = dark ? 0 : h.level === 2 ? raining : h.level === 0 ? raining * 0.15 : h.kind === 'vestibule' ? raining : Math.max(s.here.rainHere / 1000, raining * 0.3);
+  const rain = clamp(rainSeen * (drowned ? 0.2 : 0.75), 0, 0.75);
+  const snowing = w.precip === 'snow' && !dark && !drowned && h.level !== 0 && (h.level === 2 || h.kind === 'vestibule') ? clamp(w.rain / 1000, 0, 1) : 0;
+  const thunderBase = h.level === 2 ? 1 : h.level === 0 ? 0.25 : h.kind === 'vestibule' ? 0.8 : 0.5;
+  const thunder = dark || drowned ? 0 : w.lightning ? thunderBase : w.storm ? thunderBase * 0.35 : 0;
   const exposed = !drowned && (h.kind === 'vestibule' || h.regions.cloud || h.level === 2 || h.regions.derelict >= 60);
   const windGain = exposed ? clamp(0.04 + (s.weather.windSpeed / 1000) * 0.5, 0, 0.55) : clamp((s.weather.windSpeed / 1000) * (drowned ? 0.02 : 0.08), 0, 0.1);
   const whistle = exposed && s.weather.windSpeed > 400 ? clamp((s.weather.windSpeed - 400) / 1000, 0, 0.5) : 0;
@@ -175,7 +186,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const b = s.birds;
   const birds = { mode: b.mode, perMinute: b.mode === 'silent' || b.mode === 'none' ? 0 : Math.round((b.loudness / 1000) * 24), loudness: b.loudness / 1000, species: b.species };
 
-  const muffle = clamp((cloudy / 1000) * 0.35 + (tideKind === 'submerged' ? 0.9 : 0), 0, 0.95);
+  const muffle = clamp((cloudy / 1000) * 0.35 + (tideKind === 'submerged' ? 0.9 : 0) + snowing * 0.25, 0, 0.95);
   const surface: Surface = depth >= 4 ? 'shallow' : depth > 0 ? 'wet' : h.regions.derelict >= 60 ? 'rubble' : 'marble';
 
   return {
@@ -184,7 +195,8 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     tide: { kind: tideKind, gain: tideGain, character: s.tide.character?.sound ?? null, strikeEverySec: strike },
     falls: { gain: falls + streams },
     rain: { gain: rain },
-    wind: { gain: windGain, whistle },
+    wind: { gain: windGain * (1 - snowing * 0.4), whistle },
+    thunder,
     birds,
     muffle,
     hush: drowned,

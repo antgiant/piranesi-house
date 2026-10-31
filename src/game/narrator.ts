@@ -443,12 +443,23 @@ export function skyParagraph(s: SceneState): string {
 // ---------------------------------------------------------------------------------------------------------------
 
 /** A random source that is the same for the same hall at about the same time, and differs from visit to visit. */
-export function glanceRand(h: Hall, s: SceneState): Rand {
-  const r = new Rng(hashInts(Math.floor(s.t / 2_700_000), h.x, h.y, h.level, 0x91a7));
+export function glanceRand(h: Hall, s: SceneState, looks = 0): Rand {
+  const r = new Rng(hashInts(Math.floor(s.t / 2_700_000), h.x, h.y, h.level, 0x91a7 + looks));
   return () => r.u32() / 4294967296;
 }
 
-interface Item { weight: number; group: string; text: string }
+/** How big the statues are, said once for a hall, and only when it is worth saying: nobody remarks on what is ordinary. */
+export function statueScaleLine(h: Hall): string {
+  switch (h.sizeClass) {
+    case 'life': return '';
+    case 'small': return 'The statues here are small, a little shorter than you are, and you could almost touch the faces.';
+    case 'large': return 'The statues here are very large, two or three times your height, and look down at you from their plinths.';
+    case 'huge': return 'The statues here are huge, as tall as houses; you could walk between the feet of one.';
+    case 'colossal': return 'The statues here are colossal, bigger than any building you have stood in.';
+  }
+}
+
+interface Item { weight: number; group: string; key: string; text: string }
 
 function exitsBrief(h: Hall, exits: NamedExit[]): string {
   if (exits.length === 0) return 'You can see no way out.';
@@ -460,41 +471,65 @@ function exitsBrief(h: Hall, exits: NamedExit[]): string {
   return `Doors lead ${list}.${stair}`;
 }
 
+export type GlanceMode = 'first' | 'return' | 'again';
+
+const AGAIN_LEAD = ['Looking about you again, ', 'Another look round: ', 'You look about once more. ', 'Taking in more of it, '];
+const BACK_LEAD = (h: Hall): string => `You are back in the ${h.name}.`;
+
 /**
- * The few things worth saying on arriving: how big it feels, two or three striking things chosen from all that could be said,
- * the sound, and the ways on. Not a survey; asking to "look closely" gives the whole. A different few things may be noticed
- * on another visit.
+ * The few things worth saying about a place: how big it feels, two or three striking things chosen from all there is (a strange
+ * piece of building, a notable statue, the sky or the sea, a bird, the water), the sound, and where the doors lead. Nothing
+ * already said about this hall is said again unless asked to be repeated: asking to look again brings new things, as a person
+ * would find them, and says so when there is nothing more worth noticing. `look closely` gives the whole.
+ *
+ * Returns the paragraphs and the keys of what was said, so the caller can remember them.
  */
-export function glanceHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[], flourishes: readonly Flourish[], rand: Rand): string[] {
-  const out: string[] = [`${h.name}\nThe ${LEVEL_WORD[h.level]} level.`];
-  const count = h.mood === 'crowd' ? `${countWord(h.slotCount)} statues fill the walls` : `${countWord(h.slotCount)} statues cover the walls in tiers`;
-  out.push(`${sizeSentence(h)} ${count}, ${SIZE_PHRASE[h.sizeClass]}. ${MOOD_SENTENCE[h.mood][Math.floor(rand() * MOOD_SENTENCE[h.mood].length)]}`);
+export function glanceHall(
+  h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[], flourishes: readonly Flourish[],
+  rand: Rand, told: ReadonlySet<string> = new Set(), mode: GlanceMode = 'first',
+): { paras: string[]; said: string[] } {
+  const out: string[] = [];
+  const said: string[] = [];
+  if (mode === 'first') {
+    out.push(`${h.name}\nThe ${LEVEL_WORD[h.level]} level.`);
+    const count = h.mood === 'crowd' ? `${countWord(h.slotCount)} statues fill the walls` : `${countWord(h.slotCount)} statues cover the walls in tiers`;
+    // life-sized is ordinary and goes unsaid; anything else is said here, once, for the whole hall
+    const sizePhrase = h.sizeClass === 'life' ? '' : `, ${SIZE_PHRASE[h.sizeClass]}`;
+    out.push(`${sizeSentence(h)} ${count}${sizePhrase}. ${MOOD_SENTENCE[h.mood][Math.floor(rand() * MOOD_SENTENCE[h.mood].length)]}`);
+  } else if (mode === 'return') {
+    out.push(BACK_LEAD(h));
+  }
 
   const items: Item[] = [];
-  for (const f of flourishes) items.push({ weight: 4, group: 'building', text: f.text });
+  const fresh = (key: string): boolean => !told.has(key);
+  for (const f of flourishes) if (fresh(f.id)) items.push({ weight: 4, group: 'building', key: f.id, text: f.text });
   const canon = seen.filter((sn) => sn.statue.canonId);
-  for (const sn of canon.slice(0, 2)) items.push({ weight: 8, group: 'statue', text: `Among the statues you notice ${lowerFirst(sn.statue.canonLabel as string).replace(/\.$/, '')}, ${locationPhrase(sn)}.` });
-  const plain = seen.filter((sn) => !sn.statue.canonId);
+  for (const sn of canon.slice(0, 3)) {
+    const key = `st:${sn.statue.id}`;
+    if (fresh(key)) items.push({ weight: 8, group: 'statue', key, text: `Among the statues you notice ${lowerFirst(sn.statue.canonLabel as string).replace(/\.$/, '')}, ${locationPhrase(sn)}.` });
+  }
+  const plain = seen.filter((sn) => !sn.statue.canonId && fresh(`st:${sn.statue.id}`));
   if (plain.length > 0) {
     const sn = plain[Math.floor(rand() * plain.length)] as Seen;
-    items.push({ weight: 2, group: 'statue', text: `Your eye is caught by ${lowerFirst(describeStatue(h, sn.statue)).replace(/\.$/, '')}, ${locationPhrase(sn)}.` });
+    items.push({ weight: 2, group: 'statue', key: `st:${sn.statue.id}`, text: `Your eye is caught by ${lowerFirst(describeStatue(h, sn.statue, true)).replace(/\.$/, '')}, ${locationPhrase(sn)}.` });
   }
-  const sky = skyLines(h, s, rand);
-  for (const l of sky) items.push({ weight: 6, group: 'sky', text: l });
-  const sea = seaLines(h, s, rand);
-  for (const l of sea) items.push({ weight: 6, group: 'sea', text: l });
-  // birds are the commonest living thing, so they are favoured
-  for (const l of birdLines(h, s, rand)) items.push({ weight: 9, group: 'birds', text: l });
+  const add = (group: string, lines: string[]): void => { for (const l of lines) if (fresh(`${group}:${l}`)) items.push({ weight: 1, group, key: `${group}:${l}`, text: l }); };
+  add('sky', skyLines(h, s, rand));
+  add('sea', seaLines(h, s, rand));
+  add('birds', birdLines(h, s, rand));
   const water = waterSentence(h, s);
-  if (water) items.push({ weight: 3, group: 'water', text: water });
+  if (water) add('water', [water]);
   const light = lightSentence(h, s);
-  if (light) items.push({ weight: 2, group: 'light', text: light });
-  for (const l of weatherSentences(h, s)) items.push({ weight: 2, group: 'weather', text: l });
-  if (h.mood !== 'violent' && h.mood !== 'crowd') items.push({ weight: 1, group: 'theme', text: THEME_SENTENCE[h.theme] });
+  if (light) add('light', [light]);
+  add('weather', weatherSentences(h, s));
+  if (h.mood !== 'violent' && h.mood !== 'crowd') add('theme', [THEME_SENTENCE[h.theme]]);
+  const scale = statueScaleLine(h);
+  if (scale && mode !== 'first') add('scale', [scale]);
+  else if (scale) { /* said above for the hall's first glance */ }
 
   // Each kind of thing has its own pull, however many ways there are of saying it: the sky or the sea when they are there,
   // the birds, a striking statue, the building's strangeness. Spread a group's pull over its items.
-  const PULL: Record<string, number> = { building: 10, statue: 8, sky: 11, sea: 11, birds: 12, water: 4, light: 3, weather: 3, theme: 1 };
+  const PULL: Record<string, number> = { building: 10, statue: 8, sky: 11, sea: 11, birds: 12, water: 4, light: 3, weather: 3, theme: 1, scale: 3 };
   const size = new Map<string, number>();
   for (const i of items) size.set(i.group, (size.get(i.group) ?? 0) + 1);
   for (const i of items) i.weight = (PULL[i.group] ?? 2) / (size.get(i.group) as number);
@@ -503,7 +538,7 @@ export function glanceHall(h: Hall, s: SceneState, audio: AudioScene, exits: Nam
   const groups = new Map<string, number>();
   let pool = items.slice();
   while (chosen.length < want && pool.length > 0) {
-    let total = pool.reduce((a, i) => a + i.weight, 0);
+    const total = pool.reduce((a2, i) => a2 + i.weight, 0);
     let r = rand() * total;
     let at = 0;
     for (; at < pool.length; at++) { r -= (pool[at] as Item).weight; if (r <= 0) break; }
@@ -512,17 +547,25 @@ export function glanceHall(h: Hall, s: SceneState, audio: AudioScene, exits: Nam
     groups.set(it.group, (groups.get(it.group) ?? 0) + 1);
     // no more than two of a kind, and never the same thing twice
     pool = pool.filter((p) => p !== it && ((groups.get(p.group) ?? 0) < 2));
-    total = 0;
   }
   // in the order you would see them: the building first, then what moves in it
-  const order = ['building', 'theme', 'statue', 'sky', 'light', 'weather', 'water', 'sea', 'birds'];
-  chosen.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
-  if (chosen.length) out.push(chosen.map((c) => c.text).join(' '));
-  if (s.outside) out.push(outsideSentence(s.outside, h));
-  const heard = soundParagraph(audio, s).split(/(?<=[.!?])\s+/)[0];
-  if (heard) out.push(heard);
-  const rp = relicsParagraph(relics, 1);
+  const order = ['building', 'theme', 'scale', 'statue', 'sky', 'light', 'weather', 'water', 'sea', 'birds'];
+  chosen.sort((a2, b2) => order.indexOf(a2.group) - order.indexOf(b2.group));
+  if (chosen.length) {
+    const body = chosen.map((c) => c.text).join(' ');
+    const lead = AGAIN_LEAD[Math.floor(rand() * AGAIN_LEAD.length)] as string;
+    out.push(mode === 'again' ? `${lead}${lead.endsWith(', ') ? lowerFirst(body) : body}` : body);
+    for (const c of chosen) said.push(c.key);
+  } else if (mode === 'again') {
+    out.push('You have taken in the main things about this place; there is nothing new that stands out. You could look closely, or move on.');
+  }
+  if (s.outside && fresh(`out:${s.outside.id}`)) { out.push(outsideSentence(s.outside, h)); said.push(`out:${s.outside.id}`); }
+  if (mode !== 'again') {
+    const heard = soundParagraph(audio, s).split(/(?<=[.!?])\s+/)[0];
+    if (heard && fresh(`sound:${heard}`)) { out.push(heard); said.push(`sound:${heard}`); }
+  }
+  const rp = mode === 'first' ? relicsParagraph(relics, 1) : '';
   if (rp) out.push(rp);
-  out.push(exitsBrief(h, exits));
-  return out.filter(Boolean);
+  if (mode !== 'again') out.push(exitsBrief(h, exits));
+  return { paras: out.filter(Boolean), said };
 }

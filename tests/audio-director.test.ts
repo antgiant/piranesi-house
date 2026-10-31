@@ -78,14 +78,15 @@ describe('audio director', () => {
     expect(a.tide.kind).toBe('none');
     expect(a.sea.gain).toBeLessThan(0.2);
   });
-  it('rain is heard in vestibules only when it rains', () => {
+  it('rain is heard in vestibules only when it rains (snow is silent)', () => {
     let dry = 0;
     let wet = 0;
     const v = vestibuleCell(w, 3)!;
     for (let t = 0; t < 120 * MS.day; t += 6 * MS.hour) {
       const s = scene({ x: v.x, y: v.y, level: 1 }, t);
       const a = audioFor(w, s);
-      if (s.weather.rain === 0) { dry++; expect(a.rain.gain).toBe(0); } else { wet++; expect(a.rain.gain).toBeGreaterThan(0); }
+      // snow falls silently: only rain is heard
+      if (s.weather.precip !== 'rain' || s.weather.rain === 0) { dry++; expect(a.rain.gain).toBe(0); } else { wet++; expect(a.rain.gain).toBeGreaterThan(0); }
     }
     expect(dry).toBeGreaterThan(0);
     expect(wet).toBeGreaterThan(0);

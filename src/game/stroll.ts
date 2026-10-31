@@ -12,6 +12,7 @@ import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
 import { birdSentence, lightSentence, sideWord, soundParagraph, waterSentence, weatherSentences } from './narrator';
 import { birdLines, seaLines, skyLines } from './nature';
+import { statueScaleLine } from './narrator';
 import type { Game } from './game';
 
 export interface Beat { frac: number; text: string }
@@ -40,7 +41,7 @@ function candidates(g: Game, h: Hall, s: SceneState, side: Side | null, r: Rng, 
     return null;
   };
   const statueLine = (st: Statue): string => {
-    const d = lower(describeStatue(h, st).replace(/\.$/, ''));
+    const d = lower(describeStatue(h, st, true).replace(/\.$/, ''));
     const w = sideWord(st.wall);
     const hi = st.tier >= 1;
     const t = r.int(6);
@@ -51,6 +52,8 @@ function candidates(g: Game, h: Hall, s: SceneState, side: Side | null, r: Rng, 
     if (t === 4 && hi) return `Above your head, ${d}.`;
     return `Then ${d}, on the ${w} wall.`;
   };
+  const scale = statueScaleLine(h);
+  if (scale) out.push(scale);
   for (let i = 0; i < 6; i++) { const st = take(); if (st) out.push(statueLine(st)); }
   for (const f of flourishesFor(g.world, h)) {
     const t = r.int(3);

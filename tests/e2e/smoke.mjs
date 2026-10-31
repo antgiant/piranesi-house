@@ -295,6 +295,45 @@ try {
     await ph.close();
   }
 
+  // Travel: a named place far away in one command, marks, and the map's "Travel here" button.
+  {
+    const tr = await browser.newPage({ viewport: { width: 390, height: 780 }, hasTouch: true });
+    tr.on('pageerror', (e) => errors.push(String(e)));
+    await tr.goto(URL);
+    await tr.click('#enter');
+    await tr.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await tr.fill('#input', 'travel to the fifth western hall');
+    await tr.press('#input', 'Enter');
+    await tr.waitForFunction(() => document.getElementById('place').textContent === 'Fifth Western Hall', null, { timeout: 15000 });
+    check((await tr.locator('#log').textContent()).includes('You pass through'), 'travel to a far hall in one command, passing through the halls between');
+    await tr.fill('#input', 'mark the far end');
+    await tr.press('#input', 'Enter');
+    await tr.fill('#input', 'home');
+    await tr.press('#input', 'Enter');
+    await tr.waitForFunction(() => document.getElementById('place').textContent === 'First Vestibule', null, { timeout: 15000 });
+    await tr.reload();
+    await tr.click('#enter');
+    await tr.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await tr.fill('#input', 'travel to the far end');
+    await tr.press('#input', 'Enter');
+    await tr.waitForFunction(() => document.getElementById('place').textContent === 'Fifth Western Hall', null, { timeout: 15000 });
+    check(true, 'a mark survives a reload and can be travelled to');
+    await tr.click('#open-map');
+    await tr.waitForTimeout(300);
+    const box = await tr.locator('#map-canvas').boundingBox();
+    // tap the middle of the map, then one cell to the east of the centre (a hall we know), and use the button
+    await tr.mouse.click(box.x + box.width / 2 + 40, box.y + box.height / 2);
+    await tr.waitForTimeout(300);
+    const visible = await tr.locator('#map-travel').isVisible();
+    check(visible, 'tapping a place on the map offers "Travel here"');
+    if (visible) {
+      await tr.click('#map-travel');
+      await tr.waitForTimeout(1500);
+      check(!(await tr.locator('#map-panel').isVisible()), 'the map closes and the journey begins');
+    }
+    await tr.close();
+  }
+
   check(errors.length === 0, `no console or page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
   await browser.close();
 } catch (e) {

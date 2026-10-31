@@ -13,6 +13,7 @@ import { relicsIn, type Relic } from '../world/relics';
 import { hashInts } from '../world/rng';
 import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance, describeDuration, distanceM, gait, terrainFactor, walkSeconds } from './walk';
 import { parse, type Command } from './parser';
+import { findRoute, nameOf, resolveName, straightRoute, type Spot, type Step } from './travel';
 import {
   describeHall, outsideSentence, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
   type NamedExit, type Seen, type Style,
@@ -73,6 +74,17 @@ export interface Game {
   facing: Side;
   /** A walk in progress: the visitor is between here and there until the clock reaches `endMs`. */
   walk: Walk | null;
+  /** A longer trip, a leg at a time, to a named place or straight along a line of halls. */
+  journey: Journey | null;
+  /** Places the visitor has marked to find again: label to where. Private to the visitor and kept on their device. */
+  marks: Map<string, { x: number; y: number; level: Level; hall: string }>;
+}
+
+export interface Journey {
+  destName: string;
+  route: Step[];
+  /** Index of the leg being walked. */
+  idx: number;
 }
 
 export interface Walk {
@@ -85,6 +97,9 @@ export interface Walk {
   dir?: 'up' | 'down';
   beatMs: number | null;
   beatText: string;
+  /** Where along the wall to stand at the end (0..1000), and a line to add on arrival (approaching a statue). */
+  pos?: number;
+  note?: string;
   /** What the destination is called, for the status line. */
   label: string;
 }
@@ -96,7 +111,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(),
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(),
   };
 }
 
@@ -210,7 +225,7 @@ export function walkStatus(g: Game, realNowMs: number): { label: string; remaini
   if (!w) return null;
   const total = Math.max(1, w.endMs - w.startMs);
   const left = Math.max(0, w.endMs - realNowMs);
-  return { label: w.label, remainingWorldS: (left / 1000) * g.cfg.timeScale, fraction: 1 - left / total };
+  return { label: g.journey ? `${g.journey.destName} (leg ${g.journey.idx + 1} of ${g.journey.route.length}: ${w.label})` : w.label, remainingWorldS: (left / 1000) * g.cfg.timeScale, fraction: 1 - left / total };
 }
 
 /** "You set off for", "You break into a jog for", "You run for". */
@@ -276,6 +291,8 @@ function finishDoor(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const there = sceneAtWorldTime(g.world, e.to.x, e.to.y, g.pos.level, t);
   g.pos = arrivalPosition(g, e, g.pos.level);
   g.said.clear();
+  const quiet = passThrough(g, dest.name, there.tide.depthDm, realNowMs);
+  if (quiet) return quiet;
   const how = e.corridor > 0
     ? `You take the ${sideWord(e.side)} door into a long passage of ${e.corridor === 1 ? 'a hall\'s length' : `${e.corridor} halls' length`}, and come out at last into`
     : `You go through the ${sideWord(e.side)} door into`;
@@ -310,37 +327,163 @@ function finishStairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
   const target = (g.pos.level + (dir === 'up' ? 1 : -1)) as Level;
   g.pos = { x: g.pos.x, y: g.pos.y, level: target, wall: stair.wall, pos: stair.pos };
   g.said.clear();
+  const quiet = passThrough(g, `the ${(['lower', 'middle', 'upper'] as const)[target]} halls`, 0, realNowMs);
+  if (quiet) return quiet;
   const how = dir === 'up'
     ? 'You climb the great stair, twenty-five metres of steps each almost twice as high as is comfortable, and come out into'
     : 'You descend the great stair, step after enormous step, into';
   return [text(g, `${how} the ${(['lower', 'middle', 'upper'] as const)[target]} halls.`), ...look(g, realNowMs)];
 }
 
-export function walkTo(g: Game, wall: Side, realNowMs: number): Line[] {
+export function walkTo(g: Game, wall: Side, realNowMs: number, pos = 500, note?: string, label?: string): Line[] {
   const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
-  const meters = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall, pos: 500 });
+  const meters = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall, pos });
   const seconds = walkSeconds(meters);
   g.facing = wall;
-  const walk = startWalk(g, { kind: 'wall', meters, seconds, wall, beatText: '', label: `the ${sideWord(wall)} wall` }, realNowMs);
-  if (!walk) return finishWall(g, wall, realNowMs);
+  const walk = startWalk(g, { kind: 'wall', meters, seconds, wall, pos, note, beatText: '', label: label ?? `the ${sideWord(wall)} wall` }, realNowMs);
+  if (!walk) return finishWall(g, wall, realNowMs, pos, note);
   return [text(g, `${startVerb(g)} the ${sideWord(wall)} wall, ${describeDistance(meters)} away. It will take ${describeDuration(seconds / g.opts.walkPace)}.`)];
 }
 
-function finishWall(g: Game, wall: Side, realNowMs: number): Line[] {
-  g.pos = { ...g.pos, wall, pos: 500 };
-  return [text(g, `You walk to the ${sideWord(wall)} wall.`), ...look(g, realNowMs)];
+function finishWall(g: Game, wall: Side, realNowMs: number, pos = 500, note?: string): Line[] {
+  g.pos = { ...g.pos, wall, pos };
+  return [text(g, note ?? `You walk to the ${sideWord(wall)} wall.`), ...look(g, realNowMs)];
 }
 
 function finishWalk(g: Game, w: Walk, realNowMs: number): Line[] {
   g.walk = null;
-  if (w.kind === 'door') return finishDoor(g, w.exit as NamedExit, realNowMs);
-  if (w.kind === 'stairs') return finishStairs(g, w.dir as 'up' | 'down', realNowMs);
-  return finishWall(g, w.wall as Side, realNowMs);
+  const before = g.journey?.idx ?? -1;
+  const lines = w.kind === 'door' ? finishDoor(g, w.exit as NamedExit, realNowMs)
+    : w.kind === 'stairs' ? finishStairs(g, w.dir as 'up' | 'down', realNowMs)
+    : finishWall(g, w.wall as Side, realNowMs, w.pos, w.note);
+  return g.journey ? [...lines, ...continueJourney(g, before, realNowMs)] : lines;
+}
+
+// --- journeys: a long way, one leg at a time ----------------------------------------------------------------------
+
+const here = (g: Game): Spot => ({ x: g.pos.x, y: g.pos.y, level: g.pos.level });
+
+/**
+ * Arriving partway through a journey: say in a line where you are passing, and go on. Returns null when this is the end of the
+ * journey (or there is none), so the full description is given.
+ */
+function passThrough(g: Game, name: string, depthDm: number, realNowMs: number): Line[] | null {
+  const j = g.journey;
+  if (!j) return null;
+  j.idx++;
+  if (j.idx >= j.route.length) { g.journey = null; return null; }
+  g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
+  g.prev = sceneNow(g, realNowMs);
+  const wet = depthDm >= 9 ? ', wading' : depthDm > 0 ? ', through shallow water' : '';
+  return [{ kind: 'event', text: stylise(`You pass through ${name}${wet}.`, g.opts.style) }];
+}
+
+function startLeg(g: Game, realNowMs: number): Line[] {
+  const j = g.journey as Journey;
+  const step = j.route[j.idx] as Step;
+  g.exitsListed = listExits(g, g.pos.level);
+  if (step.via === 'stairs') return stairs(g, step.level > g.pos.level ? 'up' : 'down', realNowMs);
+  const doors = g.exitsListed.filter((e) => e.to.x === step.x && e.to.y === step.y);
+  if (doors.length === 0) {
+    // the way we planned is not where we are (the journey was interrupted, say): plan again from here
+    const route = findRoute(g.world, here(g), { x: j.route[j.route.length - 1]!.x, y: j.route[j.route.length - 1]!.y, level: j.route[j.route.length - 1]!.level });
+    if (!route || route.length === 0) { g.journey = null; return [text(g, 'You cannot find the way on from here.')]; }
+    g.journey = { ...j, route, idx: 0 };
+    return startLeg(g, realNowMs);
+  }
+  const e = doors.slice().sort((a, b) => a.corridor - b.corridor || Math.abs(a.pos - (g.pos.wall === a.side ? g.pos.pos : 500)) - Math.abs(b.pos - (g.pos.wall === b.side ? g.pos.pos : 500)))[0] as NamedExit;
+  return go(g, e, realNowMs);
+}
+
+/** Take legs one after another until one needs real time (then the clock carries it on) or the journey ends or is blocked. */
+function runJourney(g: Game, realNowMs: number): Line[] {
+  const out: Line[] = [];
+  for (let guard = 0; guard < 2000 && g.journey && !g.walk; guard++) {
+    const before = g.journey.idx;
+    out.push(...startLeg(g, realNowMs));
+    if (g.walk || !g.journey) break;
+    if (g.journey.idx === before) { g.journey = null; out.push(text(g, 'You break off your journey here.')); break; }
+  }
+  return squash(g, out);
+}
+
+function continueJourney(g: Game, before: number, realNowMs: number): Line[] {
+  if (!g.journey) return [];
+  if (g.journey.idx === before) { g.journey = null; return [text(g, 'You break off your journey here.')]; }
+  return runJourney(g, realNowMs);
+}
+
+/** A fast journey would print a line for every hall: join runs of them into one. */
+function squash(g: Game, lines: Line[]): Line[] {
+  const out: Line[] = [];
+  let names: string[] = [];
+  const flush = (): void => {
+    if (names.length === 0) return;
+    const shown = names.length <= 4 ? names.join(', ') : `${names.slice(0, 2).join(', ')}, and ${names.length - 2} more halls, the last of them ${names[names.length - 1]}`;
+    out.push({ kind: 'event', text: stylise(`You pass through ${shown}.`, g.opts.style) });
+    names = [];
+  };
+  for (const l of lines) {
+    const m = /^You pass through (.+?)(?:, wading|, through shallow water)?\.$/i.exec(l.text);
+    if (l.kind === 'event' && m) names.push(m[1] as string);
+    else { flush(); out.push(l); }
+  }
+  flush();
+  return out;
+}
+
+function beginJourney(g: Game, route: Step[], destName: string, realNowMs: number): Line[] {
+  if (g.walk || g.journey) return [text(g, 'You are already on your way. Type "stop" first.')];
+  if (route.length === 0) return [text(g, 'You are already there.')];
+  g.journey = { destName, route, idx: 0 };
+  const rough = describeDuration(walkSeconds(route.length * 180) / g.opts.walkPace);
+  const intro = text(g, `You set out for ${destName}, ${route.length === 1 ? 'one hall' : `${route.length} halls`} away; about ${rough} on foot at your pace. Type "stop" to stop.`);
+  return [intro, ...runJourney(g, realNowMs)];
+}
+
+const LEVEL_NAME = ['lower', 'middle', 'upper'] as const;
+
+/** A place by what the visitor called it: home, one of their marks, or a name in the House's own style. */
+function placeFor(g: Game, said: string): Spot | null {
+  const t = said.toLowerCase().trim().replace(/^(the|to|mark)\s+/, '');
+  if (/^(home|start|the start|beginning|first vestibule|the first vestibule)$/.test(t)) return { x: 0, y: 0, level: 1 };
+  for (const [label, m] of g.marks) if (label === t) return { x: m.x, y: m.y, level: m.level };
+  const starts = [...g.marks].filter(([label]) => label.startsWith(t) || t.startsWith(label));
+  if (starts.length === 1) { const m = (starts[0] as [string, { x: number; y: number; level: Level }])[1]; return { x: m.x, y: m.y, level: m.level }; }
+  return resolveName(g.world, said, g.pos.level);
+}
+
+export function travelTo(g: Game, said: string, realNowMs: number): Line[] {
+  const spot = placeFor(g, said);
+  if (!spot) return [text(g, `You do not know a place called "${said}". Name it as the House does ("the Ninth Vestibule", "the Eighty-Eighth Western Hall"), say "home", or use one of your marks (type "marks").`)];
+  const route = findRoute(g.world, here(g), spot);
+  if (!route) return [text(g, `You cannot find a way to ${nameOf(g.world, spot)} that is open to you: the water or the Drowned Halls are in the way.`)];
+  return beginJourney(g, route, `${nameOf(g.world, spot)}${spot.level !== 1 ? `, on the ${LEVEL_NAME[spot.level]} level` : ''}`, realNowMs);
+}
+
+export function trek(g: Game, side: Side, n: number | undefined, realNowMs: number): Line[] {
+  g.facing = side;
+  const route = straightRoute(g.world, here(g), side, n ?? 500);
+  if (route.length === 0) return [text(g, `There is no door in the ${sideWord(side)} wall to go on through.`)];
+  const last = route[route.length - 1] as Step;
+  return beginJourney(g, route, `${nameOf(g.world, last)}, straight ${sideWord(side).replace(' wall', '')}`, realNowMs);
+}
+
+export function approach(g: Game, n: number, realNowMs: number): Line[] {
+  if (g.seenListed.length === 0) look(g, realNowMs);
+  const s = g.seenListed[n - 1];
+  if (!s) return [text(g, `There is no statue numbered ${n} in view. Look around to see the list.`)];
+  const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+  const len = wallLength(h, s.statue.wall);
+  const pos = Math.max(20, Math.min(980, Math.round((s.statue.alongM * 1000) / len)));
+  const note = `You walk along the ${sideWord(s.statue.wall)} wall to stand before statue ${n}. ${describeStatue(h, s.statue)}`;
+  return walkTo(g, s.statue.wall, realNowMs, pos, note, `statue ${n}`);
 }
 
 function stopWalk(g: Game, realNowMs: number): Line[] {
   if (!g.walk) return [text(g, 'You are not going anywhere.')];
   g.walk = null;
+  g.journey = null;
   g.pos = { ...g.pos, wall: null, pos: 500 };
   return [text(g, 'You stop where you are, out in the open floor.'), ...look(g, realNowMs)];
 }
@@ -397,12 +540,13 @@ function examine(g: Game, what: string, realNowMs: number): Line[] {
 export const HELP = [
   'Look around: look (or l). Listen: listen. The time and sky: time.',
   'Move: go north (or n), go south 2 (the second door in the south wall, counting from the west or south end), go 3 (way out number 3 in the list).',
-  'Stairs in vestibules: up, down. Walk along a wall: walk east.',
+  'Stairs in vestibules: up, down. Walk along a wall: walk east. Walk up to a statue in the list: approach 3.',
+  'Far places: travel to the Ninth Vestibule, travel to the Eighty-Eighth Western Hall, home. Straight on: travel west 40 (or just travel west). Mark where you are: mark the fountain; then travel to the fountain. Your marks: marks.',
   'Examine a statue from the list: examine 2, or examine weaver.',
   'Wait for the world: wait. The tides and weather follow the real clock. Everything you read is also what you can hear.',
 ].join('\n');
 
-const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs']);
+const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs', 'travel', 'trek', 'approach']);
 
 export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
   if (g.walk && (cmd.t === 'empty' || cmd.t === 'look' || cmd.t === 'where')) return [walkingLine(g, realNowMs)];
@@ -426,6 +570,20 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
       return typeof r === 'string' ? [text(g, r)] : go(g, r, realNowMs);
     }
     case 'walk': return walkTo(g, cmd.wall, realNowMs);
+    case 'travel': return travelTo(g, cmd.place, realNowMs);
+    case 'trek': return trek(g, cmd.side, cmd.n, realNowMs);
+    case 'approach': return approach(g, cmd.n, realNowMs);
+    case 'mark': {
+      const label = cmd.label.toLowerCase();
+      const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+      g.marks.set(label, { x: g.pos.x, y: g.pos.y, level: g.pos.level, hall: h.name });
+      return [text(g, `You mark ${h.name} as "${label}". Type "travel to ${label}" to come back to it, or "marks" to see your marks.`)];
+    }
+    case 'unmark': return g.marks.delete(cmd.label.toLowerCase()) ? [text(g, `You forget the mark "${cmd.label}".`)] : [text(g, `You have no mark called "${cmd.label}".`)];
+    case 'marks': {
+      if (g.marks.size === 0) return [text(g, 'You have marked no places. Type "mark" and a name where you stand to mark it, for example "mark the fountain".')];
+      return [text(g, `Your marks (private to you):\n${[...g.marks].map(([l, m]) => `${l}: ${m.hall}${m.level !== 1 ? `, ${LEVEL_NAME[m.level]} level` : ''}`).join('\n')}`)];
+    }
     case 'stairs': return stairs(g, cmd.dir, realNowMs);
     case 'examine': return examine(g, cmd.what, realNowMs);
     case 'wait': return [text(g, 'You wait, and listen.'), ...tick(g, realNowMs, true)];

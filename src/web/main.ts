@@ -155,6 +155,7 @@ function submit(raw: string, auto = false): void {
   print(out);
   logEl.scrollTop = echoEl.offsetTop - logEl.offsetTop - 8;
   saveFound();
+  saveMarks();
   refresh();
   // An instant move (pace "instant", or a very short walk) gets a few footsteps; a real walk gets them continuously below.
   const moved = before !== `${game.pos.x},${game.pos.y},${game.pos.level}`;
@@ -172,6 +173,21 @@ function loadFound(g: Game): void {
     if (raw) for (const [id, v] of JSON.parse(raw) as [string, { label: string; hall: string }][]) g.found.set(id, v);
   } catch { /* storage can be blocked */ }
 }
+const marksKey = (seed: string): string => `the-house.marks.v1.${seed}`;
+function loadMarks(g: Game): void {
+  try {
+    const raw = localStorage.getItem(marksKey(g.opts.seed));
+    if (raw) for (const [k, v] of JSON.parse(raw) as [string, { x: number; y: number; level: Level; hall: string }][]) g.marks.set(k, v);
+  } catch { /* storage can be blocked */ }
+}
+let savedMarks = '';
+function saveMarks(): void {
+  if (!game) return;
+  const s = JSON.stringify([...game.marks]);
+  if (s === savedMarks) return;
+  savedMarks = s;
+  try { localStorage.setItem(marksKey(game.opts.seed), s); } catch { /* ignore */ }
+}
 let savedFound = 0;
 function saveFound(): void {
   if (!game || game.found.size === savedFound) return;
@@ -183,6 +199,8 @@ function startGame(): void {
   game = newGame(gameOptions(), Date.now());
   loadFound(game);
   savedFound = game.found.size;
+  loadMarks(game);
+  savedMarks = JSON.stringify([...game.marks]);
   logEl.textContent = '';
   print([{ kind: 'system', text: 'You arrive. Type "help" at any time, or use the buttons under each description.' }]);
   print(look(game, Date.now()));
@@ -215,10 +233,15 @@ async function enter(): Promise<void> {
 // --- the map ----------------------------------------------------------------------------------------------------
 const mapEl = $<HTMLElement>('map-panel');
 const mapCaption = $('map-caption');
+const mapTravel = $<HTMLButtonElement>('map-travel');
+let picked: { name: string; level: Level } | null = null;
 const map = new MapPanel(
   $<HTMLCanvasElement>('map-canvas'),
   (level: Level): MapView => mapView(game as Game, level, Date.now()),
   (c: MapCell | null, v: MapView) => {
+    picked = c && c.state !== 'here' ? { name: c.name, level: v.level } : null;
+    mapTravel.hidden = !picked;
+    if (picked) mapTravel.textContent = `Travel to ${picked.name}`;
     mapCaption.textContent = c
       ? `${c.name}: ${c.state === 'here' ? 'you are here' : c.state === 'visited' ? 'you have been here' : 'seen through a door, not yet entered'}${c.waterDm > 0 ? `; water ${(c.waterDm / 10).toFixed(1)} m deep` : ''}${c.lake ? '; a still lake' : ''}.`
       : `${v.visited} halls explored, ${v.known} more seen through doors.`;
@@ -234,6 +257,12 @@ function setLevelButtons(): void {
   document.querySelectorAll<HTMLButtonElement>('.seg button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.level) === map.level)));
 }
 $('open-map').addEventListener('click', () => toggleMap());
+mapTravel.addEventListener('click', () => {
+  if (!picked || !game) return;
+  const where = `${picked.name} ${(['lower', 'middle', 'upper'] as const)[picked.level]}`;
+  toggleMap(false);
+  submit(`travel to ${where}`);
+});
 $('map-close').addEventListener('click', () => toggleMap(false));
 $('map-plus').addEventListener('click', () => map.zoom(1.25));
 $('map-minus').addEventListener('click', () => map.zoom(1 / 1.25));

@@ -7,6 +7,12 @@ export type Command =
   | { t: 'go'; side?: Side; n?: number }
   | { t: 'walk'; wall: Side }
   | { t: 'stairs'; dir: 'up' | 'down' }
+  | { t: 'travel'; place: string }
+  | { t: 'trek'; side: Side; n?: number }
+  | { t: 'approach'; n: number }
+  | { t: 'mark'; label: string }
+  | { t: 'unmark'; label: string }
+  | { t: 'marks' }
   | { t: 'examine'; what: string }
   | { t: 'wait'; minutes: number }
   | { t: 'stop' }
@@ -40,6 +46,8 @@ export function parse(input: string): Command {
     case 'listen': case 'hear':
       return { t: 'listen' };
     case 'go': case 'walk': case 'head': case 'move': case 'run': case 'enter': case 'leave': case 'exit': case 'door': {
+      // a named place always wins over a compass word inside its name ("...Hall, 2 rows north")
+      if (content.some((w) => w === 'hall' || w === 'halls' || w === 'vestibule')) return { t: 'travel', place: content.join(' ') };
       const side = content.map((w) => DIRS[w]).find(Boolean);
       const toWall = rest.includes('wall') || verb === 'walk';
       if (verb === 'walk' || (toWall && side)) {
@@ -48,9 +56,29 @@ export function parse(input: string): Command {
       if (content.includes('up')) return { t: 'stairs', dir: 'up' };
       if (content.includes('down')) return { t: 'stairs', dir: 'down' };
       const n = num(rest);
+      // "walk to statue 3", "go to number 3"
+      if (n !== undefined && rest.some((w) => w === 'statue' || w === 'figure')) return { t: 'approach', n };
       if (side || n !== undefined) return { t: 'go', side, n };
+      // "go to the Ninth Vestibule": a place by name
+      if (content.length > 0) return { t: 'travel', place: content.join(' ') };
       return { t: 'unknown', input };
     }
+    case 'travel': case 'journey': case 'trek': case 'goto': case 'visit': case 'return': case 'home': {
+      if (verb === 'home' || (verb === 'return' && content.length === 0)) return { t: 'travel', place: 'first vestibule' };
+      const side = DIRS[content[0] as string];
+      if (side && content.length <= 2 && !content.some((w) => w === 'hall' || w === 'vestibule')) return { t: 'trek', side, n: num(rest) };
+      return content.length ? { t: 'travel', place: content.join(' ') } : { t: 'unknown', input };
+    }
+    case 'approach': case 'toward': case 'towards': {
+      const n = num(rest);
+      return n !== undefined ? { t: 'approach', n } : { t: 'unknown', input };
+    }
+    case 'mark': case 'bookmark': case 'flag':
+      return content.length ? { t: 'mark', label: content.join(' ') } : { t: 'unknown', input };
+    case 'unmark': case 'unflag': case 'forget':
+      return content.length ? { t: 'unmark', label: content.join(' ') } : { t: 'unknown', input };
+    case 'marks': case 'bookmarks': case 'places':
+      return { t: 'marks' };
     case 'u': case 'up': case 'ascend': return { t: 'stairs', dir: 'up' };
     case 'd': case 'down': case 'descend': return { t: 'stairs', dir: 'down' };
     case 'climb':

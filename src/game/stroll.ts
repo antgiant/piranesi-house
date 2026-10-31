@@ -11,6 +11,7 @@ import { Rng, hashInts } from '../world/rng';
 import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
 import { birdSentence, lightSentence, sideWord, soundParagraph, waterSentence, weatherSentences } from './narrator';
+import { birdLines, seaLines, skyLines } from './nature';
 import type { Game } from './game';
 
 export interface Beat { frac: number; text: string }
@@ -62,6 +63,12 @@ function candidates(g: Game, h: Hall, s: SceneState, side: Side | null, r: Rng, 
   for (const l of [lightSentence(h, s), waterSentence(h, s), ...weatherSentences(h, s), birdSentence(s)]) if (l) out.push(l);
   const heard = soundParagraph(audio, s).split(/(?<=[.!?])\s+/)[0];
   if (heard) out.push(heard);
+  // the sky, the sea and its creatures, and above all the birds, who are most of what moves
+  const rnd = (): number => r.u32() / 4294967296;
+  out.push(...skyLines(h, s, rnd).slice(0, 3), ...seaLines(h, s, rnd).slice(0, 3));
+  const birds = new Set<string>();
+  for (let i = 0; i < 4; i++) for (const l of birdLines(h, s, rnd)) birds.add(l);
+  out.push(...birds);
   return out;
 }
 

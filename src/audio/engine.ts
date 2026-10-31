@@ -16,6 +16,8 @@ function speciesFor(mode: AudioScene['birds']['mode']): Species[] {
     case 'roosting': return ['rustle'];
     case 'sheltering': return ['sparrow', 'sparrow', 'rook'];
     case 'foraging': return ['sparrow', 'sparrow', 'sparrow', 'rustle'];
+    case 'soaring': return ['gull', 'sparrow', 'rook'];
+    case 'shore': return ['gull', 'rustle', 'gull'];
     default: return [];
   }
 }

@@ -2,7 +2,7 @@
 
 exports[`golden snapshot > hall -1,0 level 1 1`] = `
 {
-  "digest": 427537871,
+  "digest": 3197121337,
   "doors": [
     5,
     1,
@@ -34,7 +34,7 @@ exports[`golden snapshot > hall -1,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -2,1 level 1 1`] = `
 {
-  "digest": 1552221365,
+  "digest": 160365009,
   "doors": [
     3,
     3,
@@ -66,7 +66,7 @@ exports[`golden snapshot > hall -2,1 level 1 1`] = `
 
 exports[`golden snapshot > hall -4,0 level 1 1`] = `
 {
-  "digest": 1234044136,
+  "digest": 3432364325,
   "doors": [
     1,
     4,
@@ -96,7 +96,7 @@ exports[`golden snapshot > hall -4,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -5,-4 level 1 1`] = `
 {
-  "digest": 3521104458,
+  "digest": 643896517,
   "doors": [
     2,
     1,
@@ -126,7 +126,7 @@ exports[`golden snapshot > hall -5,-4 level 1 1`] = `
 
 exports[`golden snapshot > hall -6,6 level 1 1`] = `
 {
-  "digest": 2567775386,
+  "digest": 2715522887,
   "doors": [
     5,
     2,
@@ -139,7 +139,7 @@ exports[`golden snapshot > hall -6,6 level 1 1`] = `
   "orientation": "NS",
   "sample": [
     "A life-sized archer, one hand raised in greeting, holding an open book, weight on one hip; hung with seaweed.",
-    "A life-sized children in a ring dance, resting against a column, with a knotted cord at the waist, head tipped back; hung with seaweed.",
+    "Life-sized children in a ring dance, resting against a column, with a knotted cord at the waist, head tipped back; hung with seaweed.",
   ],
   "size": [
     121,
@@ -220,7 +220,7 @@ exports[`golden snapshot > hall -6,8 level 1 1`] = `
 
 exports[`golden snapshot > hall -10,-50 level 1 1`] = `
 {
-  "digest": 2882468937,
+  "digest": 29681500,
   "doors": [
     3,
     1,
@@ -252,7 +252,7 @@ exports[`golden snapshot > hall -10,-50 level 1 1`] = `
 
 exports[`golden snapshot > hall -33,41 level 0 1`] = `
 {
-  "digest": 2321552468,
+  "digest": 3944563195,
   "doors": [
     0,
     1,
@@ -314,7 +314,7 @@ exports[`golden snapshot > hall -88,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -192,0 level 1 1`] = `
 {
-  "digest": 3397005145,
+  "digest": 4229361485,
   "doors": [
     0,
     1,
@@ -409,7 +409,7 @@ exports[`golden snapshot > hall 0,5 level 1 1`] = `
 
 exports[`golden snapshot > hall 1,-2 level 1 1`] = `
 {
-  "digest": 2595010607,
+  "digest": 647289863,
   "doors": [
     1,
     2,

@@ -38,7 +38,7 @@ export function lightAt(world: World, hall: Hall, t: number, w: Weather, lw: Loc
   return { level, tone, sunPhase: day.phase, moonInDoorway: false };
 }
 
-export type BirdMode = 'none' | 'roosting' | 'foraging' | 'sheltering' | 'silent' | 'murmuration' | 'nesting' | 'chick' | 'noisy';
+export type BirdMode = 'none' | 'roosting' | 'foraging' | 'sheltering' | 'silent' | 'murmuration' | 'nesting' | 'chick' | 'noisy' | 'soaring' | 'shore';
 
 export interface BirdScene {
   mode: BirdMode;
@@ -47,9 +47,22 @@ export interface BirdScene {
   species: string[];
 }
 
-export function birdsAt(hall: Hall, t: number, w: Weather, lw: LocalWeather, light: Light): BirdScene {
+export function birdsAt(hall: Hall, t: number, w: Weather, lw: LocalWeather, light: Light, tideDepthDm = 0): BirdScene {
   const c = clock(t);
   const none: BirdScene = { mode: 'none', loudness: 0, species: [] };
+  const night0 = light.sunPhase === 'night';
+  // The upper halls are half open to the sky: birds ride the wind above them by day, and go quiet in storms and cloud.
+  if (hall.level === 2) {
+    if (w.storm || (w.precip !== 'none' && w.rain > 500)) return { mode: 'silent', loudness: 40, species: [] };
+    if (night0) return none;
+    // inside the cloud they are heard more than seen
+    return { mode: 'soaring', loudness: lw.cloudHere >= 500 ? 130 : 300, species: w.windSpeed > 500 ? ['gulls riding the wind'] : ['swifts', 'gulls'] };
+  }
+  // The lower halls, when the sea has drawn back from them, are picked over by shore birds.
+  if (hall.level === 0) {
+    if (tideDepthDm > hall.heightM * 4 || night0 || w.storm) return none;
+    return { mode: 'shore', loudness: 220, species: ['gulls', 'small waders'] };
+  }
   if (hall.level !== 1 || hall.tags.includes('dark-hall') || hall.regions.drowned) return hall.regions.drowned ? { mode: 'silent', loudness: 0, species: [] } : none;
   const night = light.sunPhase === 'night';
   const { sunset } = sunTimes(c.dayOfYear);

@@ -37,3 +37,24 @@ The option `walkNarration` is on whenever the House is read aloud or Wander is r
   silences to hear the sound in, and a very short walk says nothing.
 * The walk is described the same way each time (a pure function of the world, the hall and the walk).
 * Stairs get their own two lines. Long journeys say "You pass through the Fourth Western Hall." for each hall.
+
+## Version 4: a wider catalogue, a living sky and sea, and a more human way of describing
+* **142 kinds of architecture** (`src/world/architecture.ts`), in families: stairs, bridges, openings, vaults, supports,
+  carved surfaces, machines, water works, nature and ruin, light, constructions, and floors. Most are for any hall; some
+  belong to one level only. A hall gets three to six (four to six in a vestibule), chosen so that the same family does not
+  repeat: at most one stair, one machine, one bridge.
+* **Stairs are the exception, not the rule.** Only about one hall in eight has a stair among its strange things, and never a
+  vestibule, which has its real stairs. (Most halls have no stair at all; only vestibules do.)
+* **The upper level has a half-open roof**, so the sky is part of the place (`skyLines` in `src/game/nature.ts`): clear
+  blue and the sun's slant by hour, dawn like the inside of a shell, dusk barred with orange, stars and the moon at night,
+  broken or heavy cloud, cloud that comes inside the hall, rain through the roof, snow, storm, lightning, wind, frost.
+* **The lower level has the sea in it** (`seaLines`): shoals of fish, weed streaming from every arm, lobsters, mussels, crabs,
+  starfish, an octopus in some halls, fish gathering in moonlight, coral where there is coral; at low tide, pools and stranded
+  creatures. Lakes in the Drowned Halls have lilies and rising fish. Shallow water in the middle halls brings small fish and crabs.
+* **Birds are everywhere** and the commonest living thing (`birdLines`): sparrows and blackbirds in the middle halls, gulls
+  and swifts in the sky above the upper halls (heard, not seen, inside cloud), gulls and waders on the lower halls' pavements at
+  low tide. Birds are the most favoured thing to mention.
+* **A glance, not a survey.** When narrated (or wandering), arriving in a hall gives what a person would say: the scale and
+  feeling, two or three striking things chosen from all there is (a strange piece of building, a notable statue, the sky or the sea,
+  a bird, the water), the sound, and where the doors lead. The choice changes a little from visit to visit (it is the same at the
+  same moment, different a few hours later). `look closely` gives the whole. Unnarrated, the full description is as before.

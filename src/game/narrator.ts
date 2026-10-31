@@ -2,13 +2,15 @@
 // Every claim comes from data (never invented on the spot), so the text, the sound and the later views cannot disagree.
 
 import type { Flourish } from '../world/flourishes';
+import { birdLines, seaLines, skyLines } from './nature';
+import type { Rand } from './wander';
 import canonStatues from '../generated/canon-statues.json';
 import type { AudioScene, Portal } from '../audio/director';
 import type { SceneState } from '../sim/scene';
 import { formatClock, sunTimes } from '../sim/time';
 import type { Hall } from '../world/hall';
 import type { Exit, Side } from '../world/layout';
-import { hashInts } from '../world/rng';
+import { Rng, hashInts } from '../world/rng';
 import { describeStatue, type Statue } from '../world/statues';
 import type { OutsideNow } from '../sim/outside';
 import type { Relic } from '../world/relics';
@@ -196,6 +198,8 @@ export function birdSentence(s: SceneState): string {
     case 'nesting': return 'Gulls nest on shoulders, plinths and heads, and rise screaming if you move.';
     case 'chick': return 'A pair of enormous white albatrosses tends a growing chick on a tall nest of weed.';
     case 'noisy': return 'Rooks wheel and call from the high statues.';
+    case 'soaring': return `${cap(b.species.join(' and '))} ride the air above the broken roof.`;
+    case 'shore': return 'Gulls and small waders pick along the weed at the foot of the walls.';
   }
 }
 
@@ -407,7 +411,11 @@ export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: N
   out.push(`${sizeSentence(h)} ${statuesParagraph(h, s)}`);
   out.push(structureParagraph(h));
   if (flourishes.length > 0) out.push(`Above the statues the building does stranger things. ${flourishes.map((f) => f.text).join(' ')}`);
-  const env = [lightSentence(h, s), waterSentence(h, s), ...weatherSentences(h, s), birdSentence(s), ...featureSentences(h)].filter(Boolean);
+  const fixed = new Rng(hashInts(s.t > 0 ? Math.floor(s.t / 2_700_000) : 0, h.x, h.y, h.level, 0x91a5));
+  const rnd: Rand = () => fixed.u32() / 4294967296;
+  const sky = skyLines(h, s, rnd)[0];
+  const sea = seaLines(h, s, rnd)[0];
+  const env = [lightSentence(h, s), sky ?? '', waterSentence(h, s), sea ?? '', ...weatherSentences(h, s), birdSentence(s), ...featureSentences(h)].filter(Boolean);
   out.push(env.join(' '));
   out.push(soundParagraph(audio, s));
   const sp = seenParagraph(seen, h);
@@ -428,4 +436,93 @@ export function skyParagraph(s: SceneState): string {
     `The moon is ${m.phase}, about ${Math.round(m.illumination / 10)}% lit, and is ${m.up ? 'above the horizon' : 'below the horizon'}.`,
     `Outside, the weather is ${s.weather.precip === 'snow' ? 'snowing' : s.weather.precip === 'rain' ? 'raining' : s.weather.cloud > 600 ? 'overcast' : 'clear'}, with a ${s.weather.windSpeed > 600 ? 'strong' : s.weather.windSpeed > 250 ? 'steady' : 'light'} wind from the ${s.weather.windDir}.`,
   ].join(' ');
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// A glance: what a person would actually say on walking into a place
+// ---------------------------------------------------------------------------------------------------------------
+
+/** A random source that is the same for the same hall at about the same time, and differs from visit to visit. */
+export function glanceRand(h: Hall, s: SceneState): Rand {
+  const r = new Rng(hashInts(Math.floor(s.t / 2_700_000), h.x, h.y, h.level, 0x91a7));
+  return () => r.u32() / 4294967296;
+}
+
+interface Item { weight: number; group: string; text: string }
+
+function exitsBrief(h: Hall, exits: NamedExit[]): string {
+  if (exits.length === 0) return 'You can see no way out.';
+  const by = new Map<Side, number>();
+  for (const e of exits) by.set(e.side, (by.get(e.side) ?? 0) + 1);
+  const bits = [...by].map(([side, n]) => (n === 1 ? sideWord(side).replace(' wall', '') : `${sideWord(side).replace(' wall', '')} (${n} doors)`));
+  const list = bits.length === 1 ? bits[0] : `${bits.slice(0, -1).join(', ')} and ${bits[bits.length - 1]}`;
+  const stair = h.kind === 'vestibule' && h.stairs.length > 0 ? ' A great staircase goes up and down.' : '';
+  return `Doors lead ${list}.${stair}`;
+}
+
+/**
+ * The few things worth saying on arriving: how big it feels, two or three striking things chosen from all that could be said,
+ * the sound, and the ways on. Not a survey; asking to "look closely" gives the whole. A different few things may be noticed
+ * on another visit.
+ */
+export function glanceHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[], flourishes: readonly Flourish[], rand: Rand): string[] {
+  const out: string[] = [`${h.name}\nThe ${LEVEL_WORD[h.level]} level.`];
+  const count = h.mood === 'crowd' ? `${countWord(h.slotCount)} statues fill the walls` : `${countWord(h.slotCount)} statues cover the walls in tiers`;
+  out.push(`${sizeSentence(h)} ${count}, ${SIZE_PHRASE[h.sizeClass]}. ${MOOD_SENTENCE[h.mood][Math.floor(rand() * MOOD_SENTENCE[h.mood].length)]}`);
+
+  const items: Item[] = [];
+  for (const f of flourishes) items.push({ weight: 4, group: 'building', text: f.text });
+  const canon = seen.filter((sn) => sn.statue.canonId);
+  for (const sn of canon.slice(0, 2)) items.push({ weight: 8, group: 'statue', text: `Among the statues you notice ${lowerFirst(sn.statue.canonLabel as string).replace(/\.$/, '')}, ${locationPhrase(sn)}.` });
+  const plain = seen.filter((sn) => !sn.statue.canonId);
+  if (plain.length > 0) {
+    const sn = plain[Math.floor(rand() * plain.length)] as Seen;
+    items.push({ weight: 2, group: 'statue', text: `Your eye is caught by ${lowerFirst(describeStatue(h, sn.statue)).replace(/\.$/, '')}, ${locationPhrase(sn)}.` });
+  }
+  const sky = skyLines(h, s, rand);
+  for (const l of sky) items.push({ weight: 6, group: 'sky', text: l });
+  const sea = seaLines(h, s, rand);
+  for (const l of sea) items.push({ weight: 6, group: 'sea', text: l });
+  // birds are the commonest living thing, so they are favoured
+  for (const l of birdLines(h, s, rand)) items.push({ weight: 9, group: 'birds', text: l });
+  const water = waterSentence(h, s);
+  if (water) items.push({ weight: 3, group: 'water', text: water });
+  const light = lightSentence(h, s);
+  if (light) items.push({ weight: 2, group: 'light', text: light });
+  for (const l of weatherSentences(h, s)) items.push({ weight: 2, group: 'weather', text: l });
+  if (h.mood !== 'violent' && h.mood !== 'crowd') items.push({ weight: 1, group: 'theme', text: THEME_SENTENCE[h.theme] });
+
+  // Each kind of thing has its own pull, however many ways there are of saying it: the sky or the sea when they are there,
+  // the birds, a striking statue, the building's strangeness. Spread a group's pull over its items.
+  const PULL: Record<string, number> = { building: 10, statue: 8, sky: 11, sea: 11, birds: 12, water: 4, light: 3, weather: 3, theme: 1 };
+  const size = new Map<string, number>();
+  for (const i of items) size.set(i.group, (size.get(i.group) ?? 0) + 1);
+  for (const i of items) i.weight = (PULL[i.group] ?? 2) / (size.get(i.group) as number);
+  const want = h.kind === 'vestibule' ? 4 : 3;
+  const chosen: Item[] = [];
+  const groups = new Map<string, number>();
+  let pool = items.slice();
+  while (chosen.length < want && pool.length > 0) {
+    let total = pool.reduce((a, i) => a + i.weight, 0);
+    let r = rand() * total;
+    let at = 0;
+    for (; at < pool.length; at++) { r -= (pool[at] as Item).weight; if (r <= 0) break; }
+    const it = pool[Math.min(at, pool.length - 1)] as Item;
+    chosen.push(it);
+    groups.set(it.group, (groups.get(it.group) ?? 0) + 1);
+    // no more than two of a kind, and never the same thing twice
+    pool = pool.filter((p) => p !== it && ((groups.get(p.group) ?? 0) < 2));
+    total = 0;
+  }
+  // in the order you would see them: the building first, then what moves in it
+  const order = ['building', 'theme', 'statue', 'sky', 'light', 'weather', 'water', 'sea', 'birds'];
+  chosen.sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
+  if (chosen.length) out.push(chosen.map((c) => c.text).join(' '));
+  if (s.outside) out.push(outsideSentence(s.outside, h));
+  const heard = soundParagraph(audio, s).split(/(?<=[.!?])\s+/)[0];
+  if (heard) out.push(heard);
+  const rp = relicsParagraph(relics, 1);
+  if (rp) out.push(rp);
+  out.push(exitsBrief(h, exits));
+  return out.filter(Boolean);
 }

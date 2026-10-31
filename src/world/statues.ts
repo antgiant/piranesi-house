@@ -237,5 +237,8 @@ export function describeStatue(hall: Hall, s: Statue): string {
   if (s.condition.droppings) cond.push('streaked with bird droppings');
   // a subject written as a scene or an idea ("the fox and the crow") reads as a carving of it
   const subject = /^the /i.test(s.figure) ? `carving of ${s.figure}` : s.figure;
+  // a group of figures has no article: "Life-sized children in a ring dance"
+  const plural = /^(children|siblings|lovers|actors|mermaids|sailors|girls|boys|two |pair of|the (card|dice|chess|gamblers|orphans|pilgrims|founders|builders|planets|three|four|five|twin|seven|poor|four))/i.test(s.figure);
+  if (plural && !/^the /i.test(s.figure)) return `${sizeWord(hall).charAt(0).toUpperCase()}${sizeWord(hall).slice(1)} ${s.figure}, ${s.pose}, ${s.attribute}${withBit}${cond.length ? `; ${cond.join(', ')}` : ''}.`;
   return `${article} ${sizeWord(hall)} ${subject}, ${s.pose}, ${s.attribute}${withBit}${cond.length ? `; ${cond.join(', ')}` : ''}.`;
 }

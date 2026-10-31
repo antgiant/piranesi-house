@@ -17,7 +17,7 @@ import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance,
 import { parse, type Command } from './parser';
 import { findRoute, nameOf, resolveName, straightRoute, type Spot, type Step } from './travel';
 import {
-  describeHall, outsideSentence, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
+  describeHall, glanceHall, glanceRand, outsideSentence, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
   type NamedExit, type Seen, type Style,
 } from './narrator';
 
@@ -169,7 +169,7 @@ export function visibleStatues(g: Game, h: Hall): Seen[] {
 
 export const exploredKey = (level: Level, x: number, y: number): string => `${level}:${x},${y}`;
 
-export function look(g: Game, realNowMs: number): Line[] {
+export function look(g: Game, realNowMs: number, full = false): Line[] {
   g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
   const t = worldNow(g, realNowMs);
   const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, t, { outside: g.opts.outsideTraces });
@@ -178,11 +178,18 @@ export function look(g: Game, realNowMs: number): Line[] {
   g.seenListed = visibleStatues(g, scene.hall);
   g.relicsListed = g.walk ? [] : relicsIn(g.world, scene.hall, scene.clock.month, g.opts.relicDensity);
   g.prev = scene;
-  const paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, flourishesFor(g.world, scene.hall));
+  // Narrated, a hall is glanced at, as a person would, not surveyed; "look closely" gives everything.
+  const brief = g.opts.walkNarration && !full;
+  const fl = flourishesFor(g.world, scene.hall);
+  const paras = brief
+    ? glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene))
+    : describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl);
   const links: Link[] = [
     ...g.exitsListed.map((e) => ({ label: `${e.index} ${sideWord(e.side)}`, command: `go ${e.index}` })),
-    ...g.seenListed.map((_, i) => ({ label: `examine ${i + 1}`, command: `examine ${i + 1}` })),
-    ...g.relicsListed.map((r, i) => ({ label: `examine ${g.seenListed.length + i + 1}`, command: `examine ${g.seenListed.length + i + 1}` })),
+    ...(brief ? [{ label: 'look closely', command: 'look closely' }] : [
+      ...g.seenListed.map((_, i) => ({ label: `examine ${i + 1}`, command: `examine ${i + 1}` })),
+      ...g.relicsListed.map((r, i) => ({ label: `examine ${g.seenListed.length + i + 1}`, command: `examine ${g.seenListed.length + i + 1}` })),
+    ]),
     { label: 'listen', command: 'listen' },
   ];
   if (scene.hall.kind === 'vestibule' && scene.hall.stairs.length > 0) {
@@ -584,7 +591,7 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
       return [text(g, `What you have noticed that was left behind, in your own list (nobody else can see it):\n${lines.join('\n')}`)];
     }
     case 'empty': return look(g, realNowMs);
-    case 'look': return look(g, realNowMs);
+    case 'look': return look(g, realNowMs, cmd.full === true);
     case 'listen': {
       const s = sceneNow(g, realNowMs);
       return [text(g, soundParagraph(audioFor(g.world, s, { facing: g.facing }), s))];

@@ -36,7 +36,7 @@ export function sceneAtWorldTime(world: World, x: number, y: number, level: Leve
   const horizon = opts.forecast === false ? [] : forecast(world, hall, t, 2 * 3_600_000);
   const nextTide = horizon.find((e) => e.endMs > t && !(e.startMs <= t && tide.depthDm > 0)) ?? null;
   return {
-    t, clock: clock(t), hall, tide, nextTide, weather, here, light, moon: moon(world, t), birds: birdsAt(hall, t, weather, here, light),
+    t, clock: clock(t), hall, tide, nextTide, weather, here, light, moon: moon(world, t), birds: birdsAt(hall, t, weather, here, light, tide.depthDm),
     outside: opts.outside === false ? null : outsideAt(world, hall, t),
   };
 }

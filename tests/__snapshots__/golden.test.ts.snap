@@ -2,7 +2,7 @@
 
 exports[`golden snapshot > hall -1,0 level 1 1`] = `
 {
-  "digest": 3181248193,
+  "digest": 427537871,
   "doors": [
     5,
     1,
@@ -14,8 +14,8 @@ exports[`golden snapshot > hall -1,0 level 1 1`] = `
   "name": "First Western Hall",
   "orientation": "NS",
   "sample": [
-    "A life-sized lute-maker, head slightly bowed, wearing a long hooded cloak, weight on one hip; crusted with shellfish.",
-    "A life-sized weaver, kneeling in quiet attention, wearing a heavy chain of office, with a faint frown; crusted with shellfish.",
+    "A life-sized barge on a canal, shown from the side, its joints carefully shown, a heap of carved coins at the foot; crusted with shellfish.",
+    "A life-sized galley slave at the oar, standing at rest, with a bird carved on the shoulder, a lamb at the side; crusted with shellfish.",
   ],
   "size": [
     98,
@@ -28,13 +28,13 @@ exports[`golden snapshot > hall -1,0 level 1 1`] = `
   "tags": [
     "horned-giants",
   ],
-  "theme": "craft",
+  "theme": "maritime",
 }
 `;
 
 exports[`golden snapshot > hall -2,1 level 1 1`] = `
 {
-  "digest": 2066514171,
+  "digest": 1552221365,
   "doors": [
     3,
     3,
@@ -46,8 +46,8 @@ exports[`golden snapshot > hall -2,1 level 1 1`] = `
   "name": "Ninth Vestibule",
   "orientation": "NS",
   "sample": [
-    "A larger-than-life weaver, singing with open mouth, wearing a crown of reeds, a child clinging to the hem; crusted with shellfish.",
-    "A larger-than-life dyer, spinning on one foot, carrying a folded banner, weight on one hip; crusted with shellfish.",
+    "A larger-than-life lighthouse-keeper, spinning on one foot, bearing a basket of fruit, with a faint frown; crusted with shellfish.",
+    "A larger-than-life fisherman, singing with open mouth, carrying a bundle of arrows, head tipped back; crusted with shellfish.",
   ],
   "size": [
     114,
@@ -60,13 +60,13 @@ exports[`golden snapshot > hall -2,1 level 1 1`] = `
   "tags": [
     "ninth-vestibule",
   ],
-  "theme": "craft",
+  "theme": "maritime",
 }
 `;
 
 exports[`golden snapshot > hall -4,0 level 1 1`] = `
 {
-  "digest": 3739272748,
+  "digest": 1234044136,
   "doors": [
     1,
     4,
@@ -78,8 +78,8 @@ exports[`golden snapshot > hall -4,0 level 1 1`] = `
   "name": "Fourth Western Hall",
   "orientation": "NS",
   "sample": [
-    "A larger-than-life ploughman, seated with hands in the lap, holding a spindle, alone.",
-    "A larger-than-life ploughman, kneeling in quiet attention, wearing a broad-brimmed hat, with a faint frown.",
+    "A larger-than-life swan, with neck arched, with a scroll in its beak, a hunter crouched behind.",
+    "A larger-than-life shipwrecked sailor clinging to a spar, standing at rest, holding a long trumpet, a tortoise on the plinth.",
   ],
   "size": [
     85,
@@ -90,13 +90,13 @@ exports[`golden snapshot > hall -4,0 level 1 1`] = `
   "slots": 248,
   "statues": 240,
   "tags": [],
-  "theme": "craft",
+  "theme": "maritime",
 }
 `;
 
 exports[`golden snapshot > hall -5,-4 level 1 1`] = `
 {
-  "digest": 1390665200,
+  "digest": 3521104458,
   "doors": [
     2,
     1,
@@ -108,8 +108,8 @@ exports[`golden snapshot > hall -5,-4 level 1 1`] = `
   "name": "Twenty-Second Vestibule",
   "orientation": "EW",
   "sample": [
-    "A life-sized satyr, standing very upright, holding a wreath out in front, a younger figure leaning on an arm; crusted with shellfish.",
-    "A life-sized winged child, arm outstretched in blessing, with a veil of stone lace, with a small hound at the feet; crusted with shellfish.",
+    "A life-sized hourglass of stone, shown abandoned, with a dedication cut around the base, a cat curled up under it; crusted with shellfish.",
+    "A life-sized pack-saddle, shown from the side, with a carved candle burning on it, a pair of hands resting on it; crusted with shellfish.",
   ],
   "size": [
     232,
@@ -120,13 +120,13 @@ exports[`golden snapshot > hall -5,-4 level 1 1`] = `
   "slots": 4440,
   "statues": 4376,
   "tags": [],
-  "theme": "mythic",
+  "theme": "travel",
 }
 `;
 
 exports[`golden snapshot > hall -6,6 level 1 1`] = `
 {
-  "digest": 1803862236,
+  "digest": 2567775386,
   "doors": [
     5,
     2,
@@ -138,8 +138,8 @@ exports[`golden snapshot > hall -6,6 level 1 1`] = `
   "name": "Seventh North-Western Hall, 1 row north",
   "orientation": "NS",
   "sample": [
-    "A life-sized captain, head slightly bowed, holding a fan of feathers, head tipped back; hung with seaweed.",
-    "A life-sized figure of Vigilance, kneeling in quiet attention, holding a set of pipes, weight on one hip; hung with seaweed.",
+    "A life-sized archer, one hand raised in greeting, holding an open book, weight on one hip; hung with seaweed.",
+    "A life-sized children in a ring dance, resting against a column, with a knotted cord at the waist, head tipped back; hung with seaweed.",
   ],
   "size": [
     121,
@@ -150,13 +150,13 @@ exports[`golden snapshot > hall -6,6 level 1 1`] = `
   "slots": 2568,
   "statues": 2508,
   "tags": [],
-  "theme": "martial",
+  "theme": "household",
 }
 `;
 
 exports[`golden snapshot > hall -6,7 level 1 1`] = `
 {
-  "digest": 2251513727,
+  "digest": 3927014787,
   "doors": [
     2,
     5,
@@ -168,8 +168,8 @@ exports[`golden snapshot > hall -6,7 level 1 1`] = `
   "name": "Sixth North-Western Hall",
   "orientation": "NS",
   "sample": [
-    "A life-sized sun god, looking straight ahead without expression, carrying a model of a tower, a hooded watcher behind; crusted with shellfish.",
-    "A life-sized moon goddess, standing very upright, wearing a crown of reeds, a younger figure leaning on an arm; crusted with shellfish.",
+    "A life-sized lantern on a pole, standing open, with a hat set on top, alone on the plinth; crusted with shellfish.",
+    "A life-sized coach and four, shown in the middle of use, with a bowl of carved fruit beside it, a pair of hands resting on it; crusted with shellfish.",
   ],
   "size": [
     119,
@@ -182,13 +182,13 @@ exports[`golden snapshot > hall -6,7 level 1 1`] = `
   "tags": [
     "rook-flock",
   ],
-  "theme": "celestial",
+  "theme": "travel",
 }
 `;
 
 exports[`golden snapshot > hall -6,8 level 1 1`] = `
 {
-  "digest": 2637631880,
+  "digest": 2147362070,
   "doors": [
     1,
     1,
@@ -200,8 +200,8 @@ exports[`golden snapshot > hall -6,8 level 1 1`] = `
   "name": "Twenty-Fourth Vestibule",
   "orientation": "NS",
   "sample": [
-    "A huge old scholar, one hand raised in greeting, with a cap of carved waves, looking aside; crusted with shellfish.",
-    "A huge figure of Memory, seated with hands in the lap, clasping a closed scroll, alone; crusted with shellfish.",
+    "A huge carving of the pilgrim, seated with hands in the lap, wearing a crown of reeds, a hooded watcher behind; crusted with shellfish.",
+    "A huge carving of the pulpit, balanced on a single point, worn smooth where hands have touched it, an old man seated against it; crusted with shellfish.",
   ],
   "size": [
     133,
@@ -214,13 +214,13 @@ exports[`golden snapshot > hall -6,8 level 1 1`] = `
   "tags": [
     "pebble-bank",
   ],
-  "theme": "scholarly",
+  "theme": "sacred",
 }
 `;
 
 exports[`golden snapshot > hall -10,-50 level 1 1`] = `
 {
-  "digest": 544401089,
+  "digest": 2882468937,
   "doors": [
     3,
     1,
@@ -232,8 +232,8 @@ exports[`golden snapshot > hall -10,-50 level 1 1`] = `
   "name": "Fiftieth Southern Hall, 10 rows west",
   "orientation": "NS",
   "sample": [
-    "A life-sized veiled figure of Night, laughing with head thrown back, with an open hand and an empty palm, facing outward; furred over with coral, crusted with shellfish.",
-    "A life-sized star-bearer, running forward, cloak streaming, holding a goblet upside down, head tipped back; furred over with coral, hung with seaweed.",
+    "A life-sized carving of the sleeping child, running forward, cloak streaming, holding a compass of stone, a younger figure leaning on an arm; furred over with coral, crusted with shellfish.",
+    "A life-sized millstone, tilted as if on a slope, with a hanging chain, in the middle of the plinth; furred over with coral, hung with seaweed.",
   ],
   "size": [
     110,
@@ -246,13 +246,13 @@ exports[`golden snapshot > hall -10,-50 level 1 1`] = `
   "tags": [
     "coral",
   ],
-  "theme": "celestial",
+  "theme": "maritime",
 }
 `;
 
 exports[`golden snapshot > hall -33,41 level 0 1`] = `
 {
-  "digest": 1949235321,
+  "digest": 2321552468,
   "doors": [
     0,
     1,
@@ -264,8 +264,8 @@ exports[`golden snapshot > hall -33,41 level 0 1`] = `
   "name": "Forty-First North-Western Hall, 8 rows north",
   "orientation": "NS",
   "sample": [
-    "A huge cherub, arms flung wide, holding a short sword, point down, with a faint frown; crusted with shellfish.",
-    "A huge figure of Time, clapping hands overhead, carrying a small bell, a pair of doves above; crusted with shellfish.",
+    "A huge cherub, looking upward with a fixed gaze, with eyes closed and a hand held out, an old figure sitting at the feet; crusted with shellfish.",
+    "A huge carving of the dice-players, swinging a child by the hands, grasping a bunch of wheat, a lamb at the side; crusted with shellfish.",
   ],
   "size": [
     131,
@@ -282,7 +282,7 @@ exports[`golden snapshot > hall -33,41 level 0 1`] = `
 
 exports[`golden snapshot > hall -88,0 level 1 1`] = `
 {
-  "digest": 1532828849,
+  "digest": 1407649084,
   "doors": [
     3,
     5,
@@ -294,8 +294,8 @@ exports[`golden snapshot > hall -88,0 level 1 1`] = `
   "name": "Eighty-Eighth Western Hall",
   "orientation": "NS",
   "sample": [
-    "A larger-than-life figure of Mercy, looking down with a faint smile, holding a bowl of carved fire, a sleeping cat in the lap.",
-    "A larger-than-life sphinx, standing at rest, with a ring of keys at the belt, weight on one hip.",
+    "A larger-than-life figure of War, resting against a column, holding a hammer and chisel, a younger figure leaning on an arm.",
+    "A larger-than-life carving of the saint with a lamb, resting against a column, wearing sandals with wings, a sleeping cat in the lap.",
   ],
   "size": [
     82,
@@ -314,7 +314,7 @@ exports[`golden snapshot > hall -88,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -192,0 level 1 1`] = `
 {
-  "digest": 3908806959,
+  "digest": 3397005145,
   "doors": [
     0,
     1,
@@ -326,8 +326,8 @@ exports[`golden snapshot > hall -192,0 level 1 1`] = `
   "name": "One-Hundred-and-Ninety-Second Western Hall",
   "orientation": "NS",
   "sample": [
-    "A life-sized cartographer, on tiptoe to see over the heads in front, with a cluster of grapes at the hip, a child clinging to the hem.",
-    "A life-sized dancer, an arm around the person beside, wearing a pointed cap, a tortoise on the plinth.",
+    "A life-sized carving of the fox and the grapes, pressed among neighbours, face turned toward the doorway, with a mask pushed up on the forehead, a fox pressed against the knee.",
+    "A life-sized sponge diver, pressed among neighbours, face turned toward the doorway, with a coil of rope over one arm, with a faint frown.",
   ],
   "size": [
     119,
@@ -340,13 +340,13 @@ exports[`golden snapshot > hall -192,0 level 1 1`] = `
   "tags": [
     "dark-hall",
   ],
-  "theme": "maritime",
+  "theme": "martial",
 }
 `;
 
 exports[`golden snapshot > hall 0,0 level 1 1`] = `
 {
-  "digest": 2227028554,
+  "digest": 2099307650,
   "doors": [
     3,
     4,
@@ -358,8 +358,8 @@ exports[`golden snapshot > hall 0,0 level 1 1`] = `
   "name": "First Vestibule",
   "orientation": "EW",
   "sample": [
-    "A larger-than-life veiled figure of Night, standing at rest, holding a wreath out in front, a sleeping cat in the lap; crusted with shellfish.",
-    "A larger-than-life figure of Hope, resting against a column, holding a bowl of carved fire, facing outward; crusted with shellfish.",
+    "A larger-than-life eel, lying curled at rest, every feather separately cut, a hooded figure standing behind; crusted with shellfish.",
+    "A larger-than-life owl, mid-stride, one foot lifted, the whole body wound in carved ivy, a garland of flowers across it; crusted with shellfish.",
   ],
   "size": [
     182,
@@ -373,13 +373,13 @@ exports[`golden snapshot > hall 0,0 level 1 1`] = `
     "first-vestibule",
     "minotaurs",
   ],
-  "theme": "allegorical",
+  "theme": "beasts",
 }
 `;
 
 exports[`golden snapshot > hall 0,5 level 1 1`] = `
 {
-  "digest": 959031715,
+  "digest": 1406842034,
   "doors": [
     4,
     2,
@@ -391,8 +391,8 @@ exports[`golden snapshot > hall 0,5 level 1 1`] = `
   "name": "Fifth Northern Hall",
   "orientation": "EW",
   "sample": [
-    "A larger-than-life ox, kneeling in quiet attention, holding a staff topped with a star, alone; hung with seaweed.",
-    "A larger-than-life reaper, standing at rest, holding a net rolled up, a lamb at the side; hung with seaweed.",
+    "A larger-than-life woodcutter, gazing into the distance, with a stone scarf blowing sideways, looking aside; hung with seaweed.",
+    "A larger-than-life young shepherd, kneeling in quiet attention, wearing sandals with wings, alone; hung with seaweed.",
   ],
   "size": [
     160,
@@ -409,7 +409,7 @@ exports[`golden snapshot > hall 0,5 level 1 1`] = `
 
 exports[`golden snapshot > hall 1,-2 level 1 1`] = `
 {
-  "digest": 3416701592,
+  "digest": 2595010607,
   "doors": [
     1,
     2,
@@ -421,8 +421,8 @@ exports[`golden snapshot > hall 1,-2 level 1 1`] = `
   "name": "Sixth Vestibule",
   "orientation": "NS",
   "sample": [
-    "A life-sized captain, arms flung wide, wearing a crown of reeds, an old figure sitting at the feet; crusted with shellfish.",
-    "A life-sized griffin, spinning on one foot, carrying a bow strung with thread, weight on one hip; crusted with shellfish.",
+    "A life-sized coach and four, set on a bed of carved leaves, rimmed with small shells, by itself; crusted with shellfish.",
+    "A life-sized chambermaid, singing with open mouth, holding a lamp shaped like a fish, alone; crusted with shellfish.",
   ],
   "size": [
     111,
@@ -433,13 +433,13 @@ exports[`golden snapshot > hall 1,-2 level 1 1`] = `
   "slots": 4480,
   "statues": 4412,
   "tags": [],
-  "theme": "martial",
+  "theme": "trade",
 }
 `;
 
 exports[`golden snapshot > hall 2,2 level 1 1`] = `
 {
-  "digest": 2795393084,
+  "digest": 783708729,
   "doors": [
     2,
     4,
@@ -451,8 +451,8 @@ exports[`golden snapshot > hall 2,2 level 1 1`] = `
   "name": "Second North-Eastern Hall",
   "orientation": "NS",
   "sample": [
-    "A larger-than-life figure of Mercy, resting against a column, carrying a folded banner, facing outward; hung with seaweed.",
-    "A larger-than-life figure of Vigilance, arms folded peacefully, with a coil of rope over one arm, looking aside; hung with seaweed.",
+    "A larger-than-life grandfather telling a story, arms folded peacefully, with a chain of stars about the neck, alone; hung with seaweed.",
+    "A larger-than-life playwright, gazing into the distance, with an open hand and an empty palm, with a faint frown; hung with seaweed.",
   ],
   "size": [
     83,
@@ -465,13 +465,13 @@ exports[`golden snapshot > hall 2,2 level 1 1`] = `
   "tags": [
     "ruinous",
   ],
-  "theme": "allegorical",
+  "theme": "sacred",
 }
 `;
 
 exports[`golden snapshot > hall 6,0 level 1 1`] = `
 {
-  "digest": 1198244087,
+  "digest": 4248167725,
   "doors": [
     1,
     0,
@@ -483,8 +483,8 @@ exports[`golden snapshot > hall 6,0 level 1 1`] = `
   "name": "Sixth Eastern Hall",
   "orientation": "NS",
   "sample": [
-    "A colossal wind spirit, straining out of the wall, chest and arms reaching over the dark water, with one sleeve rolled to the shoulder, alone.",
-    "A colossal river god, twisting out of the wall with head thrown back, with one sleeve rolled to the shoulder, a pair of fish carved at the base.",
+    "A colossal wind spirit, twisting out of the wall with head thrown back, with great horns wound with flowers, a fox pressed against the knee.",
+    "A colossal giant, straining out of the wall, chest and arms reaching over the dark water, with a dozen small faces carved on the robe, a tortoise on the plinth.",
   ],
   "size": [
     124,
@@ -504,7 +504,7 @@ exports[`golden snapshot > hall 6,0 level 1 1`] = `
 
 exports[`golden snapshot > hall 12,-7 level 1 1`] = `
 {
-  "digest": 3297933393,
+  "digest": 1511345900,
   "doors": [
     2,
     1,
@@ -516,8 +516,8 @@ exports[`golden snapshot > hall 12,-7 level 1 1`] = `
   "name": "Seventy-Second Vestibule",
   "orientation": "EW",
   "sample": [
-    "A life-sized river god, kneeling with head bowed low, holding a ladder-like staff, with a small hound at the feet; crusted with shellfish.",
-    "A life-sized river god, looking straight ahead without expression, carrying a bundle of keys, with a faint frown; crusted with shellfish.",
+    "A life-sized lute-maker, eyes closed, hands joined, holding a goblet upside down, a tortoise on the plinth; crusted with shellfish.",
+    "A life-sized carving of the angel of the morning, weeping into cupped hands, with a serpent coiled round one arm, alone; crusted with shellfish.",
   ],
   "size": [
     220,
@@ -530,13 +530,13 @@ exports[`golden snapshot > hall 12,-7 level 1 1`] = `
   "tags": [
     "ruinous",
   ],
-  "theme": "mythic",
+  "theme": "celestial",
 }
 `;
 
 exports[`golden snapshot > hall 19,0 level 2 1`] = `
 {
-  "digest": 1880342065,
+  "digest": 1862741154,
   "doors": [
     3,
     1,
@@ -548,8 +548,8 @@ exports[`golden snapshot > hall 19,0 level 2 1`] = `
   "name": "Nineteenth Eastern Hall",
   "orientation": "NS",
   "sample": [
-    "A life-sized mermaid, stabbing downward at a fallen man, wearing a pointed cap, alone.",
-    "A life-sized ox, fleeing with a face twisted in terror, wearing a laurel crown, with a faint frown.",
+    "A life-sized charioteer, crushed under a collapsing arch, carrying a bow strung with thread, with a faint frown.",
+    "A life-sized naiad, crouched with claws outstretched, with a staff of twisted wood, a heron standing behind.",
   ],
   "size": [
     87,

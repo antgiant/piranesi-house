@@ -6,21 +6,28 @@ export const MOODS: readonly Mood[] = ['serene', 'joyful', 'solemn', 'effort', '
 
 export type Theme =
   | 'pastoral' | 'maritime' | 'scholarly' | 'martial' | 'beasts'
-  | 'mythic' | 'allegorical' | 'craft' | 'courtly' | 'celestial';
+  | 'mythic' | 'allegorical' | 'craft' | 'courtly' | 'celestial'
+  | 'sacred' | 'trade' | 'civic' | 'household' | 'fable' | 'travel';
 export const THEMES: readonly Theme[] = [
   'pastoral', 'maritime', 'scholarly', 'martial', 'beasts', 'mythic', 'allegorical', 'craft', 'courtly', 'celestial',
+  'sacred', 'trade', 'civic', 'household', 'fable', 'travel',
 ];
+
+/** What a figure is: a person (or people), a creature, a spirit/god/monster, or a made thing (vehicle, weapon, tool, building). */
+export type Kind = 'human' | 'animal' | 'mythic' | 'object';
 
 export interface Figure {
   id: string;
   label: string;
   themes: readonly Theme[];
-  kind: 'human' | 'animal' | 'mythic';
+  kind: Kind;
 }
+
+import { EXTRA_FIGURES } from './figures';
 
 const f = (id: string, label: string, kind: Figure['kind'], ...themes: Theme[]): Figure => ({ id, label, themes, kind });
 
-export const FIGURES: readonly Figure[] = [
+const CORE_FIGURES: readonly Figure[] = [
   // pastoral
   f('shepherd', 'shepherd', 'human', 'pastoral'),
   f('shepherd-boy', 'young shepherd', 'human', 'pastoral'),
@@ -136,6 +143,9 @@ export const FIGURES: readonly Figure[] = [
   f('night-figure', 'veiled figure of Night', 'mythic', 'celestial', 'allegorical'),
   f('twin-brothers', 'pair of twin brothers', 'human', 'celestial'),
 ];
+
+/** Every subject the House's sculptors carved: the core set above and the wider cast in figures.ts. */
+export const FIGURES: readonly Figure[] = [...CORE_FIGURES, ...EXTRA_FIGURES];
 
 export const POSES: Readonly<Record<Mood, readonly string[]>> = {
   serene: [

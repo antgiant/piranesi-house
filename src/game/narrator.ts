@@ -90,6 +90,12 @@ const THEME_SENTENCE: Record<Hall['theme'], string> = {
   craft: 'Smiths, potters, weavers, masons and glassblowers stand at their work.',
   courtly: 'Kings, queens, heralds, dancers and jesters fill the walls.',
   celestial: 'Angels, moon-goddesses, star-bearers and dawn-maidens look down from the tiers.',
+  sacred: 'Prophets, pilgrims, monks and saints, with their wheels, lions and lambs, fill the walls.',
+  trade: 'Merchants, clerks, pedlars, judges and showmen crowd the tiers among their scales and strongboxes.',
+  civic: 'Magistrates, watchmen, builders and benefactors stand among bridges, fountains and city gates.',
+  household: 'Mothers, children at play, hearths, cradles and kitchen things fill the walls.',
+  fable: 'Foxes and crows, giants, fairy-folk, wandering knights and a hundred figures out of old stories fill the tiers.',
+  travel: 'Travellers, coachmen, carters and ferrymen stand beside their coaches, sledges and signposts.',
 };
 
 function statuesParagraph(h: Hall, s: SceneState): string {

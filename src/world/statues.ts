@@ -6,10 +6,11 @@
 // signature (mark + components) is therefore unique across at least a 64x64 window of halls: far further than the 5 km
 // the design requires. Beyond that, repeats are allowed ("only at vast distances").
 
-import type { Figure, Mood } from '../data/catalogue';
+import type { Figure, Kind, Mood } from '../data/catalogue';
 import {
   ATTRIBUTES, COMPANIONS_SOLITARY, COMPANIONS_WITH, FIGURES, MARK_BASES, MARK_EDGES, MARK_MOTIFS, POSES, POSES_DROWNED, SIZE_WORD,
 } from '../data/catalogue';
+import { KIND_LISTS } from '../data/kindlists';
 import type { Hall, WallGrid } from './hall';
 import { wallGrids } from './hall';
 import type { Side } from './layout';
@@ -61,11 +62,20 @@ export type Slot =
   | { kind: 'statue'; statue: Statue }
   | { kind: 'empty'; id: string; empty: EmptyKind; wall: Side; tier: number; slot: number; shadowOf?: string };
 
-interface Palette {
-  figures: Figure[];
-  poses: readonly string[];
+/** What one kind of figure draws on: its own poses, attributes and companions, all the same lengths as every other kind's. */
+interface KindPalette {
+  poses: string[];
   attributes: string[];
   companions: string[];
+}
+
+interface Palette {
+  figures: Figure[];
+  /** Per kind of figure. Lengths are P, A and C for every kind, so a statue's four choices never collide. */
+  kinds: Record<Kind, KindPalette>;
+  P: number;
+  A: number;
+  C: number;
   D: number;
   a: number;
   b: number;
@@ -73,29 +83,52 @@ interface Palette {
 
 const palettes = new WeakMap<Hall, Palette>();
 
+/** A hall shows at most this many different figures: most from its theme, and a few from anywhere in the catalogue. */
+const MAX_FIGURES = 64;
+const THEMED = 44;
+const ATTRS = 32;
+const COMPANIONS_PER_HALL = 12;
+const MAX_POSES = 12;
+
 function palette(world: World, hall: Hall): Palette {
   const hit = palettes.get(hall);
   if (hit) return hit;
   const rng = new Rng(hashInts(world.seed, 0xca7a, hall.x, hall.y, hall.level));
-  let pool: Figure[];
+  let figures: Figure[];
   const drowned = hall.regions.drowned && hall.level === 1;
-  if (drowned) pool = FIGURES.filter((f) => ['giant', 'river-god', 'cyclops', 'triton', 'north-wind'].includes(f.id));
-  else if (hall.mood === 'violent') pool = FIGURES.filter((f) => f.themes.some((t) => t === 'mythic' || t === 'martial' || t === 'beasts'));
-  else if (hall.mood === 'crowd') pool = FIGURES.filter((f) => f.kind === 'human');
-  else pool = FIGURES.filter((f) => f.themes.includes(hall.theme));
-  if (!drowned && pool.length < 12) {
-    const rest = rng.shuffle(FIGURES.filter((f) => !pool.includes(f)));
-    pool = pool.concat(rest.slice(0, 12 - pool.length));
+  if (drowned) {
+    figures = rng.shuffle(FIGURES.filter((f) => ['giant', 'river-god', 'cyclops', 'triton', 'north-wind'].includes(f.id)));
+  } else if (hall.mood === 'violent') {
+    figures = rng.shuffle(FIGURES.filter((f) => f.themes.some((t) => t === 'mythic' || t === 'martial' || t === 'beasts'))).slice(0, MAX_FIGURES);
+  } else if (hall.mood === 'crowd') {
+    figures = rng.shuffle(FIGURES.filter((f) => f.kind === 'human')).slice(0, MAX_FIGURES);
+  } else {
+    const themed = rng.shuffle(FIGURES.filter((f) => f.themes.includes(hall.theme))).slice(0, THEMED);
+    // a sculptor's hall is never only one subject: the rest are drawn from the whole catalogue
+    const rest = rng.shuffle(FIGURES.filter((f) => !themed.includes(f)));
+    figures = themed.concat(rest.slice(0, Math.max(MAX_FIGURES - themed.length, 12 - themed.length)));
   }
-  const figures = rng.shuffle(pool).slice(0, 24);
-  const poses = drowned ? POSES_DROWNED : POSES[hall.mood];
-  const attributes = rng.shuffle(ATTRIBUTES).slice(0, 28);
-  const companions = [...COMPANIONS_SOLITARY, ...rng.shuffle(COMPANIONS_WITH).slice(0, 6)];
-  const D = figures.length * poses.length * attributes.length * companions.length;
+  const P = drowned ? POSES_DROWNED.length : Math.min(MAX_POSES, POSES[hall.mood].length);
+  const kinds = {} as Record<Kind, KindPalette>;
+  const humanSolitary = COMPANIONS_SOLITARY;
+  kinds.human = {
+    poses: drowned ? [...POSES_DROWNED] : rng.shuffle(POSES[hall.mood]).slice(0, P),
+    attributes: rng.shuffle(ATTRIBUTES).slice(0, ATTRS),
+    companions: [...humanSolitary, ...rng.shuffle(COMPANIONS_WITH).slice(0, COMPANIONS_PER_HALL - humanSolitary.length)],
+  };
+  for (const k of ['animal', 'mythic', 'object'] as const) {
+    const l = KIND_LISTS[k];
+    kinds[k] = {
+      poses: drowned ? [...POSES_DROWNED] : rng.shuffle(l.poses).slice(0, P),
+      attributes: rng.shuffle(l.attributes).slice(0, ATTRS),
+      companions: [...l.solitary, ...rng.shuffle(l.withs).slice(0, COMPANIONS_PER_HALL - l.solitary.length)],
+    };
+  }
+  const D = figures.length * P * ATTRS * COMPANIONS_PER_HALL;
   if (D < hall.slotCount * 4) throw new Error(`palette too small: ${D} for ${hall.slotCount} slots`);
   let a = 1 + rng.int(D - 1);
   while (gcd(a, D) !== 1) a++;
-  const p: Palette = { figures, poses, attributes, companions, D, a, b: rng.int(D) };
+  const p: Palette = { figures, kinds, P, A: ATTRS, C: COMPANIONS_PER_HALL, D, a, b: rng.int(D) };
   palettes.set(hall, p);
   return p;
 }
@@ -158,20 +191,22 @@ export function generatedSlot(world: World, hall: Hall, wall: Side, tier: number
   const pal = palette(world, hall);
   const n = g.offset + tier * g.slots + slot;
   let i = (pal.a * n + pal.b) % pal.D;
-  const c = i % pal.companions.length; i = Math.floor(i / pal.companions.length);
-  const at = i % pal.attributes.length; i = Math.floor(i / pal.attributes.length);
-  const po = i % pal.poses.length; i = Math.floor(i / pal.poses.length);
+  const c = i % pal.C; i = Math.floor(i / pal.C);
+  const at = i % pal.A; i = Math.floor(i / pal.A);
+  const po = i % pal.P; i = Math.floor(i / pal.P);
   const fi = i % pal.figures.length;
+  const fig = pal.figures[fi] as Figure;
+  const kp = pal.kinds[fig.kind];
 
   const alongM = ((slot + 0.5) * g.pitchDm) / 10;
   const baseDm = tier * g.tierHeightDm;
   const heightDm = Math.max(10, Math.round((hall.statueHeightDm * (92 + (slotRng(world, hall, wall, tier, slot, 0x5124) % 17))) / 100));
   const statue: Statue = {
     id, hallId: hall.id, wall, tier, slot, alongM, baseM: baseDm / 10, heightM: heightDm / 10,
-    figure: (pal.figures[fi] as Figure).label,
-    pose: pal.poses[po] as string,
-    attribute: pal.attributes[at] as string,
-    companion: pal.companions[c] as string,
+    figure: fig.label,
+    pose: kp.poses[po] as string,
+    attribute: kp.attributes[at] as string,
+    companion: kp.companions[c] as string,
     mood: hall.mood,
     mark: workshopMark(hall.x, hall.y, hall.level),
     condition: conditionFor(world, hall, g, tier, slot, baseDm, alongM),
@@ -192,7 +227,7 @@ export function sizeWord(hall: Hall): string {
 export function describeStatue(hall: Hall, s: Statue): string {
   if (s.canonLabel) return s.canonLabel;
   const article = /^[aeiou]/i.test(sizeWord(hall)) ? 'An' : 'A';
-  const withBit = COMPANIONS_SOLITARY.includes(s.companion) ? `, ${s.companion}` : `, ${s.companion}`;
+  const withBit = `, ${s.companion}`;
   const cond: string[] = [];
   if (s.condition.broken) cond.push('cracked and partly fallen');
   if (s.condition.coral) cond.push('furred over with coral');
@@ -200,5 +235,7 @@ export function describeStatue(hall: Hall, s: Statue): string {
   else if (s.condition.seaweed) cond.push('hung with seaweed');
   if (s.condition.waterWorn) cond.push('worn by falling water');
   if (s.condition.droppings) cond.push('streaked with bird droppings');
-  return `${article} ${sizeWord(hall)} ${s.figure}, ${s.pose}, ${s.attribute}${withBit}${cond.length ? `; ${cond.join(', ')}` : ''}.`;
+  // a subject written as a scene or an idea ("the fox and the crow") reads as a carving of it
+  const subject = /^the /i.test(s.figure) ? `carving of ${s.figure}` : s.figure;
+  return `${article} ${sizeWord(hall)} ${subject}, ${s.pose}, ${s.attribute}${withBit}${cond.length ? `; ${cond.join(', ')}` : ''}.`;
 }

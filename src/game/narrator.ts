@@ -470,7 +470,7 @@ export function relicsProse(relics: Relic[], rand: Rand): string {
     const aside = near.length ? ` ${pickBy(rand, [`Caught against it are ${listOf(near.map((r) => r.thing))}.`, `${capFirst(listOf(near.map((r) => r.thing)))} ${near.length > 1 ? 'have' : 'has'} blown in against it, and stayed.`])}` : '';
     out.push(`${pickBy(rand, [
       `${capFirst(bag.where)} lies ${bag.thing}, left behind long ago by someone who slept here and did not take it with them.`,
-      `Someone once made a bed ${bag.where}; ${bag.thing} is all that is left of it.`,
+      `Someone once made a bed ${bag.where}; all that is left of it is ${bag.thing}.`,
     ])}${aside}`);
   }
   // the rest, by where they lie

@@ -108,3 +108,5 @@ dialog ul { padding-left: 1.2rem; }
   .journal textarea { font-size: 1rem; }
 }
 #title-saved { color: var(--dim); }
+
+.steps { padding-left: 1.3rem; } .steps li { margin: 0.4rem 0; }

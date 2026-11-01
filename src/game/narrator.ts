@@ -549,11 +549,11 @@ export function directionProse(h: Hall, side: Side, doors: NamedExit[], vista: {
     else out.push(`A long row of doors, ${n} of them, runs along the ${w}.`);
     if (vista.next) {
       const near = n === 1 ? 'it' : 'the one nearest the middle';
-      if (vista.passage) out.push(`Through ${near} a long passage runs away, a hall's length or more, before it opens into the ${vista.next}.`);
+      if (vista.passage) out.push(`Through ${near} a long passage runs away, a hall's length or more, before it opens into ${vista.next}.`);
       else if (vista.halls >= 10) out.push(`Looking through ${near}, you see a great vista of halls, doorway beyond doorway, receding until the eye gives up.`);
-      else if (vista.halls >= 4) out.push(`Through ${near} you see the ${vista.next}, and beyond it several more halls, one doorway after another.`);
-      else if (vista.halls >= 2) out.push(`Through ${near} lies the ${vista.next}, and beyond it a hall or two more.`);
-      else out.push(`Through ${near} lies the ${vista.next}, and beyond it only another wall of statues.`);
+      else if (vista.halls >= 4) out.push(`Through ${near} you see ${vista.next}, and beyond it several more halls, one doorway after another.`);
+      else if (vista.halls >= 2) out.push(`Through ${near} lies ${vista.next}, and beyond it a hall or two more.`);
+      else out.push(`Through ${near} lies ${vista.next}, and beyond it only another wall of statues.`);
     }
   }
   out.push(...onWall);
@@ -570,10 +570,10 @@ export function seenProse(seen: Seen[], hall: Hall): string {
   return `Near you, the eye falls on ${bits.map((b, i) => (i === 0 ? b : `${['and then', 'then', 'and', 'and beside it', 'and past that'][Math.min(i - 1, 4)]} ${b}`)).join('; ')}.`;
 }
 
-export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[] = [], flourishes: readonly Flourish[] = [], numbered = false): string[] {
+export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[] = [], flourishes: readonly Flourish[] = [], numbered = false, heading?: string): string[] {
   const lvl = LEVEL_WORD[h.level];
   const out: string[] = [];
-  out.push(`${h.name}\nThe ${lvl} level.`);
+  out.push(heading ?? `${h.name}\nThe ${lvl} level.`);
   out.push(`${sizeSentence(h)} ${statuesParagraph(h, s)}`);
   out.push(structureParagraph(h));
   if (flourishes.length > 0) out.push(`Above the statues the building does stranger things. ${flourishes.map((f) => f.text).join(' ')}`);
@@ -679,10 +679,13 @@ export interface GlanceMemo {
   lastChar: string;
   /** Keys of the last few dozen things said anywhere: nothing is said again in the next few halls. */
   recent: ReadonlySet<string>;
+  /** The heading to give the hall, and what to call it in a sentence ("the Third Western Hall"): what you believe, which may not be true. */
+  heading?: string;
+  nameFor?: string;
 }
 
 const AGAIN_LEAD = ['Looking about you again, ', 'Another look round: ', 'You look about once more. ', 'Taking in more of it, '];
-const BACK_LEAD = (h: Hall): string => `You are back in the ${h.name}.`;
+const BACK_LEAD = (nameFor: string): string => `You are back in ${nameFor}.`;
 const SAME_AS_BEFORE = ['The statues are much as in the last hall.', 'Statues again, in the same ranks.', 'The same company of statues, in the same tiers.'];
 
 /**
@@ -706,7 +709,7 @@ export function glanceHall(
   const fresh = (key: string): boolean => !told.has(key) && !recent.has(key);
 
   if (mode === 'first') {
-    out.push(`${h.name}\nThe ${LEVEL_WORD[h.level]} level.`);
+    out.push(memo.heading ?? `${h.name}\nThe ${LEVEL_WORD[h.level]} level.`);
     if (char === memo.lastChar && rand() < 0.7) {
       // the same sort of statues as the last hall: a person would not describe them all over again
       out.push(`${sizeSentence(h)} ${rand() < 0.5 ? v(SAME_AS_BEFORE) : ''}`.trim());
@@ -721,7 +724,7 @@ export function glanceHall(
     }
     said.push('scale:said');
   } else if (mode === 'return') {
-    out.push(BACK_LEAD(h));
+    out.push(BACK_LEAD(memo.nameFor ?? `the ${h.name}`));
   }
 
   const items: Item[] = [];

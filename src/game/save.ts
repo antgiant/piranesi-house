@@ -40,6 +40,8 @@ export interface SaveData {
   passes: [string, number][];
   trail: TrailEntry[];
   trailOrigin: Spot;
+  /** What you believe about where you are, if you are not sure (see `Belief`). */
+  belief?: { kind: 'wrong'; dx: number; dy: number; dl: number } | { kind: 'lost' } | null;
   recalls: number;
   told: [string, string[]][];
 }
@@ -69,6 +71,7 @@ export function toSave(g: Game, now: number): SaveData {
     passes: [...g.passes],
     trail: g.trail.map((t) => ({ ...t })),
     trailOrigin: { ...g.trailOrigin },
+    belief: g.belief,
     recalls: g.recalls,
     // only the latest of what has been said of each hall is worth keeping
     told: [...g.told].slice(-300).map(([k, v]) => [k, [...v.keys].slice(-40)]),
@@ -107,6 +110,8 @@ export function applySave(g: Game, raw: unknown): boolean {
   }
   g.trailOrigin = spot(raw.trailOrigin) ?? { x: 0, y: 0, level: 1 };
   g.recalls = isInt(raw.recalls, 0, 1e9) ? raw.recalls : 0;
+  const b = raw.belief;
+  g.belief = isObj(b) && b.kind === 'lost' ? { kind: 'lost' } : isObj(b) && b.kind === 'wrong' && isInt(b.dx, -2000, 2000) && isInt(b.dy, -2000, 2000) && isInt(b.dl, -2, 2) ? { kind: 'wrong', dx: b.dx, dy: b.dy, dl: b.dl } : null;
   g.told = new Map();
   for (const e of list(raw.told)) if (Array.isArray(e) && isStr(e[0], 40) && Array.isArray(e[1])) g.told.set(e[0], { keys: new Set(e[1].filter((k): k is string => isStr(k, 200))), at: 0 });
   return true;

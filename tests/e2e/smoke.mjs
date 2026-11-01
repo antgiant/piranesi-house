@@ -413,9 +413,10 @@ try {
     pg.on('pageerror', (e) => errors.push(String(e)));
     await pg.goto(`http://localhost:${PORT}/#sw`);
     await pg.waitForFunction(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.active); }, null, { timeout: 15000 });
+    await pg.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 15000 });
     await pg.reload();
     // wait until the files have really been stored
-    await pg.waitForFunction(async () => { const c = await caches.open('house-v1'); const keys = (await c.keys()).map((r) => r.url); return keys.some((u) => u.endsWith('/')) && keys.some((u) => u.endsWith('.js')) && keys.some((u) => u.endsWith('.css')); }, null, { timeout: 15000 });
+    await pg.waitForFunction(async () => { const c = await caches.open('house-v2'); const keys = (await c.keys()).map((r) => r.url); return keys.some((u) => u.endsWith('/')) && keys.some((u) => u.endsWith('.js')) && keys.some((u) => u.endsWith('.css')) && keys.some((u) => u.endsWith('icon-192.png')) && keys.some((u) => u.endsWith('manifest.webmanifest')); }, null, { timeout: 15000 });
     await ctx.setOffline(true);
     await pg.reload();
     check(await pg.locator('#title').isVisible(), 'with no connection at all, a visited House still opens');
@@ -560,6 +561,35 @@ try {
     check((await a.locator('#journal-list li').count()) === 2, 'but keeps the journal, unless asked to tear it out');
     await ctxB.close();
     await ctxA.close();
+  }
+
+  // Being lost: the place name, the address and Share follow what you believe, not what is true. And the iOS install popover.
+  {
+    const lp = await newPage({ viewport: { width: 900, height: 900 } });
+    lp.on('pageerror', (e) => errors.push(String(e)));
+    await lp.goto(URL);
+    await lp.click('#enter');
+    await lp.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await lp.fill('#input', 'travel west 2');
+    await lp.press('#input', 'Enter');
+    await lp.waitForFunction(() => /Western Hall/.test(document.getElementById('place').textContent), null, { timeout: 15000 });
+    const truth = await lp.locator('#place').textContent();
+    await lp.evaluate(() => { window.__house.game.belief = { kind: 'wrong', dx: 0, dy: 3, dl: 0 }; });
+    await lp.waitForFunction((tr) => document.getElementById('place').textContent !== tr, truth, { timeout: 5000 });
+    const wrongName = await lp.locator('#place').textContent();
+    check(wrongName !== truth && !!wrongName, `astray without knowing, the header names a place that is not where you are (${wrongName} instead of ${truth})`);
+    check(((await lp.evaluate(() => location.hash)).replace(/\+/g, ' ')).includes(wrongName.replace(/,/g, '%2C').replace(/ /g, ' ')) || (await lp.evaluate(() => decodeURIComponent(location.hash).replace(/\+/g, ' '))).includes(wrongName), 'and so does the address bar');
+    await lp.evaluate(() => { window.__house.game.belief = { kind: 'lost' }; });
+    await lp.waitForFunction(() => document.getElementById('place').textContent === 'Somewhere you do not know', null, { timeout: 5000 });
+    check(true, 'lost, the header says it does not know');
+    check(!(await lp.evaluate(() => location.hash)).includes('room='), 'and the address bar names no room');
+    await lp.click('#share');
+    check((await lp.locator('#log').textContent()).includes('cannot share a place you cannot name'), 'and there is no sharing a place you cannot name');
+    await lp.click('#open-settings');
+    await lp.click('#s-ios');
+    check(await lp.locator('#ios').isVisible() && (await lp.locator('#ios').textContent()).includes('Add to Home Screen'), 'Settings opens instructions for installing on an iPhone or iPad');
+    await lp.click('#ios-close');
+    await lp.close();
   }
 
   // Every kind of bird call, and thunder, can be played without error, and each is counted.

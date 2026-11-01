@@ -99,3 +99,9 @@ export function dice(seed: number, attempt: number, steps: number, j: number, sa
 }
 
 export const opposite = (s: Side): Side => OPPOSITE[s];
+
+/**
+ * What you believe about where you are, as a difference from the truth. Null: you know. Wrong: you are sure you are somewhere you are
+ * not (you think you are `dx, dy` halls from where you are, and `dl` levels up or down). Lost: you know that you do not know.
+ */
+export type Belief = { kind: 'wrong'; dx: number; dy: number; dl: number } | { kind: 'lost' } | null;

@@ -195,3 +195,91 @@ describe('the way back', () => {
     expect(ok).toBeGreaterThan(0);
   });
 });
+
+import { believedSpot, hallLabel, shownName, writeEntry } from '../src/game/game';
+import { applySave, toSave } from '../src/game/save';
+import { getHall } from '../src/world/hall';
+
+describe('where you think you are', () => {
+  /** Find games that ended a way back astray (believing a wrong place) and lost (knowing they do not know). */
+  function scan(): { wrong: Game | null; lost: Game | null } {
+    let wrong: Game | null = null, lost: Game | null = null;
+    for (let i = 0; i < 150 && !(wrong && lost); i++) {
+      const g = fresh(`belief-${i}`);
+      step(g, 'travel west 30', NOW);
+      step(g, 'way back', NOW);
+      if (g.belief?.kind === 'wrong' && !wrong) wrong = g;
+      if (g.belief?.kind === 'lost' && !lost) lost = g;
+    }
+    return { wrong, lost };
+  }
+  const found = scan();
+
+  it('is always right when you have not gone astray, or have a map', () => {
+    const g = fresh();
+    step(g, 'travel west 3', NOW);
+    expect(g.belief).toBeNull();
+    expect(shownName(g)).toBe(getHall(g.world, g.pos.x, g.pos.y, g.pos.level).name);
+    const m = newGame({ walkPace: Infinity, relicDensity: 0, outsideTraces: false }, NOW);
+    look(m, NOW);
+    step(m, 'travel west 30', NOW);
+    step(m, 'home', NOW);
+    expect(m.belief).toBeNull();
+  });
+  it('can be wrong: the name you are given is not where you are, and you are sure of it', () => {
+    const g = found.wrong as Game;
+    expect(g).not.toBeNull();
+    const here = shownName(g);
+    expect(here).not.toBeNull();
+    expect(here).not.toBe(shownName({ ...g, belief: null } as Game));
+    expect(hallLabel(g)).toBe(`the ${here}`);
+    expect(believedSpot(g)).not.toEqual({ x: g.pos.x, y: g.pos.y, level: g.pos.level });
+    // everything that names the place agrees with the belief, not the truth
+    const trueName = shownName({ ...g, belief: null } as Game) as string;
+    const where = all(step(g, 'where', NOW));
+    expect(where).toContain(here as string);
+    expect(where).not.toContain(trueName);
+    expect(all(look(g, NOW))).not.toContain(trueName);
+    expect(writeEntry(g, 'Here at last.', NOW)?.hall).toBe(here);
+  });
+  it('can be nothing: you know that you do not know, and nothing is named', () => {
+    const g = found.lost as Game;
+    expect(g).not.toBeNull();
+    expect(believedSpot(g)).toBeNull();
+    expect(shownName(g)).toBeNull();
+    expect(hallLabel(g)).toBe('a hall you do not know');
+    expect(all(step(g, 'where', NOW))).toContain('You do not know where you are');
+    const glance = all(look(g, NOW, true));
+    expect(glance).toMatch(/^A place you do not know/);
+    expect(glance).not.toMatch(/Western Hall|North-Western Hall|Northern Hall/);
+    expect(writeEntry(g, 'Lost.', NOW)?.hall).toBe('a place I did not know');
+  });
+  it('cannot plan a way by name from where you do not know you are, but can still go back by the trail', () => {
+    const g = found.lost as Game;
+    expect(all(step(g, 'travel to the fifth western hall', NOW))).toMatch(/do not know where you are, so you cannot say how/);
+    expect(all(step(g, 'way back', NOW))).toMatch(/call to mind the way/);
+  });
+  it('is found again by coming to a place you know, and home is always known', () => {
+    let recovered = 0, tried = 0;
+    for (let i = 0; i < 150 && tried < 8; i++) {
+      const g = fresh(`recover-${i}`);
+      step(g, 'travel west 30', NOW);
+      step(g, 'way back', NOW);
+      if (g.belief?.kind !== 'lost') continue;
+      tried++;
+      for (let k = 0; k < 6 && g.belief; k++) step(g, 'way back', NOW);
+      if (!g.belief) recovered++;
+      if (g.pos.x === 0 && g.pos.y === 0) expect(g.belief).toBeNull();
+    }
+    expect(tried).toBeGreaterThan(2);
+    expect(recovered).toBeGreaterThan(0);
+  });
+  it('survives being saved and read back', () => {
+    for (const g of [found.wrong as Game, found.lost as Game]) {
+      const b = fresh();
+      applySave(b, JSON.parse(JSON.stringify(toSave(g, NOW))));
+      expect(b.belief).toEqual(g.belief);
+      expect(shownName(b)).toBe(shownName(g));
+    }
+  });
+});

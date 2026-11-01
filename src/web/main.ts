@@ -3,7 +3,7 @@
 
 import { audioFor } from '../audio/director';
 import { AudioEngine } from '../audio/engine';
-import { deleteEntry, editEntry, look, newGame, sceneNow, step, tick, walkStatus, writeEntry, type Game, type GameOptions, type Line } from '../game/game';
+import { believedSpot, deleteEntry, editEntry, look, newGame, sceneNow, shownName, step, tick, walkStatus, writeEntry, type Game, type GameOptions, type Line } from '../game/game';
 import { BOOK_KMH, MARATHON_KMH, describeDuration, gait, paceFromKmh, stepsPerSecond } from '../game/walk';
 import { formatClock } from '../sim/time';
 import { mapView, type MapCell, type MapView } from '../game/mapdata';
@@ -148,10 +148,12 @@ function echo(cmd: string): HTMLElement {
 let lastRoomKey = '';
 function syncAddress(): void {
   if (!game) return;
-  const key = `${game.pos.level}:${game.pos.x},${game.pos.y}:${game.opts.seed}`;
+  const believed = believedSpot(game);
+  const key = `${believed ? `${believed.level}:${believed.x},${believed.y}` : 'lost'}:${game.opts.seed}`;
   if (key === lastRoomKey) return;
   lastRoomKey = key;
-  const hash = withRoom(location.hash, game.world, { x: game.pos.x, y: game.pos.y, level: game.pos.level }, game.opts.seed, DEFAULT_SEED);
+  // the address says what you believe, as the header does; if you are lost it names nothing
+  const hash = believed ? withRoom(location.hash, game.world, believed, game.opts.seed, DEFAULT_SEED) : (withoutRoom(location.hash) || '#');
   if (hash !== location.hash) window.history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
 }
 
@@ -165,6 +167,7 @@ window.addEventListener('hashchange', () => {
   if (!spot || (spot.x === game.pos.x && spot.y === game.pos.y && spot.level === game.pos.level)) return;
   game.walk = null;
   game.journey = null;
+  game.belief = null;
   game.pos = { x: spot.x, y: spot.y, level: spot.level, wall: null, pos: 500 };
   game.said.clear();
   print(look(game, Date.now()));
@@ -179,7 +182,8 @@ function refresh(): void {
   const a = audioFor(game.world, s, { facing: game.facing });
   engine.setScene(a);
   if (!$('map-panel').hidden) map.draw();
-  $('place').textContent = s.hall.name;
+  // the name given is what you believe, which, if you have gone astray, is not what is true
+  $('place').textContent = shownName(game) ?? 'Somewhere you do not know';
   syncAddress();
   const ws = walkStatus(game, now);
   $('clock').textContent = ws ? `${formatClock(s.clock)} · walking: ${describeDuration(ws.remainingWorldS)} to go` : formatClock(s.clock);
@@ -267,6 +271,7 @@ function startGame(fromHash = false, fresh = false): void {
     // a link is a crossing, not a walk: you arrive with no memory of the way
     game.pos = { x: shared.x, y: shared.y, level: shared.level, wall: null, pos: 500 };
     game.trail = [];
+    game.belief = null;
     game.trailOrigin = { x: shared.x, y: shared.y, level: shared.level };
   }
   game.walk = null;
@@ -474,6 +479,7 @@ $('mute').addEventListener('click', () => { settings.muted = !settings.muted; sa
 const dlg = $<HTMLDialogElement>('settings');
 const aboutDlg = $<HTMLDialogElement>('about');
 const carryDlg = $<HTMLDialogElement>('carry');
+const iosDlg = $<HTMLDialogElement>('ios');
 const againDlg = $<HTMLDialogElement>('again');
 /** Show a dialog; very old browsers without the dialog element get it opened plainly. */
 function openDialog(d: HTMLDialogElement): void {
@@ -489,6 +495,8 @@ let pending: ReturnType<typeof importText> | null = null;
 const carryStatus = $('carry-status');
 const carryApply = $<HTMLButtonElement>('carry-apply');
 
+$('s-ios').addEventListener('click', () => { closeDialog(dlg); openDialog(iosDlg); });
+$('ios-close').addEventListener('click', (e) => { e.preventDefault(); closeDialog(iosDlg); });
 $('s-carry').addEventListener('click', () => { closeDialog(dlg); carryStatus.textContent = ''; carryApply.hidden = true; pending = null; $('carry-out').textContent = ''; openDialog(carryDlg); });
 $('carry-close').addEventListener('click', (e) => { e.preventDefault(); closeDialog(carryDlg); });
 
@@ -694,7 +702,7 @@ document.addEventListener('keydown', (e) => {
   if (!settings.shortcuts || e.ctrlKey || e.metaKey || e.altKey || !game) return;
   const el = e.target as HTMLElement | null;
   if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return; // typing: leave the keys alone
-  if (dlg.open || aboutDlg.open || carryDlg.open || againDlg.open || !$('title').hidden) return;
+  if (dlg.open || aboutDlg.open || carryDlg.open || againDlg.open || iosDlg.open || !$('title').hidden) return;
   switch (e.key) {
     case '/': e.preventDefault(); input.focus(); break;
     case 'm': if (settings.map) toggleMap(); break;
@@ -762,8 +770,12 @@ applyReading();
 
 /** Share the link to this room: the device's own share sheet where there is one, otherwise copy it. */
 $('share').addEventListener('click', async () => {
+  if (game && believedSpot(game) === null) {
+    print([{ kind: 'system', text: 'You cannot share a place you cannot name: you do not know where you are.' }], 'end');
+    return;
+  }
   const url = location.href;
-  const title = `${game ? sceneNow(game, Date.now()).hall.name : "Piranesi's House"} · Piranesi’s House`;
+  const title = `${game ? shownName(game) ?? "Piranesi's House" : "Piranesi's House"} · Piranesi’s House`;
   try {
     if (navigator.share) { await navigator.share({ title, url }); return; }
   } catch { /* cancelled: nothing to do */ return; }

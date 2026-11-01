@@ -90,6 +90,22 @@
       <ol id="journal-list" class="entries" aria-label="Your entries, newest first"></ol>
     </aside>
 
+    <dialog id="ios" aria-labelledby="ios-h">
+      <form method="dialog">
+        <h2 id="ios-h">Install on an iPhone or iPad</h2>
+        <p class="small">Installed, the House opens full screen from your home screen like an app, and keeps working with no connection.</p>
+        <ol class="steps">
+          <li><strong>Open this page in Safari.</strong> (On iOS 16.4 or later, other browsers offer “Add to Home Screen” in their share menu too, but Safari is the most dependable.)</li>
+          <li>Tap the <strong>Share</strong> button: the square with an arrow pointing up, at the bottom of the screen (at the top on an iPad).</li>
+          <li>Scroll the list and tap <strong>Add to Home Screen</strong>. If you do not see it, scroll right to the bottom and tap <strong>Edit Actions</strong>, or check you are not in a private window.</li>
+          <li>Keep or change the name, then tap <strong>Add</strong>. The House’s icon appears on your home screen.</li>
+          <li><strong>Open it once while you have a connection.</strong> That is when it stores everything it needs. After that it works in airplane mode.</li>
+        </ol>
+        <p class="small"><strong>Your journey does not follow you in.</strong> An app on the home screen keeps its own storage, apart from Safari’s, so it starts with an empty journey. To bring yours in, use <em>Take my journey with me</em> in Settings: save a copy in Safari, then bring it into the installed app.</p>
+        <div class="actions"><button value="ok" class="primary" id="ios-close">Got it</button></div>
+      </form>
+    </dialog>
+
     <dialog id="carry" aria-labelledby="carry-h">
       <form method="dialog">
         <h2 id="carry-h">Take my journey with me</h2>
@@ -120,7 +136,7 @@
     <dialog id="about" aria-labelledby="about-h">
       <form method="dialog">
         <h2 id="about-h">About, credits and privacy</h2>
-        <p>An unofficial fan project, made out of admiration for <em>Piranesi</em>, the novel by Susanna Clarke. It contains none of the book's text; everything said here is written for this project. It is not endorsed by the author or the publisher.</p>
+        <p>An unofficial fan project. Perhaps unlike you, I did not enjoy Susanna Clarke’s novel <em>Piranesi</em>. Her ideas on religion were far too aligned with the teachings of Satan. However I did love the idea of an infinitely explorable house in the novel. So I set out to create a faithful replica you can explore without immersion in Satanic teachings. It is not endorsed by the author or the publisher. It is my hope that you enjoy exploring and getting lost.</p>
         <p>The place is also named for the eighteenth-century etcher Giovanni Battista Piranesi, whose drawings of enormous, impossible buildings inspired the halls' strange architecture. The House's statues, halls, tides and weather are generated from a seed, so everyone who uses the same seed finds the same House.</p>
         <h3>What this page keeps, and what it sends</h3>
         <ul>
@@ -171,6 +187,7 @@
         </label>
         <label class="row"><span>World seed</span><input id="s-seed" type="text" maxlength="40" /></label>
         <p class="small">Your journey is kept on this device, so it is here when you come back. Changing the world seed goes to that world’s own journey.</p>
+        <p class="row"><button type="button" id="s-ios">Install on an iPhone or iPad</button></p>
         <p class="row"><button type="button" id="s-carry">Take my journey with me</button> <button type="button" id="s-again">Begin a new journey</button></p>
         <p class="row"><button type="button" id="s-transcript">Save what I have read</button> <button type="button" id="s-intro">Show the introduction</button> <button type="button" id="s-about">About and privacy</button></p>
         <div class="actions"><button value="cancel" type="button" id="s-cancel">Cancel</button><button value="ok" id="s-save" class="primary">Save</button></div>

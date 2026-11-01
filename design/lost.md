@@ -53,3 +53,29 @@ goes the same way; the next attempt goes its own way).
 * Written directions (the book's chalked instructions) as a thing you can read, and leave for others.
 * Tiredness and long absence making memory worse; a notebook that records the way properly (a pen and a book from the visitor's
   starting kit, as designed for the inventory).
+
+## Where you think you are (the location indicator is not always right)
+With no map, the name at the top of the screen, `where`, the heading of a description, the names in "You go through the west door into ...",
+"You pass through ...", the stamp on a journal entry, the address bar and Share all give **what you believe**, which is not always the truth.
+You are in one of three states (`Belief` in `src/game/lost.ts`):
+* **Sure** (the usual): you know where you are, and what you are told is true.
+* **Astray without knowing it**: you went wrong by memory and did not notice. You are sure you are somewhere else (a fixed offset from the
+  truth, so as you walk the names change as a real person's belief would: consistently wrong). The header, address and descriptions name
+  the place you believe you are in. Travelling by name plans from that wrong place, so it takes you wrong again.
+* **Lost** (you know that you do not know): the header says "Somewhere you do not know", descriptions are headed "A place you do not know",
+  doors lead into "a hall you do not know", the address bar names no room, Share refuses, and travelling by name from here is refused
+  ("You do not know where you are, so you cannot say how to get there from here"). You can still retrace the way you came (`way back`).
+
+How it changes: only a way followed by memory can send you astray (walking step by step you always know which door you took). On a wrong
+turn each hall that is not the one expected may be noticed (then you are lost) or not (then you believe you are where you expected to be).
+At the end of what you remember you may notice (always, if it was meant to be home) or think you have arrived. Coming into a hall:
+* home is always recognised (the minotaurs); 
+* a hall you have been in before is recognised with a chance that grows with each visit (1 - 1/2 to the number of previous visits); then
+  you know where you are again, and are told so;
+* astray in a hall you do not know, you may suddenly see that nothing is as you expected (3 in 10) and are lost.
+With a map (Settings) none of this applies: the indicator is always right. Belief is saved with the journey.
+
+## Offline, and why the page waits to be claimed
+The service worker (`public/sw.js`, cache `house-v2`) stores every file the page names when it is installed, so a fresh install works offline
+at once. A page that was already open when the worker first activates is not controlled by it until it is claimed or reloaded; a test that
+goes offline in that instant used to fail, so the test now waits for the claim.

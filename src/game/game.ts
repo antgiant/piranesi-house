@@ -17,7 +17,7 @@ import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance,
 import { parse, type Command } from './parser';
 import { findRoute, nameOf, resolveName, straightRoute, vistaThrough, type Spot, type Step } from './travel';
 import { Rng } from '../world/rng';
-import { dice, opposite, pickIndex, slip, slipChance, type Instr, type TrailEntry } from './lost';
+import { dice, opposite, pickIndex, slip, slipChance, type Belief, type Instr, type TrailEntry } from './lost';
 import { MAX_ENTRY_CHARS, newEntryId, type JournalEntry } from './save';
 import {
   describeHall, directionProse, timeInWords, glanceHall, glanceRand, locationPhrase, outsideSentence, withArticle, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
@@ -97,6 +97,8 @@ export interface Game {
   /** The keys of the last few things said in glances, anywhere. */
   recent: string[];
   lastLook: Line[] | null;
+  /** What you believe about where you are. Null: you know. Only a way gone wrong by memory (no map) can change it. */
+  belief: Belief;
   /** The way you came from where you started, a hall at a time, and what you remember of each door. Kept only for finding the way back. */
   trail: TrailEntry[];
   trailOrigin: Spot;
@@ -146,7 +148,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, journal: [], told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), belief: null, trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, journal: [], told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
   };
 }
 
@@ -216,7 +218,7 @@ export function writeEntry(g: Game, textIn: string, realNowMs: number): JournalE
   const s = sceneNow(g, realNowMs);
   const entry: JournalEntry = {
     id: newEntryId(realNowMs, g.journal.length), at: realNowMs,
-    when: `${timeInWords(s.clock.minuteOfDay)}, in ${s.clock.season}`, hall: s.hall.name, level: g.pos.level, text: body,
+    when: `${timeInWords(s.clock.minuteOfDay)}, in ${s.clock.season}`, hall: shownName(g) ?? 'a place I did not know', level: g.pos.level, text: body,
   };
   g.journal.push(entry);
   return entry;
@@ -255,7 +257,8 @@ export function lookDirection(g: Game, side: Side, realNowMs: number): Line[] {
   // the near door, or the nearest to where you stand if you are at that wall
   const v = mid ? vistaThrough(g.world, here(g), side, mid.pos) : { halls: [], passage: false };
   const route = v.halls;
-  const next = route[0] ? nameOf(g.world, route[0]) : mid ? nameOf(g.world, { x: mid.to.x, y: mid.to.y, level: g.pos.level }) : null;
+  const nextSpot = route[0] ?? (mid ? { x: mid.to.x, y: mid.to.y, level: g.pos.level } : null);
+  const next = nextSpot ? (g.belief?.kind === 'lost' ? 'another hall' : hallLabel(g, nextSpot)) : null;
   const r = new Rng(hashInts(g.world.seed, Math.floor(scene.t / 2_700_000), g.pos.x, g.pos.y, SIDES.indexOf(side) + 0x1d));
   const rand = (): number => r.u32() / 4294967296;
   // what else is on that wall: one thing the building does, and one statue
@@ -322,7 +325,7 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false, n
     if (rec && scene.t - rec.at > FORGET_MS) { g.told.delete(hid); rec = undefined; }
     const mode = !rec ? 'first' : g.lastGlance === hid ? 'again' : 'return';
     const r = glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene, rec?.keys.size ?? 0), {
-      told: rec?.keys ?? new Set(), mode, lastChar: g.lastChar, recent: new Set(g.recent),
+      told: rec?.keys ?? new Set(), mode, lastChar: g.lastChar, recent: new Set(g.recent), heading: headingFor(g), nameFor: hallLabel(g),
     });
     g.lastChar = r.char;
     paras = r.paras;
@@ -332,7 +335,7 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false, n
     g.told.set(hid, { keys, at: scene.t });
     g.lastGlance = hid;
   } else {
-    paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, numbered);
+    paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, numbered, headingFor(g));
     g.lastGlance = null;
   }
   const links: Link[] = [
@@ -428,7 +431,7 @@ function blockedBy(g: Game, e: NamedExit, realNowMs: number): Line[] | null {
   const dest = getHall(g.world, e.to.x, e.to.y, g.pos.level);
   const there = sceneAtWorldTime(g.world, e.to.x, e.to.y, g.pos.level, t);
   if (dest.regions.drowned && g.pos.level === 1) {
-    return [text(g, `You stand at the doorway to the ${dest.name}. Beyond it the floor is gone under dark, still water, with drowned statues and broken stone in the deep. There is no way across.`)];
+    return [text(g, `You stand at the doorway to ${hallLabel(g, { x: e.to.x, y: e.to.y, level: g.pos.level })}. Beyond it the floor is gone under dark, still water, with drowned statues and broken stone in the deep. There is no way across.`)];
   }
   if (there.tide.depthDm >= 16) {
     return [text(g, `You look through the ${sideWord(e.side)} door. ${waterSentence(dest, there)} You cannot cross it now; you wait where you are.`)];
@@ -450,7 +453,7 @@ export function go(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const beats = g.opts.walkNarration
     ? strollBeats(g, h, scene, e.side, realS, key)
     : meters >= 80 ? [{ frac: 0.5, text: beatFor(g, h, key) }] : [];
-  const walk = startWalk(g, { kind: 'door', meters, seconds, exit: e, beats, label: dest.name }, realNowMs);
+  const walk = startWalk(g, { kind: 'door', meters, seconds, exit: e, beats, label: shownName(g, { x: e.to.x, y: e.to.y, level: g.pos.level }) ?? 'the next hall' }, realNowMs);
   if (!walk) return finishDoor(g, e, realNowMs);
   const where = e.corridor > 0 ? 'a long passage' : `the ${sideWord(e.side)} door`;
   if (g.opts.walkNarration) return [text(g, `${startVerb(g)} ${where}.`)];
@@ -470,13 +473,14 @@ function finishDoor(g: Game, e: NamedExit, realNowMs: number): Line[] {
   g.pos = arrivalPosition(g, e, g.pos.level);
   g.said.clear();
   recordMove(g, fromSpot, 'door', e);
-  const quiet = passThrough(g, dest.name, there.tide.depthDm, realNowMs);
+  const quiet = passThrough(g, null, there.tide.depthDm, realNowMs);
   if (quiet) return quiet;
+  const known = recognise(g);
   const how = e.corridor > 0
-    ? `You take the ${sideWord(e.side)} door into a long passage of ${e.corridor === 1 ? 'a hall\'s length' : `${e.corridor} halls' length`}, and come out at last into the`
-    : `You go through the ${sideWord(e.side)} door into the`;
+    ? `You take the ${sideWord(e.side)} door into a long passage of ${e.corridor === 1 ? 'a hall\'s length' : `${e.corridor} halls' length`}, and come out at last into`
+    : `You go through the ${sideWord(e.side)} door into`;
   const caution = there.tide.depthDm >= 9 ? ' The water is waist-deep and hard to stand in.' : there.tide.depthDm > 0 ? ' Water runs over the floor.' : '';
-  return [text(g, `${how} ${dest.name}.${caution}`), ...look(g, realNowMs)];
+  return [text(g, `${how} ${hallLabel(g)}.${caution}`), ...known, ...look(g, realNowMs)];
 }
 
 export function stairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
@@ -515,10 +519,11 @@ function finishStairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
   recordMove(g, fromSpot, 'stairs', undefined, dir);
   const quiet = passThrough(g, `the ${(['lower', 'middle', 'upper'] as const)[target]} halls`, 0, realNowMs);
   if (quiet) return quiet;
+  const known = recognise(g);
   const how = dir === 'up'
     ? 'You climb the great stair, twenty-five metres of steps each almost twice as high as is comfortable, and come out into'
     : 'You descend the great stair, step after enormous step, into';
-  return [text(g, `${how} the ${(['lower', 'middle', 'upper'] as const)[target]} halls.`), ...look(g, realNowMs)];
+  return [text(g, `${how} the ${(['lower', 'middle', 'upper'] as const)[target]} halls.`), ...known, ...look(g, realNowMs)];
 }
 
 export function walkTo(g: Game, wall: Side, realNowMs: number, pos = 500, note?: string, label?: string): Line[] {
@@ -555,6 +560,63 @@ function finishWalk(g: Game, w: Walk, realNowMs: number): Line[] {
 const HOME: Spot = { x: 0, y: 0, level: 1 };
 const spotKey = (s: Spot): string => `${s.level}:${s.x},${s.y}`;
 const sameSpot = (a: Spot, b: Spot): boolean => a.x === b.x && a.y === b.y && a.level === b.level;
+// --- where you think you are ---------------------------------------------------------------------------------------------
+
+/** The hall you believe you are in: where you are, unless you have gone astray without knowing it (null if you know you are lost). */
+export function believedSpot(g: Game): Spot | null {
+  const h = here(g);
+  if (!g.belief) return h;
+  if (g.belief.kind === 'lost') return null;
+  const level = h.level + g.belief.dl;
+  return level >= 0 && level <= 2 ? { x: h.x + g.belief.dx, y: h.y + g.belief.dy, level: level as Level } : null;
+}
+
+/** What you would call a hall, given what you believe: its name, a wrong name if you are astray, nothing you can name if you are lost. */
+export function shownName(g: Game, s: Spot = here(g)): string | null {
+  if (sameSpot(s, HOME)) return getHall(g.world, 0, 0, 1).name;
+  if (!g.belief) return getHall(g.world, s.x, s.y, s.level).name;
+  if (g.belief.kind === 'lost') return null;
+  const lv = s.level + g.belief.dl;
+  return lv >= 0 && lv <= 2 ? getHall(g.world, s.x + g.belief.dx, s.y + g.belief.dy, lv as Level).name : null;
+}
+/** "the Third Western Hall", or "a hall you do not know". */
+export function hallLabel(g: Game, s: Spot = here(g)): string {
+  const n = shownName(g, s);
+  return n ? `the ${n}` : 'a hall you do not know';
+}
+/** The level you believe you are on, in words. */
+function shownLevel(g: Game, s: Spot = here(g)): string {
+  const b = g.belief;
+  const lv = b && b.kind === 'wrong' ? s.level + b.dl : s.level;
+  return LEVEL_NAME[Math.max(0, Math.min(2, lv))] as string;
+}
+/** The heading of a description: the name you would give the hall, and the level. */
+export function headingFor(g: Game, s: Spot = here(g)): string {
+  const n = shownName(g, s);
+  return `${n ?? 'A place you do not know'}\nThe ${shownLevel(g, s)} level.`;
+}
+
+/**
+ * Coming into a hall when you are not sure where you are: a place you know well you may recognise; a place you do not know, when you
+ * thought you knew, you may realise is not what you expected. Home, with its minotaurs, is always known.
+ */
+function recognise(g: Game): Line[] {
+  if (!g.belief) return [];
+  const h = here(g);
+  const v = g.visits.get(spotKey(h)) ?? 0;
+  const home = sameSpot(h, HOME);
+  const roll = dice(g.world.seed, g.recalls, v, h.x * 131 + h.y + h.level * 7, 0x2ec);
+  if (home || (v >= 2 && roll < 1 - Math.pow(0.5, v - 1))) {
+    g.belief = null;
+    return [text(g, `You know where you are now: this is the ${getHall(g.world, h.x, h.y, h.level).name}.`)];
+  }
+  if (g.belief.kind === 'wrong' && roll < 0.3) {
+    g.belief = { kind: 'lost' };
+    return [text(g, 'Nothing here is quite as you expected. You do not know where you are.')];
+  }
+  return [];
+}
+
 /** A way between two halls, the same in either direction. */
 const wayKey = (a: Spot, b: Spot): string => [spotKey(a), spotKey(b)].sort().join('>');
 
@@ -612,9 +674,9 @@ function trueFromTrail(g: Game): TrueStep[] {
 }
 const opposite2 = (d: 'up' | 'down'): 'up' | 'down' => (d === 'up' ? 'down' : 'up');
 
-function trueFromRoute(g: Game, route: Step[]): TrueStep[] {
+function trueFromRoute(g: Game, route: Step[], start?: Spot): TrueStep[] {
   const out: TrueStep[] = [];
-  let cur = here(g);
+  let cur = start ?? here(g);
   for (const step of route) {
     if (step.via === 'stairs') out.push({ instr: { via: 'stairs', dir: step.level > cur.level ? 'up' : 'down' }, leaves: cur, reaches: { x: step.x, y: step.y, level: step.level } });
     else {
@@ -685,36 +747,47 @@ const here = (g: Game): Spot => ({ x: g.pos.x, y: g.pos.y, level: g.pos.level })
  * Arriving partway through a journey: say in a line where you are passing, and go on. Returns null when this is the end of the
  * journey (or there is none), so the full description is given.
  */
-function passThrough(g: Game, name: string, depthDm: number, realNowMs: number): Line[] | null {
+function passThrough(g: Game, name: string | null, depthDm: number, realNowMs: number): Line[] | null {
   const j = g.journey;
   if (!j) return null;
   j.idx++;
   const r = j.recall;
   if (r) {
-    // Going by memory: is this the hall you expected? A wrong turn may be noticed at once, or not for a while.
+    // Going by memory: is this the hall you expected? A wrong turn may be noticed at once, or not for a while; until it is, you
+    // believe you are in the hall you expected, and the name you are given is that one's.
     const expected = j.route[j.idx - 1];
     const now = here(g);
     const ok = !!expected && sameSpot(expected, now);
     if (!ok) r.diverged = true;
+    const astray = (spot: Spot): void => { g.belief = { kind: 'wrong', dx: spot.x - now.x, dy: spot.y - now.y, dl: spot.level - now.level }; };
     if (j.idx >= j.route.length) {
       g.journey = null;
-      if (sameSpot(r.dest, now)) return null;
-      return [text(g, `You have come to the end of what you remember, and this is not ${withThe(j.destName)}. You have lost the way.`), ...look(g, realNowMs)];
+      if (sameSpot(r.dest, now)) { g.belief = null; return null; }
+      // the end of what you remember: you have either arrived, as far as you can tell, or you can see that you have not
+      const home = sameSpot(r.dest, HOME);
+      if (home || dice(g.world.seed, r.attempt, j.route.length, j.idx, 8) < 0.5) {
+        g.belief = { kind: 'lost' };
+        return [text(g, `You have come to the end of what you remember, and this is not ${withThe(j.destName)}. You have lost the way.`), ...look(g, realNowMs)];
+      }
+      astray(r.dest); // you think you have arrived; you have not
+      return null;
     }
-    if (!ok && dice(g.world.seed, r.attempt, j.route.length, j.idx, 7) < 0.45) {
+    if (ok) g.belief = null;
+    else if (dice(g.world.seed, r.attempt, j.route.length, j.idx, 7) < 0.45) {
       g.journey = null;
+      g.belief = { kind: 'lost' };
       return [text(g, pickLost(g, r.attempt, j.idx)), ...look(g, realNowMs)];
-    }
+    } else if (expected) astray(expected);
     g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
     g.prev = sceneNow(g, realNowMs);
-    const strange = (g.visits.get(spotKey(now)) ?? 0) <= 1 && r.diverged;
-    return [{ kind: 'event', text: stylise(strange ? 'You go on, through a hall you do not know.' : `You pass through ${withThe(name)}.`, g.opts.style) }];
+    const strange = (g.visits.get(spotKey(now)) ?? 0) <= 1 && r.diverged && g.belief === null;
+    return [{ kind: 'event', text: stylise(strange ? 'You go on, through a hall you do not know.' : `You pass through ${hallLabel(g)}.`, g.opts.style) }];
   }
   if (j.idx >= j.route.length) { g.journey = null; return null; }
   g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
   g.prev = sceneNow(g, realNowMs);
   const wet = depthDm >= 9 ? ', wading' : depthDm > 0 ? ', through shallow water' : '';
-  return [{ kind: 'event', text: stylise(`You pass through ${withThe(name)}${wet}.`, g.opts.style) }];
+  return [{ kind: 'event', text: stylise(`You pass through ${name ? withThe(name) : hallLabel(g)}${wet}.`, g.opts.style) }];
 }
 
 const LOST_LINES = [
@@ -808,13 +881,16 @@ export function travelTo(g: Game, said: string, realNowMs: number): Line[] {
   if (!spot) return [text(g, `You do not know of a place called "${said}". Try a name as the House gives them, such as the Ninth Vestibule or the Eighty-Eighth Western Hall, or one of your marks.`)];
   if (g.opts.knownOnly) {
     if (sameSpot(spot, HOME) && !sameSpot(here(g), HOME) && g.trail.length > 0) return wayBack(g, realNowMs);
+    // You can only plan from where you think you are: not at all if you know you are lost, and wrongly if you are astray without knowing.
+    const from = believedSpot(g);
+    if (!from) return [text(g, `You do not know where you are, so you cannot say how to get to the ${nameOf(g.world, spot)} from here. You might find your way back by what you remember, or come upon somewhere you know.`)];
     // No map: you go by what you remember of the ways you have taken, and by the names of the halls where you have not. The more
     // you take a way, the surer you are of it.
     // you favour the ways you know: a known way is worth more than an equally short one you have never taken
-    const route = findRoute(g.world, here(g), spot, 60000, () => true, (a, b) => ((g.passes.get(wayKey(a, b)) ?? 0) > 0 ? 0.6 : 1));
+    const route = findRoute(g.world, from, spot, 60000, () => true, (a, b) => ((g.passes.get(wayKey(a, b)) ?? 0) > 0 ? 0.6 : 1));
     if (!route) return [text(g, `You cannot see how to reach the ${nameOf(g.world, spot)}: the water or the Drowned Halls are in the way.`)];
     if (route.length === 0) return [text(g, 'You are already there.')];
-    const steps = trueFromRoute(g, route);
+    const steps = trueFromRoute(g, route, from);
     const never = steps.filter((s) => (g.passes.get(wayKey(s.leaves, s.reaches)) ?? 0) === 0).length;
     const nm = `${nameOf(g.world, spot)}${spot.level !== 1 ? `, on the ${LEVEL_NAME[spot.level]} level` : ''}`;
     const how = never === 0 ? 'by what you remember of the way'
@@ -971,8 +1047,10 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'mark': {
       const label = cmd.label.toLowerCase();
       const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
-      g.marks.set(label, { x: g.pos.x, y: g.pos.y, level: g.pos.level, hall: h.name });
-      return [text(g, `You will remember the ${h.name} as "${label}".`)];
+      // chalk is real wherever you are; what you call the place is what you believe it to be
+      g.marks.set(label, { x: g.pos.x, y: g.pos.y, level: g.pos.level, hall: shownName(g) ?? 'a place you did not know' });
+      void h;
+      return [text(g, `You will remember ${shownName(g) ? `the ${shownName(g)}` : 'this place'} as "${label}".`)];
     }
     case 'unmark': return g.marks.delete(cmd.label.toLowerCase()) ? [text(g, `You forget the mark "${cmd.label}".`)] : [text(g, `You have no mark called "${cmd.label}".`)];
     case 'marks': {
@@ -985,7 +1063,8 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'time': return [text(g, skyParagraph(sceneNow(g, realNowMs)))];
     case 'where': {
       const s = sceneNow(g, realNowMs);
-      return [text(g, `You are in the ${s.hall.name}, on the ${(['lower', 'middle', 'upper'] as const)[g.pos.level]} level.`)];
+      void s;
+      return [text(g, g.belief?.kind === 'lost' ? `You do not know where you are. You are on the ${shownLevel(g)} level, you think.` : `You are in ${hallLabel(g)}, on the ${shownLevel(g)} level.`)];
     }
     case 'help': return [system(HELP)];
     case 'unknown': {

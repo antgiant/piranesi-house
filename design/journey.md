@@ -16,7 +16,7 @@ Everything that makes it a journey is kept in the browser's own storage, per wor
 `the-house.journal.v1.<seed>`): where you stand and which way you face, the halls you have been in, what you have found and marked,
 how often you have taken each way (what you have learned), the way you would go back, how many times you have tried to remember, and
 what has already been said of each hall. It is written when anything changes, every 15 seconds, and when the page is hidden or closed.
-Coming back, the title says so ("Your journey is here: 42 halls been through, and 3 entries in your journal") and offers "Return to
+Coming back, the title says so ("Your journey is here: you remember visiting many halls, and you have 3 entries in your journal") and offers "Return to
 Piranesi's House" (or "Begin a new journey instead"). A walk in progress is not kept: you are where you were when it began.
 * Refreshing the page is not a crossing: if the address names the hall you were in, you simply carry on. A link to a *different* hall is
   a crossing (you arrive with no trail), but you keep everything else you know.

@@ -12,6 +12,7 @@ import { getHall } from '../world/hall';
 import { MapPanel } from './map';
 import { Narrator } from './speech';
 import { parseRoom, withRoom, withoutRoom } from './urlstate';
+import { journeyNote } from './words';
 import { applySave, exportText, importText, toCode, toSave, type JournalEntry } from '../game/save';
 import { eraseJournal, eraseSave, readJournal, readLegacy, readSave, readSettingsObject, summary, writeJournal, writeSave, writeSettingsObject } from './store';
 import { ScreenWake } from './wakelock';
@@ -584,7 +585,7 @@ function paintTitle(): void {
   note.hidden = !resumable;
   $('begin-again').hidden = !resumable;
   $('enter').textContent = resumable ? 'Return to Piranesi’s House' : 'Enter Piranesi’s House';
-  if (resumable && s) note.textContent = `Your journey is here: ${s.halls} halls been through${s.entries ? `, and ${s.entries} ${s.entries === 1 ? 'entry' : 'entries'} in your journal` : ''}.`;
+  if (resumable && s) note.textContent = journeyNote(s.halls, s.entries);
 }
 paintTitle();
 const openAbout = (): void => openDialog(aboutDlg);

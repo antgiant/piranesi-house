@@ -495,7 +495,7 @@ try {
     // a second session: close and open again
     await a.reload();
     check((await a.locator('#enter').textContent()).includes('Return'), 'coming back, the title offers to return');
-    check((await a.locator('#title-saved').textContent()).includes('2 entries'), 'and says what is kept (halls, and journal entries)');
+    check(/you remember visiting (a few|some|one|two) halls?, and you have 2 entries/.test(await a.locator('#title-saved').textContent()), 'and says what is kept, in words (how many halls, and journal entries)');
     await a.click('#enter');
     await a.waitForFunction(() => document.getElementById('log').textContent.includes('where you left off'));
     check((await a.locator('#place').textContent()) === placeBefore, `the journey survives: you are where you left off (${placeBefore})`);

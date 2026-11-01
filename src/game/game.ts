@@ -87,6 +87,8 @@ export interface Game {
   told: Map<string, { keys: Set<string>; at: number }>;
   /** The hall last glanced at, and the last description given, for "repeat". */
   lastGlance: string | null;
+  /** The last sound sentence given in a glance, so the same one is not announced in every hall. */
+  lastSound: string;
   lastLook: Line[] | null;
   /** Places the visitor has marked to find again: label to where. Private to the visitor and kept on their device. */
   marks: Map<string, { x: number; y: number; level: Level; hall: string }>;
@@ -123,7 +125,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), told: new Map(), lastGlance: null, lastLook: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), told: new Map(), lastGlance: null, lastSound: '', lastLook: null,
   };
 }
 
@@ -206,7 +208,8 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false): 
     let rec = g.told.get(hid);
     if (rec && scene.t - rec.at > FORGET_MS) { g.told.delete(hid); rec = undefined; }
     const mode = !rec ? 'first' : g.lastGlance === hid ? 'again' : 'return';
-    const r = glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene, rec?.keys.size ?? 0), rec?.keys ?? new Set(), mode);
+    const r = glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene, rec?.keys.size ?? 0), rec?.keys ?? new Set(), mode, g.lastSound);
+    g.lastSound = r.sound;
     paras = r.paras;
     const keys = rec?.keys ?? new Set<string>();
     for (const k of r.said) keys.add(k);
@@ -305,7 +308,7 @@ function blockedBy(g: Game, e: NamedExit, realNowMs: number): Line[] | null {
   const dest = getHall(g.world, e.to.x, e.to.y, g.pos.level);
   const there = sceneAtWorldTime(g.world, e.to.x, e.to.y, g.pos.level, t);
   if (dest.regions.drowned && g.pos.level === 1) {
-    return [text(g, `You stand at the doorway to ${dest.name}. Beyond it the floor is gone under dark, still water, with drowned statues and broken stone in the deep. There is no way across.`)];
+    return [text(g, `You stand at the doorway to the ${dest.name}. Beyond it the floor is gone under dark, still water, with drowned statues and broken stone in the deep. There is no way across.`)];
   }
   if (there.tide.depthDm >= 16) {
     return [text(g, `You look through the ${sideWord(e.side)} door. ${waterSentence(dest, there)} You cannot cross it now; you wait where you are.`)];
@@ -348,8 +351,8 @@ function finishDoor(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const quiet = passThrough(g, dest.name, there.tide.depthDm, realNowMs);
   if (quiet) return quiet;
   const how = e.corridor > 0
-    ? `You take the ${sideWord(e.side)} door into a long passage of ${e.corridor === 1 ? 'a hall\'s length' : `${e.corridor} halls' length`}, and come out at last into`
-    : `You go through the ${sideWord(e.side)} door into`;
+    ? `You take the ${sideWord(e.side)} door into a long passage of ${e.corridor === 1 ? 'a hall\'s length' : `${e.corridor} halls' length`}, and come out at last into the`
+    : `You go through the ${sideWord(e.side)} door into the`;
   const caution = there.tide.depthDm >= 9 ? ' The water is waist-deep and hard to stand in.' : there.tide.depthDm > 0 ? ' Water runs over the floor.' : '';
   return [text(g, `${how} ${dest.name}.${caution}`), ...look(g, realNowMs)];
 }
@@ -604,13 +607,33 @@ function examine(g: Game, what: string, realNowMs: number): Line[] {
 // ---------------------------------------------------------------------------------------------------------------
 
 export const HELP = [
-  'Look around: look (or l). Listen: listen. The time and sky: time.',
-  'Move: go north (or n), go south 2 (the second door in the south wall, counting from the west or south end), go 3 (way out number 3 in the list).',
-  'Stairs in vestibules: up, down. Walk along a wall: walk east. Walk up to a statue in the list: approach 3.',
-  'Far places: travel to the Ninth Vestibule, travel to the Eighty-Eighth Western Hall, home. Straight on: travel west 40 (or just travel west). Mark where you are: mark the fountain; then travel to the fountain. Your marks: marks.',
-  'Examine a statue from the list: examine 2, or examine weaver.',
-  'Wait for the world: wait. The tides and weather follow the real clock. Everything you read is also what you can hear.',
+  'Looking:  look  ·  look closely (everything)  ·  look again, or repeat (the same words again)  ·  listen  ·  time  ·  where',
+  'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
+  'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
+  'Far places:  travel to the Ninth Vestibule  ·  home  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
+  'Let the House carry you:  wander (or the Wander button) walks on and on; type anything to stop it.',
+  'The tides and the weather follow the real clock. Everything you read is also what you can hear.',
 ].join('\n');
+
+const VERBS = ['look', 'listen', 'examine', 'approach', 'go', 'walk', 'travel', 'home', 'stop', 'wait', 'time', 'where', 'found', 'mark', 'marks', 'unmark', 'repeat', 'help', 'north', 'south', 'east', 'west', 'up', 'down'];
+
+/** The command a mistyped first word most likely meant, if it is near enough to one. */
+function closestVerb(input: string): string | null {
+  const w = input.toLowerCase().trim().split(/\s+/)[0] ?? '';
+  if (w.length < 3) return null;
+  const dist = (a: string, b: string): number => {
+    const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 1; j <= b.length; j++) (d[0] as number[])[j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+      (d[i] as number[])[j] = Math.min((d[i - 1] as number[])[j]! + 1, (d[i] as number[])[j - 1]! + 1, (d[i - 1] as number[])[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    return (d[a.length] as number[])[b.length] as number;
+  };
+  let best: string | null = null;
+  let bestD = 3;
+  for (const v of VERBS) { const k = dist(w, v); if (k < bestD) { bestD = k; best = v; } }
+  return best;
+}
 
 const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs', 'travel', 'trek', 'approach']);
 
@@ -659,7 +682,10 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
       return [text(g, `${s.hall.name}, on the ${(['lower', 'middle', 'upper'] as const)[g.pos.level]} level. (Cell ${g.pos.x}, ${g.pos.y}.)`)];
     }
     case 'help': return [system(HELP)];
-    case 'unknown': return [text(g, 'You are not sure what that means. Type "help" for the few things you can do.')];
+    case 'unknown': {
+      const guess = closestVerb(cmd.input);
+      return [text(g, guess ? `You are not sure what that means. Did you mean "${guess}"? Type "help" for the few things you can do.` : 'You are not sure what that means. Type "help" for the few things you can do.')];
+    }
   }
 }
 

@@ -82,7 +82,7 @@ describe('walking in the game', () => {
     expect(tick(g, end - 5000)).not.toEqual(expect.arrayContaining([expect.objectContaining({ text: expect.stringContaining('First Western Hall') })]));
     expect(g.pos).toMatchObject({ x: 0, y: 0 });
     const arrival = all(tick(g, end + 100));
-    expect(arrival).toContain('You go through the west door into First Western Hall');
+    expect(arrival).toContain('You go through the west door into the First Western Hall');
     expect(arrival).toContain('Ways out');
     expect(g.pos).toMatchObject({ x: -1, y: 0 });
     expect(g.walk).toBeNull();

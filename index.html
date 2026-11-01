@@ -11,10 +11,11 @@
 <body>
   <div id="app">
     <header class="bar" id="bar" hidden>
-      <div class="place"><span id="place">The House</span><span id="clock" class="clock"></span></div>
+      <div class="place"><span id="place" role="heading" aria-level="1">The House</span><span id="clock" class="clock"></span></div>
       <div class="tools">
         <button id="wander" type="button" aria-pressed="false" title="Let the House carry you: wander for ever, reading as you go">Wander</button>
         <button id="open-map" type="button" aria-expanded="false" aria-controls="map-panel" title="Show the map of what you have explored">Map</button>
+        <button id="share" type="button" title="Copy a link to this room, or share it">Share</button>
         <button id="mute" type="button" aria-pressed="false" title="Mute or unmute the sound">Sound on</button>
         <button id="open-settings" type="button" title="Settings">Settings</button>
       </div>
@@ -71,6 +72,11 @@
         <label class="row check"><input id="s-narrate" type="checkbox" /> <span>Read descriptions aloud, slowly and quietly <span class="small" id="s-narrate-note"></span></span></label>
         <label class="row"><span>Narrator voice</span><select id="s-voice"><option value="">Automatic: calm, British where available</option></select></label>
         <label class="row"><span>Narration speed: <output id="s-rate-out">0.9×</output></span><input id="s-rate" type="range" min="0.6" max="1.6" step="0.1" /></label>
+        <label class="row"><span>Text size</span>
+          <select id="s-size"><option value="1">Normal</option><option value="1.2">Larger</option><option value="1.45">Large</option><option value="1.75">Very large</option></select>
+        </label>
+        <label class="row check"><input id="s-plain" type="checkbox" /> <span>Plain, spaced-out lettering (easier to read)</span></label>
+        <label class="row check"><input id="s-contrast" type="checkbox" /> <span>Higher contrast</span></label>
         <label class="row check"><input id="s-diary" type="checkbox" /> <span>Capitalise the House's nouns, like a diary</span></label>
         <label class="row"><span>Speed of time</span>
           <select id="s-scale">

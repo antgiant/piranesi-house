@@ -132,7 +132,7 @@ function structureParagraph(h: Hall): string {
   if (a.apses > 0) bits.push(a.apses === 1 ? 'One deep apse opens off the hall.' : `${a.apses} apses open off the hall.`);
   if (h.kind === 'vestibule' && h.stairs.length > 0) {
     const n = h.stairs.length;
-    bits.push(n === 1 ? `A great staircase leaves the ${SIDE_WORD[h.stairs[0]!.wall]} wall, going up and down.` : `${n} great staircases leave the ${SIDE_WORD[h.stairs[0]!.wall]} wall, each going up and down.`);
+    bits.push(n === 1 ? `A great staircase leaves the ${SIDE_WORD[h.stairs[0]!.wall]} wall, going up and down.` : `${cap(['', 'one', 'two', 'three', 'four'][n] ?? String(n))} great staircases leave the ${SIDE_WORD[h.stairs[0]!.wall]} wall, each going up and down.`);
   }
   return bits.join(' ');
 }
@@ -262,13 +262,27 @@ export function seenParagraph(seen: Seen[], hall: Hall): string {
   if (seen.length === 0) return '';
   const lines = seen.map((sn, i) => {
     const label = sn.statue.canonId ? lowerFirst(sn.statue.canonLabel as string) : lowerFirst(describeStatue(hall, sn.statue)).replace(/\.$/, '');
-    const short = label.length > 150 ? `${label.slice(0, 147)}...` : label;
+    const short = shorten(withArticle(label), 150);
     return `[${i + 1}] ${short}, ${locationPhrase(sn)}`;
   });
   return `You can make out:\n${lines.join('\n')}`;
 }
 
 const lowerFirst = (s: string): string => s.charAt(0).toLowerCase() + s.slice(1);
+
+/** Names of statues in the book's notes begin with the thing itself ("Old man holding ..."): say them as a person would. */
+export function withArticle(label: string): string {
+  const t = lowerFirst(label.replace(/\.$/, ''));
+  if (/^(a|an|the|two|three|four|five|six|seven|eight|nine|ten|some|many|several|scholars|statues|figures|children|pairs?)\b/i.test(t)) return t;
+  return `${/^[aeiou]/i.test(t) ? 'an' : 'a'} ${t}`;
+}
+
+/** Cut a long line at a clause boundary rather than in the middle of a word. */
+export function shorten(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = Math.max(s.lastIndexOf(', ', max), s.lastIndexOf('; ', max));
+  return `${s.slice(0, cut > max * 0.5 ? cut : s.lastIndexOf(' ', max))}...`;
+}
 
 /** Hand-written descriptions for the most important canon statues. Our own wording; the others fall back to the notes. */
 const CANON_TEXT: Record<string, string> = {
@@ -486,16 +500,18 @@ const BACK_LEAD = (h: Hall): string => `You are back in the ${h.name}.`;
  */
 export function glanceHall(
   h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[], flourishes: readonly Flourish[],
-  rand: Rand, told: ReadonlySet<string> = new Set(), mode: GlanceMode = 'first',
-): { paras: string[]; said: string[] } {
+  rand: Rand, told: ReadonlySet<string> = new Set(), mode: GlanceMode = 'first', lastSound = '',
+): { paras: string[]; said: string[]; sound: string } {
   const out: string[] = [];
   const said: string[] = [];
+  let sound = lastSound;
   if (mode === 'first') {
     out.push(`${h.name}\nThe ${LEVEL_WORD[h.level]} level.`);
     const count = h.mood === 'crowd' ? `${countWord(h.slotCount)} statues fill the walls` : `${countWord(h.slotCount)} statues cover the walls in tiers`;
     // life-sized is ordinary and goes unsaid; anything else is said here, once, for the whole hall
     const sizePhrase = h.sizeClass === 'life' ? '' : `, ${SIZE_PHRASE[h.sizeClass]}`;
     out.push(`${sizeSentence(h)} ${count}${sizePhrase}. ${MOOD_SENTENCE[h.mood][Math.floor(rand() * MOOD_SENTENCE[h.mood].length)]}`);
+    said.push('scale:said');
   } else if (mode === 'return') {
     out.push(BACK_LEAD(h));
   }
@@ -506,7 +522,7 @@ export function glanceHall(
   const canon = seen.filter((sn) => sn.statue.canonId);
   for (const sn of canon.slice(0, 3)) {
     const key = `st:${sn.statue.id}`;
-    if (fresh(key)) items.push({ weight: 8, group: 'statue', key, text: `Among the statues you notice ${lowerFirst(sn.statue.canonLabel as string).replace(/\.$/, '')}, ${locationPhrase(sn)}.` });
+    if (fresh(key)) items.push({ weight: 8, group: 'statue', key, text: `Among the statues you notice ${withArticle(sn.statue.canonLabel as string)}, ${locationPhrase(sn)}.` });
   }
   const plain = seen.filter((sn) => !sn.statue.canonId && fresh(`st:${sn.statue.id}`));
   if (plain.length > 0) {
@@ -522,10 +538,11 @@ export function glanceHall(
   const light = lightSentence(h, s);
   if (light) add('light', [light]);
   add('weather', weatherSentences(h, s));
-  if (h.mood !== 'violent' && h.mood !== 'crowd') add('theme', [THEME_SENTENCE[h.theme]]);
+  // the theme is a guess about an ordinary hall; the book's own places are not described by it
+  if (h.mood !== 'violent' && h.mood !== 'crowd' && h.tags.length === 0) add('theme', [THEME_SENTENCE[h.theme]]);
+  // the size of the statues is said once, in the hall's first glance; it is not said again
   const scale = statueScaleLine(h);
-  if (scale && mode !== 'first') add('scale', [scale]);
-  else if (scale) { /* said above for the hall's first glance */ }
+  if (scale && mode !== 'first' && !told.has('scale:said')) add('scale', [scale]);
 
   // Each kind of thing has its own pull, however many ways there are of saying it: the sky or the sea when they are there,
   // the birds, a striking statue, the building's strangeness. Spread a group's pull over its items.
@@ -562,10 +579,11 @@ export function glanceHall(
   if (s.outside && fresh(`out:${s.outside.id}`)) { out.push(outsideSentence(s.outside, h)); said.push(`out:${s.outside.id}`); }
   if (mode !== 'again') {
     const heard = soundParagraph(audio, s).split(/(?<=[.!?])\s+/)[0];
-    if (heard && fresh(`sound:${heard}`)) { out.push(heard); said.push(`sound:${heard}`); }
+    // the same sound is not announced hall after hall: only when it differs from the last thing you were told of
+    if (heard && heard !== lastSound && fresh(`sound:${heard}`)) { out.push(heard); said.push(`sound:${heard}`); sound = heard; }
   }
   const rp = mode === 'first' ? relicsParagraph(relics, 1) : '';
   if (rp) out.push(rp);
   if (mode !== 'again') out.push(exitsBrief(h, exits));
-  return { paras: out.filter(Boolean), said };
+  return { paras: out.filter(Boolean), said, sound };
 }

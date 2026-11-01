@@ -28,6 +28,10 @@ interface Settings {
   /** The visitor's own quiet muttering, heard through the hall's acoustics. */
   mutter: boolean;
   mutterCaptions: boolean;
+  /** Reading comfort: text scale (1 normal), a plain spaced face, more contrast. */
+  textScale: number;
+  plainFont: boolean;
+  contrast: boolean;
   narrate: boolean;
   voiceURI: string;
   narrateRate: number;
@@ -35,7 +39,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -339,6 +343,9 @@ function fillSettings(): void {
   $<HTMLInputElement>('s-relics').checked = settings.relics;
   $<HTMLInputElement>('s-outside').checked = settings.outside;
   $<HTMLInputElement>('s-narrate').checked = settings.narrate;
+  $<HTMLSelectElement>('s-size').value = String(settings.textScale);
+  $<HTMLInputElement>('s-plain').checked = settings.plainFont;
+  $<HTMLInputElement>('s-contrast').checked = settings.contrast;
   $<HTMLInputElement>('s-mutter').checked = settings.mutter;
   $<HTMLInputElement>('s-mutter-captions').checked = settings.mutterCaptions;
   fillVoices();
@@ -369,6 +376,9 @@ $('s-save').addEventListener('click', (e) => {
     relics: $<HTMLInputElement>('s-relics').checked,
     outside: $<HTMLInputElement>('s-outside').checked,
     narrate: $<HTMLInputElement>('s-narrate').checked,
+    textScale: Number($<HTMLSelectElement>('s-size').value) || 1,
+    plainFont: $<HTMLInputElement>('s-plain').checked,
+    contrast: $<HTMLInputElement>('s-contrast').checked,
     mutter: $<HTMLInputElement>('s-mutter').checked,
     mutterCaptions: $<HTMLInputElement>('s-mutter-captions').checked,
     voiceURI: $<HTMLSelectElement>('s-voice').value,
@@ -384,6 +394,7 @@ $('s-save').addEventListener('click', (e) => {
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
   applyNarration();
+  applyReading();
   if (game && hashParams().get('pace') !== 'instant') game.opts.walkPace = paceFromKmh(settings.speedKmh);
   dlg.close();
   if (restart || restyle) {
@@ -402,6 +413,30 @@ function fillVoices(): void {
   for (const v of narrator.voices()) sel.add(new Option(`${v.name} (${v.lang})`, v.voiceURI));
   sel.value = settings.voiceURI;
 }
+/** Reading comfort applies at once and everywhere, from the first screen. */
+function applyReading(): void {
+  const r = document.documentElement;
+  r.style.setProperty('--scale', String(settings.textScale));
+  if (settings.plainFont) r.setAttribute('data-plain', ''); else r.removeAttribute('data-plain');
+  if (settings.contrast) r.setAttribute('data-contrast', ''); else r.removeAttribute('data-contrast');
+}
+applyReading();
+
+/** Share the link to this room: the device's own share sheet where there is one, otherwise copy it. */
+$('share').addEventListener('click', async () => {
+  const url = location.href;
+  const title = `${game ? sceneNow(game, Date.now()).hall.name : "Piranesi's House"} · Piranesi’s House`;
+  try {
+    if (navigator.share) { await navigator.share({ title, url }); return; }
+  } catch { /* cancelled: nothing to do */ return; }
+  try {
+    await navigator.clipboard.writeText(url);
+    print([{ kind: 'system', text: 'The link to this room is copied. Anyone who opens it will find themselves standing here.' }], 'end');
+  } catch {
+    print([{ kind: 'system', text: `Copy this link to share the room: ${url}` }], 'end');
+  }
+});
+
 function applyNarration(): void {
   narrator.enabled = settings.narrate && narrator.supported;
   syncWalkNarration();

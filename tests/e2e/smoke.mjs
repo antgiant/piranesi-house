@@ -304,6 +304,33 @@ try {
     await friend.close(); await lost.close(); await ad.close();
   }
 
+  // Reading comfort and sharing.
+  {
+    const rc = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    await rc.addInitScript(() => { window.__shared = null; navigator.share = async (d) => { window.__shared = d; }; });
+    rc.on('pageerror', (e) => errors.push(String(e)));
+    await rc.goto(URL);
+    await rc.click('#enter');
+    await rc.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    const before = await rc.evaluate(() => parseFloat(getComputedStyle(document.body).fontSize));
+    await rc.click('#open-settings');
+    await rc.selectOption('#s-size', '1.45');
+    await rc.check('#s-plain');
+    await rc.check('#s-contrast');
+    await rc.click('#s-save');
+    const after = await rc.evaluate(() => ({ fs: parseFloat(getComputedStyle(document.body).fontSize), plain: document.documentElement.hasAttribute('data-plain'), contrast: document.documentElement.hasAttribute('data-contrast') }));
+    check(after.fs > before * 1.3 && after.plain && after.contrast, `text size, plain lettering and contrast apply at once (${before}px to ${after.fs}px)`);
+    await rc.reload();
+    check(await rc.evaluate(() => document.documentElement.hasAttribute('data-plain')), 'and are kept after a reload, even before entering');
+    await rc.click('#enter');
+    await rc.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await rc.click('#share');
+    await rc.waitForFunction(() => window.__shared !== null);
+    const shared = await rc.evaluate(() => window.__shared);
+    check(shared.url.includes('room=First+Vestibule'), `Share offers the link to the room (${shared.url.slice(-40)})`);
+    await rc.close();
+  }
+
   // Every kind of bird call, and thunder, can be played without error, and each is counted.
   {
     const species = ['sparrow', 'gull', 'rook', 'albatross', 'flock', 'rustle', 'blackbird', 'swift', 'wader', 'dove', 'owl', 'starling', 'thunder'];

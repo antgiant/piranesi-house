@@ -7,13 +7,20 @@
   --event: #8fb4c4;
   --line: #3a3228;
   --font: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  --scale: 1;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: light) {
   :root { --bg: #f2ead9; --panel: #e9dfca; --ink: #231d15; --dim: #5d5446; --accent: #7a4f12; --event: #1f5a73; --line: #cdbf9f; }
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 18px; line-height: 1.55; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: calc(18px * var(--scale)); line-height: 1.55; }
+/* Easier reading: a plain sans-serif face with more room between lines and letters */
+:root[data-plain] { --font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+:root[data-plain] body { line-height: 1.8; letter-spacing: 0.02em; word-spacing: 0.08em; }
+/* More contrast */
+:root[data-contrast] { --ink: #ffffff; --bg: #000000; --panel: #151515; --dim: #d8d8d8; --line: #888888; --accent: #ffd166; --event: #9fd8ff; }
+@media (prefers-color-scheme: light) { :root[data-contrast] { --ink: #000000; --bg: #ffffff; --panel: #f0f0f0; --dim: #222222; --line: #555555; --accent: #5a3300; --event: #00415f; } }
 #app { display: flex; flex-direction: column; height: 100dvh; max-width: 54rem; margin: 0 auto; padding: 0 16px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 [hidden] { display: none !important; }
@@ -28,7 +35,7 @@ button.primary { background: var(--accent); color: #1b1408; border-color: var(--
 .clock { color: var(--dim); font-size: 0.8rem; font-family: var(--mono); }
 .tools { display: flex; flex-wrap: wrap; gap: 8px; flex: 0 1 auto; }
 .tools button { padding: 6px 10px; }
-@media (max-width: 520px) { .tools { width: 100%; } .tools button { flex: 1 1 0; padding: 6px 4px; font-size: 0.9rem; } }
+@media (max-width: 520px) { .tools { width: 100%; } .tools button { flex: 1 1 0; padding: 6px 2px; font-size: 0.8rem; white-space: nowrap; } }
 .log { flex: 1; overflow-y: auto; padding: 14px 0 8px; scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { .log { scroll-behavior: auto; } }
 .log p { margin: 0 0 0.9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -40,7 +47,7 @@ button.primary { background: var(--accent); color: #1b1408; border-color: var(--
 .cmd { display: flex; align-items: center; gap: 8px; padding: 10px 0 16px; border-top: 1px solid var(--line); }
 .cmd .prompt { color: var(--accent); font-family: var(--mono); }
 .cmd input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem 0.7rem; font-family: var(--mono); font-size: 16px; }
-.title { position: fixed; inset: 0; z-index: 5; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 0.6rem; padding: 6vh max(16px, calc((100vw - 40rem) / 2)); background: var(--bg); }
+.title { position: fixed; inset: 0; z-index: 5; overflow-y: auto; display: flex; flex-direction: column; justify-content: safe center; align-items: flex-start; gap: 0.6rem; padding: 6vh max(16px, calc((100vw - 40rem) / 2)); background: var(--bg); }
 .title h1 { font-size: clamp(2.4rem, 8vw, 4rem); margin: 0 0 0.4rem; letter-spacing: 0.04em; font-weight: normal; }
 .title .lede { font-size: 1.15rem; }
 .title p { margin: 0; max-width: 38rem; }
@@ -55,7 +62,7 @@ dialog h2 { margin: 0 0 0.3rem; font-weight: normal; }
 .row.stack { flex-direction: column; align-items: stretch; gap: 4px; }
 .row.stack input[type="range"] { width: 100%; }
 .row input[type="text"], .row select { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 0.3rem 0.5rem; max-width: 55%; }
-.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1rem; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1rem; position: sticky; bottom: -1.2rem; background: var(--panel); padding: 0.6rem 0 0.4rem; border-top: 1px solid var(--line); }
 
 .map { position: fixed; right: 12px; bottom: 12px; z-index: 4; width: min(26rem, calc(100vw - 24px)); max-height: calc(100dvh - 24px); display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; box-shadow: 0 6px 30px rgba(0, 0, 0, 0.45); }
 .map-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }

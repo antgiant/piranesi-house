@@ -25,7 +25,7 @@ describe('arrival', () => {
     const g = newGame({}, NOW);
     const out = all(look(g, NOW));
     expect(out).toContain('First Vestibule');
-    expect(out).toMatch(/minotaur \d of 8/i);
+    expect(out).toMatch(/massive minotaur/i);
     expect(out).toContain('Ways out');
     expect(g.exitsListed.length).toBeGreaterThanOrEqual(5);
   });

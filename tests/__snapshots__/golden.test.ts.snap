@@ -346,7 +346,7 @@ exports[`golden snapshot > hall -192,0 level 1 1`] = `
 
 exports[`golden snapshot > hall 0,0 level 1 1`] = `
 {
-  "digest": 2099307650,
+  "digest": 3410949721,
   "doors": [
     3,
     4,

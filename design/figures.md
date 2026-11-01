@@ -38,3 +38,10 @@ except the canon (book-named) statues, which are placed by the same table as bef
   between two halls is small, but not zero.
 * The visual views (milestones 7 and 9) will have to draw this whole catalogue; the plan there is a drawn part for each
   figure, pose, attribute and companion, composed from the same four choices.
+
+## Finer wording (world version 5)
+Birds, sea creatures, insects, reptiles, ships, weapons, instruments, vehicles, buildings and household things each have their own
+poses, attributes and companions (`src/data/sublists.ts`; `subOf` sorts every figure), on top of the four kinds. A heron is "perched
+with the head turned to one side, every feather separately cut", a galleon "riding a carved wave, with oars shipped in neat
+rows", a cannon "laid across the plinth, a heap of carved shot at its foot". A hall draws up to 12 poses, 24 attributes and 12
+companions from each sort it needs, so figure, pose, attribute and companion are still one-to-one within a hall.

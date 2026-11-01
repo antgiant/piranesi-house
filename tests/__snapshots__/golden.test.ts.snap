@@ -2,7 +2,7 @@
 
 exports[`golden snapshot > hall -1,0 level 1 1`] = `
 {
-  "digest": 3197121337,
+  "digest": 1424577961,
   "doors": [
     5,
     1,
@@ -14,8 +14,8 @@ exports[`golden snapshot > hall -1,0 level 1 1`] = `
   "name": "First Western Hall",
   "orientation": "NS",
   "sample": [
-    "A life-sized barge on a canal, shown from the side, its joints carefully shown, a heap of carved coins at the foot; crusted with shellfish.",
-    "A life-sized galley slave at the oar, standing at rest, with a bird carved on the shoulder, a lamb at the side; crusted with shellfish.",
+    "A life-sized drowned sailor borne by dolphins, kneeling in quiet attention, holding a spindle, a lamb at the side; crusted with shellfish.",
+    "A life-sized oyster-gatherer, looking upward, with a snail shell at the foot, with a small hound at the feet; crusted with shellfish.",
   ],
   "size": [
     98,
@@ -34,7 +34,7 @@ exports[`golden snapshot > hall -1,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -2,1 level 1 1`] = `
 {
-  "digest": 160365009,
+  "digest": 901562514,
   "doors": [
     3,
     3,
@@ -46,8 +46,8 @@ exports[`golden snapshot > hall -2,1 level 1 1`] = `
   "name": "Ninth Vestibule",
   "orientation": "NS",
   "sample": [
-    "A larger-than-life lighthouse-keeper, spinning on one foot, bearing a basket of fruit, with a faint frown; crusted with shellfish.",
-    "A larger-than-life fisherman, singing with open mouth, carrying a bundle of arrows, head tipped back; crusted with shellfish.",
+    "A larger-than-life longboat, half sunk in the swell, with a crew of three tiny figures, on a carved sea; crusted with shellfish.",
+    "A larger-than-life oyster-gatherer, running forward, cloak streaming, holding a short sword, point down, weight on one hip; crusted with shellfish.",
   ],
   "size": [
     114,
@@ -66,7 +66,7 @@ exports[`golden snapshot > hall -2,1 level 1 1`] = `
 
 exports[`golden snapshot > hall -4,0 level 1 1`] = `
 {
-  "digest": 3432364325,
+  "digest": 724092584,
   "doors": [
     1,
     4,
@@ -78,8 +78,8 @@ exports[`golden snapshot > hall -4,0 level 1 1`] = `
   "name": "Fourth Western Hall",
   "orientation": "NS",
   "sample": [
-    "A larger-than-life swan, with neck arched, with a scroll in its beak, a hunter crouched behind.",
-    "A larger-than-life shipwrecked sailor clinging to a spar, standing at rest, holding a long trumpet, a tortoise on the plinth.",
+    "A larger-than-life carving of the milestone, complete, with every stone in place, its gate studded with nails, by itself.",
+    "A larger-than-life sea-serpent coiled about a ship, bent over its prey, with a mantle of stone feathers, alone.",
   ],
   "size": [
     85,
@@ -96,7 +96,7 @@ exports[`golden snapshot > hall -4,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -5,-4 level 1 1`] = `
 {
-  "digest": 643896517,
+  "digest": 3129438146,
   "doors": [
     2,
     1,
@@ -108,8 +108,8 @@ exports[`golden snapshot > hall -5,-4 level 1 1`] = `
   "name": "Twenty-Second Vestibule",
   "orientation": "EW",
   "sample": [
-    "A life-sized hourglass of stone, shown abandoned, with a dedication cut around the base, a cat curled up under it; crusted with shellfish.",
-    "A life-sized pack-saddle, shown from the side, with a carved candle burning on it, a pair of hands resting on it; crusted with shellfish.",
+    "A life-sized mail-coach driver, kneeling with head bowed low, wearing sandals with wings, a hawk on the wrist; crusted with shellfish.",
+    "A life-sized bridge-keeper, arm outstretched in blessing, bearing a basket of fruit, looking aside; crusted with shellfish.",
   ],
   "size": [
     232,
@@ -126,7 +126,7 @@ exports[`golden snapshot > hall -5,-4 level 1 1`] = `
 
 exports[`golden snapshot > hall -6,6 level 1 1`] = `
 {
-  "digest": 2715522887,
+  "digest": 1393917530,
   "doors": [
     5,
     2,
@@ -138,8 +138,8 @@ exports[`golden snapshot > hall -6,6 level 1 1`] = `
   "name": "Seventh North-Western Hall, 1 row north",
   "orientation": "NS",
   "sample": [
-    "A life-sized archer, one hand raised in greeting, holding an open book, weight on one hip; hung with seaweed.",
-    "Life-sized children in a ring dance, resting against a column, with a knotted cord at the waist, head tipped back; hung with seaweed.",
+    "A life-sized cat, mid-stride, one foot lifted, with a bell hung at its throat, a mouse on the plinth; hung with seaweed.",
+    "A life-sized carving of the spinning-chair, on a shelf, with a tiny carved key in the lock, a ball of wool on the plinth; hung with seaweed.",
   ],
   "size": [
     121,
@@ -156,7 +156,7 @@ exports[`golden snapshot > hall -6,6 level 1 1`] = `
 
 exports[`golden snapshot > hall -6,7 level 1 1`] = `
 {
-  "digest": 3927014787,
+  "digest": 2227692454,
   "doors": [
     2,
     5,
@@ -168,8 +168,8 @@ exports[`golden snapshot > hall -6,7 level 1 1`] = `
   "name": "Sixth North-Western Hall",
   "orientation": "NS",
   "sample": [
-    "A life-sized lantern on a pole, standing open, with a hat set on top, alone on the plinth; crusted with shellfish.",
-    "A life-sized coach and four, shown in the middle of use, with a bowl of carved fruit beside it, a pair of hands resting on it; crusted with shellfish.",
+    "A life-sized horseshoe, shown in the middle of use, with a hanging chain, in the middle of the plinth; crusted with shellfish.",
+    "A life-sized carving of the ledger, in use, with a tiny carved hand on it, with a few carved crumbs beside it, a pair of slippers below; crusted with shellfish.",
   ],
   "size": [
     119,
@@ -188,7 +188,7 @@ exports[`golden snapshot > hall -6,7 level 1 1`] = `
 
 exports[`golden snapshot > hall -6,8 level 1 1`] = `
 {
-  "digest": 2147362070,
+  "digest": 506015602,
   "doors": [
     1,
     1,
@@ -200,8 +200,8 @@ exports[`golden snapshot > hall -6,8 level 1 1`] = `
   "name": "Twenty-Fourth Vestibule",
   "orientation": "NS",
   "sample": [
-    "A huge carving of the pilgrim, seated with hands in the lap, wearing a crown of reeds, a hooded watcher behind; crusted with shellfish.",
-    "A huge carving of the pulpit, balanced on a single point, worn smooth where hands have touched it, an old man seated against it; crusted with shellfish.",
+    "A huge carving of the church bell, set upright on a stand, a wreath of ivy hung on it, a garland laid across it; crusted with shellfish.",
+    "A huge muse of the heavens, wings spread wide, with a halo of rays, a lamb at the side; crusted with shellfish.",
   ],
   "size": [
     133,
@@ -220,7 +220,7 @@ exports[`golden snapshot > hall -6,8 level 1 1`] = `
 
 exports[`golden snapshot > hall -10,-50 level 1 1`] = `
 {
-  "digest": 29681500,
+  "digest": 2190618562,
   "doors": [
     3,
     1,
@@ -232,8 +232,8 @@ exports[`golden snapshot > hall -10,-50 level 1 1`] = `
   "name": "Fiftieth Southern Hall, 10 rows west",
   "orientation": "NS",
   "sample": [
-    "A life-sized carving of the sleeping child, running forward, cloak streaming, holding a compass of stone, a younger figure leaning on an arm; furred over with coral, crusted with shellfish.",
-    "A life-sized millstone, tilted as if on a slope, with a hanging chain, in the middle of the plinth; furred over with coral, hung with seaweed.",
+    "A life-sized heron, walking with a high, careful step, its wings finely scalloped, a pair of eggs at its feet; furred over with coral, crusted with shellfish.",
+    "A life-sized ship's carpenter, swinging a child by the hands, holding a short sword, point down, with a faint frown; furred over with coral, hung with seaweed.",
   ],
   "size": [
     110,
@@ -252,7 +252,7 @@ exports[`golden snapshot > hall -10,-50 level 1 1`] = `
 
 exports[`golden snapshot > hall -33,41 level 0 1`] = `
 {
-  "digest": 3944563195,
+  "digest": 246960080,
   "doors": [
     0,
     1,
@@ -264,8 +264,8 @@ exports[`golden snapshot > hall -33,41 level 0 1`] = `
   "name": "Forty-First North-Western Hall, 8 rows north",
   "orientation": "NS",
   "sample": [
-    "A huge cherub, looking upward with a fixed gaze, with eyes closed and a hand held out, an old figure sitting at the feet; crusted with shellfish.",
-    "A huge carving of the dice-players, swinging a child by the hands, grasping a bunch of wheat, a lamb at the side; crusted with shellfish.",
+    "A huge carving of the bear and the hunter among the stars, looking upward with a fixed gaze, holding up a mask, alone; crusted with shellfish.",
+    "A huge carving of the north star, in a wide, swaggering stance, holding a cup of stone wine, a fox pressed against the knee; crusted with shellfish.",
   ],
   "size": [
     131,
@@ -282,7 +282,7 @@ exports[`golden snapshot > hall -33,41 level 0 1`] = `
 
 exports[`golden snapshot > hall -88,0 level 1 1`] = `
 {
-  "digest": 1407649084,
+  "digest": 3445949775,
   "doors": [
     3,
     5,
@@ -294,8 +294,8 @@ exports[`golden snapshot > hall -88,0 level 1 1`] = `
   "name": "Eighty-Eighth Western Hall",
   "orientation": "NS",
   "sample": [
-    "A larger-than-life figure of War, resting against a column, holding a hammer and chisel, a younger figure leaning on an arm.",
-    "A larger-than-life carving of the saint with a lamb, resting against a column, wearing sandals with wings, a sleeping cat in the lap.",
+    "A larger-than-life figure of Commerce, looking down with a faint smile, with a crescent moon on the brow, a pair of doves above.",
+    "A larger-than-life carving of the saint with a lamb, looking down with a faint smile, with a veil of stone lace, alone.",
   ],
   "size": [
     82,
@@ -314,7 +314,7 @@ exports[`golden snapshot > hall -88,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -192,0 level 1 1`] = `
 {
-  "digest": 4229361485,
+  "digest": 4169176670,
   "doors": [
     0,
     1,
@@ -326,8 +326,8 @@ exports[`golden snapshot > hall -192,0 level 1 1`] = `
   "name": "One-Hundred-and-Ninety-Second Western Hall",
   "orientation": "NS",
   "sample": [
-    "A life-sized carving of the fox and the grapes, pressed among neighbours, face turned toward the doorway, with a mask pushed up on the forehead, a fox pressed against the knee.",
-    "A life-sized sponge diver, pressed among neighbours, face turned toward the doorway, with a coil of rope over one arm, with a faint frown.",
+    "A life-sized harpist, half-turned to speak to a neighbour, with a quiver slung low, looking aside.",
+    "A life-sized matriarch, holding a child up to see, with one sleeve rolled to the shoulder, a fox pressed against the knee.",
   ],
   "size": [
     119,
@@ -346,7 +346,7 @@ exports[`golden snapshot > hall -192,0 level 1 1`] = `
 
 exports[`golden snapshot > hall 0,0 level 1 1`] = `
 {
-  "digest": 3410949721,
+  "digest": 2763120270,
   "doors": [
     3,
     4,
@@ -358,8 +358,8 @@ exports[`golden snapshot > hall 0,0 level 1 1`] = `
   "name": "First Vestibule",
   "orientation": "EW",
   "sample": [
-    "A larger-than-life eel, lying curled at rest, every feather separately cut, a hooded figure standing behind; crusted with shellfish.",
-    "A larger-than-life owl, mid-stride, one foot lifted, the whole body wound in carved ivy, a garland of flowers across it; crusted with shellfish.",
+    "A larger-than-life cormorant, stretching up to cry, a worm hanging from its beak, a small flock carved at its feet; crusted with shellfish.",
+    "A larger-than-life mastiff, crouching low, watching something small, the whole body wound in carved ivy, a hooded figure standing behind; crusted with shellfish.",
   ],
   "size": [
     182,
@@ -379,7 +379,7 @@ exports[`golden snapshot > hall 0,0 level 1 1`] = `
 
 exports[`golden snapshot > hall 0,5 level 1 1`] = `
 {
-  "digest": 1406842034,
+  "digest": 369689196,
   "doors": [
     4,
     2,
@@ -391,8 +391,8 @@ exports[`golden snapshot > hall 0,5 level 1 1`] = `
   "name": "Fifth Northern Hall",
   "orientation": "EW",
   "sample": [
-    "A larger-than-life woodcutter, gazing into the distance, with a stone scarf blowing sideways, looking aside; hung with seaweed.",
-    "A larger-than-life young shepherd, kneeling in quiet attention, wearing sandals with wings, alone; hung with seaweed.",
+    "A larger-than-life cowherd, gazing into the distance, holding an open book, a heron standing behind; hung with seaweed.",
+    "A larger-than-life figure of Poverty, standing at rest, bearing a basket of fruit, with a faint frown; hung with seaweed.",
   ],
   "size": [
     160,
@@ -409,7 +409,7 @@ exports[`golden snapshot > hall 0,5 level 1 1`] = `
 
 exports[`golden snapshot > hall 1,-2 level 1 1`] = `
 {
-  "digest": 647289863,
+  "digest": 2930464957,
   "doors": [
     1,
     2,
@@ -421,8 +421,8 @@ exports[`golden snapshot > hall 1,-2 level 1 1`] = `
   "name": "Sixth Vestibule",
   "orientation": "NS",
   "sample": [
-    "A life-sized coach and four, set on a bed of carved leaves, rimmed with small shells, by itself; crusted with shellfish.",
-    "A life-sized chambermaid, singing with open mouth, holding a lamp shaped like a fish, alone; crusted with shellfish.",
+    "A life-sized merchant weighing coin, spinning on one foot, carrying a bundle of keys, a hooded watcher behind; crusted with shellfish.",
+    "A life-sized horse-dealer, clapping hands overhead, holding a spindle, looking aside; crusted with shellfish.",
   ],
   "size": [
     111,
@@ -439,7 +439,7 @@ exports[`golden snapshot > hall 1,-2 level 1 1`] = `
 
 exports[`golden snapshot > hall 2,2 level 1 1`] = `
 {
-  "digest": 783708729,
+  "digest": 4118810165,
   "doors": [
     2,
     4,
@@ -451,8 +451,8 @@ exports[`golden snapshot > hall 2,2 level 1 1`] = `
   "name": "Second North-Eastern Hall",
   "orientation": "NS",
   "sample": [
-    "A larger-than-life grandfather telling a story, arms folded peacefully, with a chain of stars about the neck, alone; hung with seaweed.",
-    "A larger-than-life playwright, gazing into the distance, with an open hand and an empty palm, with a faint frown; hung with seaweed.",
+    "A larger-than-life carving of the acolyte, arms folded peacefully, with a mask pushed up on the forehead, a pair of doves above; hung with seaweed.",
+    "A larger-than-life carving of the procession of the host, looking down with a faint smile, carrying a lantern with no flame, a sleeping cat in the lap; hung with seaweed.",
   ],
   "size": [
     83,
@@ -471,7 +471,7 @@ exports[`golden snapshot > hall 2,2 level 1 1`] = `
 
 exports[`golden snapshot > hall 6,0 level 1 1`] = `
 {
-  "digest": 4248167725,
+  "digest": 2471723194,
   "doors": [
     1,
     0,
@@ -483,8 +483,8 @@ exports[`golden snapshot > hall 6,0 level 1 1`] = `
   "name": "Sixth Eastern Hall",
   "orientation": "NS",
   "sample": [
-    "A colossal wind spirit, twisting out of the wall with head thrown back, with great horns wound with flowers, a fox pressed against the knee.",
-    "A colossal giant, straining out of the wall, chest and arms reaching over the dark water, with a dozen small faces carved on the robe, a tortoise on the plinth.",
+    "A colossal wind spirit, bent double, forehead almost touching the water, with a dozen small faces carved on the robe, alone.",
+    "A colossal giant, straining out of the wall, chest and arms reaching over the dark water, carrying a basket of carved fruit, a lamb at the side.",
   ],
   "size": [
     124,
@@ -504,7 +504,7 @@ exports[`golden snapshot > hall 6,0 level 1 1`] = `
 
 exports[`golden snapshot > hall 12,-7 level 1 1`] = `
 {
-  "digest": 1511345900,
+  "digest": 3090407184,
   "doors": [
     2,
     1,
@@ -516,8 +516,8 @@ exports[`golden snapshot > hall 12,-7 level 1 1`] = `
   "name": "Seventy-Second Vestibule",
   "orientation": "EW",
   "sample": [
-    "A life-sized lute-maker, eyes closed, hands joined, holding a goblet upside down, a tortoise on the plinth; crusted with shellfish.",
-    "A life-sized carving of the angel of the morning, weeping into cupped hands, with a serpent coiled round one arm, alone; crusted with shellfish.",
+    "A life-sized queen at her embroidery, looking straight ahead without expression, carrying a bundle of keys, looking aside; crusted with shellfish.",
+    "A life-sized carving of the water-bearer among the stars, rising out of the wall, with a halo of rays, a bird on the shoulder; crusted with shellfish.",
   ],
   "size": [
     220,
@@ -536,7 +536,7 @@ exports[`golden snapshot > hall 12,-7 level 1 1`] = `
 
 exports[`golden snapshot > hall 19,0 level 2 1`] = `
 {
-  "digest": 1862741154,
+  "digest": 1193497444,
   "doors": [
     3,
     1,
@@ -548,8 +548,8 @@ exports[`golden snapshot > hall 19,0 level 2 1`] = `
   "name": "Nineteenth Eastern Hall",
   "orientation": "NS",
   "sample": [
-    "A life-sized charioteer, crushed under a collapsing arch, carrying a bow strung with thread, with a faint frown.",
-    "A life-sized naiad, crouched with claws outstretched, with a staff of twisted wood, a heron standing behind.",
+    "A life-sized lord of the dead, seated and thoughtful, wreathed in carved smoke, gazing out over the hall.",
+    "A life-sized goat-footed piper god, with one arm raised, holding the broken end of a chain, a pair of doves above.",
   ],
   "size": [
     87,

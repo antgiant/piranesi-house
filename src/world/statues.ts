@@ -6,11 +6,11 @@
 // signature (mark + components) is therefore unique across at least a 64x64 window of halls: far further than the 5 km
 // the design requires. Beyond that, repeats are allowed ("only at vast distances").
 
-import type { Figure, Kind, Mood } from '../data/catalogue';
+import type { Figure, Mood } from '../data/catalogue';
 import {
   ATTRIBUTES, COMPANIONS_SOLITARY, COMPANIONS_WITH, FIGURES, MARK_BASES, MARK_EDGES, MARK_MOTIFS, POSES, POSES_DROWNED, SIZE_WORD,
 } from '../data/catalogue';
-import { KIND_LISTS } from '../data/kindlists';
+import { SUB_KINDS, listsFor, subOf, type Sub } from '../data/sublists';
 import type { Hall, WallGrid } from './hall';
 import { wallGrids } from './hall';
 import type { Side } from './layout';
@@ -72,7 +72,7 @@ interface KindPalette {
 interface Palette {
   figures: Figure[];
   /** Per kind of figure. Lengths are P, A and C for every kind, so a statue's four choices never collide. */
-  kinds: Record<Kind, KindPalette>;
+  kinds: Record<Sub, KindPalette>;
   P: number;
   A: number;
   C: number;
@@ -86,7 +86,7 @@ const palettes = new WeakMap<Hall, Palette>();
 /** A hall shows at most this many different figures: most from its theme, and a few from anywhere in the catalogue. */
 const MAX_FIGURES = 64;
 const THEMED = 44;
-const ATTRS = 32;
+const ATTRS = 24;
 const COMPANIONS_PER_HALL = 12;
 const MAX_POSES = 12;
 
@@ -109,15 +109,14 @@ function palette(world: World, hall: Hall): Palette {
     figures = themed.concat(rest.slice(0, Math.max(MAX_FIGURES - themed.length, 12 - themed.length)));
   }
   const P = drowned ? POSES_DROWNED.length : Math.min(MAX_POSES, POSES[hall.mood].length);
-  const kinds = {} as Record<Kind, KindPalette>;
-  const humanSolitary = COMPANIONS_SOLITARY;
+  const kinds = {} as Record<Sub, KindPalette>;
   kinds.human = {
     poses: drowned ? [...POSES_DROWNED] : rng.shuffle(POSES[hall.mood]).slice(0, P),
     attributes: rng.shuffle(ATTRIBUTES).slice(0, ATTRS),
-    companions: [...humanSolitary, ...rng.shuffle(COMPANIONS_WITH).slice(0, COMPANIONS_PER_HALL - humanSolitary.length)],
+    companions: [...COMPANIONS_SOLITARY, ...rng.shuffle(COMPANIONS_WITH).slice(0, COMPANIONS_PER_HALL - COMPANIONS_SOLITARY.length)],
   };
-  for (const k of ['animal', 'mythic', 'object'] as const) {
-    const l = KIND_LISTS[k];
+  for (const k of SUB_KINDS) {
+    const l = listsFor(k);
     kinds[k] = {
       poses: drowned ? [...POSES_DROWNED] : rng.shuffle(l.poses).slice(0, P),
       attributes: rng.shuffle(l.attributes).slice(0, ATTRS),
@@ -196,7 +195,7 @@ export function generatedSlot(world: World, hall: Hall, wall: Side, tier: number
   const po = i % pal.P; i = Math.floor(i / pal.P);
   const fi = i % pal.figures.length;
   const fig = pal.figures[fi] as Figure;
-  const kp = pal.kinds[fig.kind];
+  const kp = pal.kinds[subOf(fig)];
 
   const alongM = ((slot + 0.5) * g.pitchDm) / 10;
   const baseDm = tier * g.tierHeightDm;

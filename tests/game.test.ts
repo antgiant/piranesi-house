@@ -35,11 +35,11 @@ describe('arrival', () => {
     const g = newGame({}, NOW);
     const lines = look(g, NOW);
     const links = lines.flatMap((l) => l.links ?? []);
-    expect(links.some((l) => l.command === 'go 1')).toBe(true);
-    expect(links.some((l) => /door/.test(l.label))).toBe(true);
+    expect(links.some((l) => /^look (north|east|south|west)$/.test(l.command) || /door/.test(l.label))).toBe(true);
     expect(links.some((l) => /^\d/.test(l.label))).toBe(false); // buttons are named, not numbered
     const ref = look(g, NOW, false, false, true).flatMap((l) => l.links ?? []);
     expect(ref.some((l) => l.command.startsWith('examine'))).toBe(true);
+    expect(ref.some((l) => l.command === 'go 1')).toBe(true);
     expect(links.map((l) => l.command)).toContain('listen');
     expect(links.map((l) => l.command)).toContain('down');
   });

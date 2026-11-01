@@ -64,3 +64,25 @@ A description is prose however you play. There are no numbered lists, no "[1]" a
   `help` and the introduction.
 * `look closely` is the whole description, still prose. `list` (or `reference`) is the numbered reference, for typing
   "examine 3" and "go 2" when that is wanted.
+
+## Doors the way the book speaks of them
+The book never counts the doors of a hall as a list. It speaks of standing in a doorway and looking ahead down a long run of
+receding halls, of "the western door", and it gives numbers only as directions to someone ("through the western door; in the
+next hall, the third door on the right"), and in a person's chalk marks and written notes for finding the way back. So:
+* **Arriving in a hall** says only that there are doors, and roughly where: "Doors open in every direction, more than you could
+  easily count." / "Doors open to the north and east." / "The only way on is a door in the west wall." Exact counts appear
+  only when a hall has very few (one to three).
+* **Looking out in a direction** (`look north`, `look to the west`) is where the count belongs: "Three doors open along the
+  north wall: near the west end, in the middle and near the east end", then what can be seen through the one nearest the middle
+  (the next hall, and beyond it a hall or two, several, or "a great vista of halls, doorway beyond doorway, receding until the eye
+  gives up", but only where the doors truly line up), then something else on that wall. The buttons are "look north", "look east"
+  and so on; the doors themselves (named by position) appear once you have looked that way, and a wall with a single door
+  has a "north door" button at once.
+* `list` is still the numbered reference.
+
+## Getting lost (setting "Keep a map of where I have been")
+The book is explicit: there is no map, and people easily get lost; its people mark doorways with chalk, write directions back
+to where they came from, or carry the House in their memory. The map is therefore a setting. On (the default for now): the
+Map button, "Travel here", and travelling by name to any named place. Off: no Map button, "map" answers that there is no map,
+and `travel to` works only for home, places you have marked and halls you have been in. Marks are the in-world memory aid.
+Straight runs (`travel west 40`) always work. `where` no longer shows coordinates.

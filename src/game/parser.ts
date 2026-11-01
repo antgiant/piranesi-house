@@ -3,6 +3,7 @@ import type { Side } from '../world/layout';
 export type Command =
   | { t: 'empty' }
   | { t: 'look'; full?: boolean; repeat?: boolean; numbered?: boolean }
+  | { t: 'lookdir'; side: Side }
   | { t: 'listen' }
   | { t: 'go'; side?: Side; n?: number }
   | { t: 'walk'; wall: Side }
@@ -43,6 +44,10 @@ export function parse(input: string): Command {
     case 'l': case 'look': case 'around':
       if (content.some((w) => w === 'again' || w === 'repeat')) return { t: 'look', repeat: true };
       if (content.some((w) => ['closely', 'carefully', 'fully', 'properly', 'everything', 'details'].includes(w))) return { t: 'look', full: true };
+      if (verb === 'look' || verb === 'l') {
+        const d = content.map((w) => DIRS[w]).find(Boolean);
+        if (d && content.length <= 3) return { t: 'lookdir', side: d };
+      }
       if (content.length > 0 && verb === 'look' && !['around', 'again'].includes(content[0] as string)) return { t: 'examine', what: content.join(' ') };
       return { t: 'look' };
     case 'x': case 'examine': case 'inspect': case 'study': case 'read': case 'statue':

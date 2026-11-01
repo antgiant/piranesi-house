@@ -73,7 +73,7 @@ describe('a glance, as a person would', () => {
     const glance = all(look(g, NOW));
     const full = all(look(g, NOW, true));
     expect(glance.length).toBeLessThan(full.length * 0.7);
-    expect(glance).toMatch(/Doors lead|There (is|are) |The ways on are/);
+    expect(glance).toMatch(/[Dd]oors? (open|lead)|There (is|are) |ways on|only way on|single door/);
     expect(glance).not.toMatch(/You can make out:|Ways out:|\[\d+\]/);
     const ref = all(look(g, NOW, false, false, true));
     expect(ref).toMatch(/Ways out:/);
@@ -175,13 +175,13 @@ describe('what is said, and not said again', () => {
   it('greets a hall you come back to, with something new', () => {
     const g = narrated();
     const a = all(look(g, NOW));
-    expect(a).toMatch(/Doors lead|There (is|are) |The ways on are/);
+    expect(a).toMatch(/[Dd]oors? (open|lead)|There (is|are) |ways on|only way on|single door/);
     g.pos = { x: -1, y: 0, level: 1, wall: null, pos: 500 };
     look(g, NOW + 5000);
     g.pos = { x: 0, y: 0, level: 1, wall: null, pos: 500 };
     const back = all(look(g, NOW + 10000));
     expect(back).toMatch(/You are back in the First Vestibule\./);
-    for (const s of a.split(/(?<=[.!?])\s+/).filter((q) => q.length > 60 && !/Doors lead|There (is|are) |The ways on are|great stair/.test(q))) expect(back).not.toContain(s);
+    for (const s of a.split(/(?<=[.!?])\s+/).filter((q) => q.length > 60 && !/[Dd]oors? (open|lead)|There (is|are) |ways on|only way on|single door|great stair/.test(q))) expect(back).not.toContain(s);
   });
   it('looking closely is the whole description, in prose, and unchanging', () => {
     const g = newGame({ walkPace: Infinity, relicDensity: 0, outsideTraces: false }, NOW);

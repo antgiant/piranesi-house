@@ -152,3 +152,28 @@ describe('approaching a statue', () => {
     expect(g.pos.wall).toBe(g.seenListed[0]?.statue.wall);
   });
 });
+
+describe('getting lost, as in the book', () => {
+  it('with no map you can go by name only where you have been, or home, or to a mark', () => {
+    const g = newGame({ walkPace: Infinity, relicDensity: 0, outsideTraces: false, knownOnly: true }, NOW);
+    look(g, NOW);
+    expect(all(step(g, 'travel to the fifth western hall', NOW))).toMatch(/never been to the Fifth Western Hall/);
+    expect(g.pos.x).toBe(0);
+    step(g, 'travel west 3', NOW); // walking a straight line is always possible; you have now been through them
+    expect(all(step(g, 'travel to the second western hall', NOW))).toMatch(/You set out|arrive|Second Western/);
+    step(g, 'home', NOW);
+    expect(g.pos.x).toBe(0);
+    step(g, 'travel west 5', NOW);
+    step(g, 'mark the far end', NOW);
+    step(g, 'home', NOW);
+    step(g, 'travel to the far end', NOW);
+    expect(g.pos.x).toBe(-5);
+    expect(all(step(g, 'where', NOW))).not.toMatch(/Cell|\d,/);
+  });
+  it('with a map, you may name any place', () => {
+    const g = newGame({ walkPace: Infinity, relicDensity: 0, outsideTraces: false }, NOW);
+    look(g, NOW);
+    step(g, 'travel to the fifth western hall', NOW);
+    expect(g.pos.x).toBe(-5);
+  });
+});

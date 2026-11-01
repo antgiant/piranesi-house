@@ -15,9 +15,10 @@ import { strollBeats } from './stroll';
 import { hashInts } from '../world/rng';
 import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance, describeDuration, distanceM, gait, terrainFactor, walkSeconds } from './walk';
 import { parse, type Command } from './parser';
-import { findRoute, nameOf, resolveName, straightRoute, type Spot, type Step } from './travel';
+import { findRoute, nameOf, resolveName, straightRoute, vistaThrough, type Spot, type Step } from './travel';
+import { Rng } from '../world/rng';
 import {
-  describeHall, glanceHall, glanceRand, outsideSentence, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
+  describeHall, directionProse, glanceHall, glanceRand, locationPhrase, outsideSentence, withArticle, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
   type NamedExit, type Seen, type Style,
 } from './narrator';
 
@@ -37,6 +38,8 @@ export interface GameOptions {
    * Off, a walk is a short note and a countdown.
    */
   walkNarration: boolean;
+  /** As in the book, where nobody has a map and people get lost: you can only travel by name to places you have been to or marked. */
+  knownOnly: boolean;
   /** If set, world time at start (ms). Otherwise world time follows the real clock. */
   startAtWorldMs?: number;
 }
@@ -121,7 +124,7 @@ export interface Walk {
 }
 
 export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
-  const o: GameOptions = { seed: 'the-house', timeScale: 1, showDead: true, style: 'plain', walkPace: 1, relicDensity: 1, outsideTraces: true, walkNarration: false, ...opts };
+  const o: GameOptions = { seed: 'the-house', timeScale: 1, showDead: true, style: 'plain', walkPace: 1, relicDensity: 1, outsideTraces: true, walkNarration: false, knownOnly: false, ...opts };
   const world = createWorld(o.seed, { showDead: o.showDead });
   const cfg: SimConfig = { ...defaultSimConfig, timeScale: o.timeScale };
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
@@ -177,6 +180,42 @@ export function visibleStatues(g: Game, h: Hall): Seen[] {
 }
 
 export const exploredKey = (level: Level, x: number, y: number): string => `${level}:${x},${y}`;
+
+/** The buttons for a hall: the ways to look out (the doors themselves appear once you look that way). */
+function directionLinks(g: Game): Link[] {
+  const sides = [...new Set(g.exitsListed.map((e) => e.side))];
+  return sides.map((s) => {
+    const w = sideWord(s).replace(' wall', '');
+    const only = g.exitsListed.filter((e) => e.side === s);
+    return only.length === 1 ? { label: `${w} door`, command: `go ${(only[0] as NamedExit).index}` } : { label: `look ${w}`, command: `look ${w}` };
+  });
+}
+
+/** Look out in one direction: how many doors there are in that wall, and what lies through them. */
+export function lookDirection(g: Game, side: Side, realNowMs: number): Line[] {
+  const { scene } = prepareHall(g, realNowMs);
+  g.facing = side;
+  const doors = g.exitsListed.filter((e) => e.side === side).sort((a, b) => a.pos - b.pos);
+  const mid = doors.slice().sort((a, b) => Math.abs(a.pos - 500) - Math.abs(b.pos - 500))[0];
+  // the near door, or the nearest to where you stand if you are at that wall
+  const v = mid ? vistaThrough(g.world, here(g), side, mid.pos) : { halls: [], passage: false };
+  const route = v.halls;
+  const next = route[0] ? nameOf(g.world, route[0]) : mid ? nameOf(g.world, { x: mid.to.x, y: mid.to.y, level: g.pos.level }) : null;
+  const r = new Rng(hashInts(g.world.seed, Math.floor(scene.t / 2_700_000), g.pos.x, g.pos.y, SIDES.indexOf(side) + 0x1d));
+  const rand = (): number => r.u32() / 4294967296;
+  // what else is on that wall: one thing the building does, and one statue
+  const extra: string[] = [];
+  const fl = flourishesFor(g.world, scene.hall).filter((f) => f.wall === side)[0];
+  if (fl) extra.push(fl.text);
+  const st = g.seenListed.filter((sn) => sn.statue.wall === side)[0];
+  if (st) extra.push(`Along it, ${withArticle(st.statue.canonId ? (st.statue.canonLabel as string) : describeStatue(scene.hall, st.statue, true))}, ${locationPhrase(st).replace(/^on the [a-z]+ wall, /, '')}.`);
+  const paras = [directionProse(scene.hall, side, doors, { next, halls: route.length, passage: !!mid && mid.corridor > 0 }, extra, rand)];
+  const links: Link[] = [
+    ...doors.map((e) => ({ label: doors.length === 1 ? `go through the ${sideWord(side).replace(' wall', '')} door` : doorLabel(e, g.exitsListed), command: `go ${e.index}` })),
+    { label: 'look around', command: 'look' },
+  ];
+  return paras.map((p, i) => text(g, p, i === paras.length - 1 ? links : undefined));
+}
 
 /** A button for a door: "north door", or "north door, west end" where a wall has several. */
 function doorLabel(e: NamedExit, all: NamedExit[]): string {
@@ -242,7 +281,7 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false, n
     g.lastGlance = null;
   }
   const links: Link[] = [
-    ...g.exitsListed.map((e) => ({ label: doorLabel(e, g.exitsListed), command: `go ${e.index}` })),
+    ...(numbered ? g.exitsListed.map((e) => ({ label: doorLabel(e, g.exitsListed), command: `go ${e.index}` })) : directionLinks(g)),
     ...(brief ? [{ label: 'look closely', command: 'look closely' }] : numbered ? [
       ...g.seenListed.map((_, i) => ({ label: `examine ${i + 1}`, command: `examine ${i + 1}` })),
       ...g.relicsListed.map((r, i) => ({ label: `examine ${g.seenListed.length + i + 1}`, command: `examine ${g.seenListed.length + i + 1}` })),
@@ -547,9 +586,18 @@ function placeFor(g: Game, said: string): Spot | null {
   return resolveName(g.world, said, g.pos.level);
 }
 
+/** A place you could find the way to without a map: home, a place you have marked, or one you have been in. */
+function isKnown(g: Game, s: Spot): boolean {
+  if (s.x === 0 && s.y === 0 && s.level === 1) return true;
+  if (g.explored.has(exploredKey(s.level, s.x, s.y))) return true;
+  for (const m of g.marks.values()) if (m.x === s.x && m.y === s.y && m.level === s.level) return true;
+  return false;
+}
+
 export function travelTo(g: Game, said: string, realNowMs: number): Line[] {
   const spot = placeFor(g, said);
   if (!spot) return [text(g, `You do not know of a place called "${said}". Try a name as the House gives them, such as the Ninth Vestibule or the Eighty-Eighth Western Hall, or one of your marks.`)];
+  if (g.opts.knownOnly && !isKnown(g, spot)) return [text(g, `You have never been to the ${nameOf(g.world, spot)}, and you would not know the way. You would have to find it.`)];
   const route = findRoute(g.world, here(g), spot);
   if (!route) return [text(g, `You cannot find a way to ${nameOf(g.world, spot)} that is open to you: the water or the Drowned Halls are in the way.`)];
   return beginJourney(g, route, `${nameOf(g.world, spot)}${spot.level !== 1 ? `, on the ${LEVEL_NAME[spot.level]} level` : ''}`, realNowMs);
@@ -677,6 +725,7 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     }
     case 'empty': return look(g, realNowMs);
     case 'look': return look(g, realNowMs, cmd.full === true, cmd.repeat === true, cmd.numbered === true);
+    case 'lookdir': return lookDirection(g, cmd.side, realNowMs);
     case 'listen': {
       const s = sceneNow(g, realNowMs);
       return [text(g, soundParagraph(audioFor(g.world, s, { facing: g.facing }), s))];
@@ -707,7 +756,7 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'time': return [text(g, skyParagraph(sceneNow(g, realNowMs)))];
     case 'where': {
       const s = sceneNow(g, realNowMs);
-      return [text(g, `${s.hall.name}, on the ${(['lower', 'middle', 'upper'] as const)[g.pos.level]} level. (Cell ${g.pos.x}, ${g.pos.y}.)`)];
+      return [text(g, `You are in the ${s.hall.name}, on the ${(['lower', 'middle', 'upper'] as const)[g.pos.level]} level.`)];
     }
     case 'help': return [system(HELP)];
     case 'unknown': {

@@ -78,6 +78,30 @@ export function straightRoute(world: World, from: Spot, side: Side, n: number): 
   return out;
 }
 
+/**
+ * What you can see looking through the door of one wall: the halls whose doors line up with it, one behind another. A hall counts
+ * only if it has a door in the same wall roughly in line (a hand's width of the wall), as in a true enfilade; a long passage
+ * ends the view.
+ */
+export function vistaThrough(world: World, from: Spot, side: Side, pos: number, max = 14): { halls: Step[]; passage: boolean } {
+  const out: Step[] = [];
+  let cur = from;
+  let at = pos;
+  let passage = false;
+  for (let i = 0; i < max; i++) {
+    const door = hallExits(world, cur.x, cur.y, cur.level).filter((e) => e.side === side && Math.abs(e.pos - at) <= 150)
+      .sort((a, b) => Math.abs(a.pos - at) - Math.abs(b.pos - at))[0];
+    if (!door) break;
+    if (door.corridor > 0) { passage = i === 0; break; }
+    const next: Spot = { x: door.to.x, y: door.to.y, level: cur.level };
+    if (impassable(world, next)) break;
+    out.push({ ...next, via: 'door' });
+    cur = next;
+    at = door.pos;
+  }
+  return { halls: out, passage };
+}
+
 /** "ninth vestibule" or "88th western hall"-style text to a place the House has a name for. */
 export function titleCase(s: string): string {
   return s.replace(/\b([a-z])/g, (c) => c.toUpperCase()).replace(/-And-/g, '-and-');

@@ -75,3 +75,39 @@ describe('help and mistakes', () => {
     expect(all(step(g, 'xyzzyplugh', NOW))).not.toContain('Did you mean');
   });
 });
+
+describe('doors, as a person would say them', () => {
+  it('on arrival says doors open in many directions, without counting them', () => {
+    const g = narrated();
+    const out = all(look(g, NOW));
+    expect(out).toMatch(/Doors open in every direction|doors in all four walls|Door after door|Doors open in every wall|doors on every side|Each wall has its doors/);
+    expect(out).not.toMatch(/\b(three|four|five|six|seven|eight) doors\b/);
+    expect(out).not.toMatch(/\(\w+ doors\)/);
+  });
+  it('gives the count when you look out in a direction, with what lies through it', () => {
+    const g = narrated();
+    look(g, NOW);
+    const north = all(step(g, 'look north', NOW + 1000));
+    expect(north).toMatch(/Three doors open along the north wall|doors open|door opens/i);
+    expect(north).toMatch(/(Through|Looking through) (it|the one nearest the middle)/);
+    expect(all(step(g, 'look to the west', NOW + 2000))).toMatch(/west wall/);
+    // a wall with no door says so
+    const lonely = narrated();
+    lonely.pos = { x: -192, y: 0, level: 1, wall: null, pos: 500 };
+    expect(all(step(lonely, 'look west', NOW))).toMatch(/no door in the west wall/);
+    expect(all(step(lonely, 'look east', NOW))).toMatch(/single door/);
+  });
+  it('offers a look in each direction, and the doors themselves once you have looked', () => {
+    const g = narrated();
+    const links = look(g, NOW).flatMap((l) => l.links ?? []).map((l) => l.command);
+    expect(links).toContain('look north');
+    const after = step(g, 'look north', NOW + 1000).flatMap((l) => l.links ?? []);
+    expect(after.some((l) => /^go \d+$/.test(l.command))).toBe(true);
+    expect(after.map((l) => l.label).join(' ')).toMatch(/north door/);
+  });
+  it('lets a vista run a long way: a long road of halls reads as a long vista', () => {
+    const g = narrated();
+    g.pos = { x: -3, y: 0, level: 1, wall: null, pos: 500 };
+    expect(all(step(g, 'look west', NOW))).toMatch(/great vista of halls|several more halls|a hall or two more/);
+  });
+});

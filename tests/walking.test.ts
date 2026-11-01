@@ -83,7 +83,7 @@ describe('walking in the game', () => {
     expect(g.pos).toMatchObject({ x: 0, y: 0 });
     const arrival = all(tick(g, end + 100));
     expect(arrival).toContain('You go through the west door into the First Western Hall');
-    expect(arrival).toMatch(/Doors lead|There (is|are) |The ways on are/);
+    expect(arrival).toMatch(/[Dd]oors? (open|lead)|There (is|are) |ways on|only way on|single door/);
     expect(g.pos).toMatchObject({ x: -1, y: 0 });
     expect(g.walk).toBeNull();
   });

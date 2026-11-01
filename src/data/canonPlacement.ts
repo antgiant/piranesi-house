@@ -75,7 +75,7 @@ export const PLACEMENTS: readonly Placement[] = [
     ['W', 720, 'turned to look over one shoulder'], ['S', 480, 'kneeling, horns almost touching the floor'],
   ].map(([wall, along, look], i): Placement => ({
     id: 'ST-MINOTAURS', where: { hall: 'First Vestibule' }, wall: wall as WallRef, along: along as number, baseM: 0, sizeM: 9,
-    label: `A massive minotaur ${look}, solemn and inscrutable`,
+    label: `A massive minotaur, ${look}, solemn and inscrutable`,
   })),
   // The Coral Halls: six altered statues in one hall.
   ...[

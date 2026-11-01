@@ -32,6 +32,8 @@ interface Settings {
   textScale: number;
   plainFont: boolean;
   contrast: boolean;
+  /** Keep a map of where you have been. Off: no map, and travelling by name only to places you know. */
+  map: boolean;
   /** Let a screen reader announce new text (off while it is being read aloud, so the two do not talk over each other). */
   announce: boolean;
   /** Single-key shortcuts when not typing. */
@@ -43,7 +45,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: true, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -90,6 +92,7 @@ function gameOptions(): Partial<GameOptions> {
     showDead: settings.showDead,
     relicDensity: settings.relics ? 1 : 0,
     outsideTraces: settings.outside,
+    knownOnly: !settings.map,
     style: settings.diary ? 'diary' : 'plain',
     // `#pace=instant` is a developer override for tests; the settings panel only offers the book's pace up to a marathon.
     walkPace: q.get('pace') === 'instant' ? Infinity : paceFromKmh(settings.speedKmh),
@@ -183,7 +186,11 @@ function refresh(): void {
 function submit(raw: string, auto = false): void {
   if (!game) return;
   const cmd = raw.trim();
-  if (/^map$/i.test(cmd)) { toggleMap(); return; }
+  if (/^map$/i.test(cmd)) {
+    if (settings.map) toggleMap();
+    else print([{ kind: 'text', text: 'There is no map. The House has to be remembered.' }], 'end');
+    return;
+  }
   if (/^(wander|wander on|ramble)$/i.test(cmd)) { setWandering(true); return; }
   if (/^(wander off|stop wandering)$/i.test(cmd)) { setWandering(false); return; }
   if (!auto) { setWandering(false); narrator.cancel(); }
@@ -370,6 +377,7 @@ function fillSettings(): void {
   $<HTMLSelectElement>('s-size').value = String(settings.textScale);
   $<HTMLInputElement>('s-plain').checked = settings.plainFont;
   $<HTMLInputElement>('s-contrast').checked = settings.contrast;
+  $<HTMLInputElement>('s-map').checked = settings.map;
   $<HTMLInputElement>('s-announce').checked = settings.announce;
   $<HTMLInputElement>('s-shortcuts').checked = settings.shortcuts;
   $<HTMLInputElement>('s-mutter').checked = settings.mutter;
@@ -405,6 +413,7 @@ $('s-save').addEventListener('click', (e) => {
     textScale: Number($<HTMLSelectElement>('s-size').value) || 1,
     plainFont: $<HTMLInputElement>('s-plain').checked,
     contrast: $<HTMLInputElement>('s-contrast').checked,
+    map: $<HTMLInputElement>('s-map').checked,
     announce: $<HTMLInputElement>('s-announce').checked,
     shortcuts: $<HTMLInputElement>('s-shortcuts').checked,
     mutter: $<HTMLInputElement>('s-mutter').checked,
@@ -471,7 +480,7 @@ document.addEventListener('keydown', (e) => {
   if (dlg.open || aboutDlg.open || !$('title').hidden) return;
   switch (e.key) {
     case '/': e.preventDefault(); input.focus(); break;
-    case 'm': toggleMap(); break;
+    case 'm': if (settings.map) toggleMap(); break;
     case 'w': setWandering(!wandering); break;
     case 'r': submit('repeat'); break;
     case 's': $('mute').click(); break;
@@ -522,6 +531,10 @@ function fillVoices(): void {
 function applyReading(): void {
   const r = document.documentElement;
   r.style.setProperty('--scale', String(settings.textScale));
+  // no map, as in the book: the button goes, and travelling by name is only to places you know
+  $('open-map').hidden = !settings.map;
+  if (!settings.map && !mapEl.hidden) toggleMap(false);
+  if (game) game.opts.knownOnly = !settings.map;
   if (settings.plainFont) r.setAttribute('data-plain', ''); else r.removeAttribute('data-plain');
   if (settings.contrast) r.setAttribute('data-contrast', ''); else r.removeAttribute('data-contrast');
   // A screen reader and the browser's reading voice would talk over each other: only one of them announces new text.

@@ -39,7 +39,7 @@ try {
   await page.click('#enter');
   await page.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
   check(!(await page.locator('#title').isVisible()), 'title hides after entering');
-  check(/(Doors lead|There are|The ways on are)/.test(await page.locator('#log').textContent()), 'the arrival description says where the doors lead, in words');
+  check(/([Dd]oors? (open|lead)|There (is|are) |ways on|only way on|single door)/.test(await page.locator('#log').textContent()), 'the arrival description says where the doors lead, in words');
 
   await page.fill('#input', 'go west');
   await page.press('#input', 'Enter');
@@ -415,6 +415,28 @@ try {
     await pg.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
     check(true, 'and can be entered and played offline');
     await ctx.close();
+  }
+
+  // No map, as in the book: the button goes and typing "map" says so.
+  {
+    const nm = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    nm.on('pageerror', (e) => errors.push(String(e)));
+    await nm.goto(URL);
+    await nm.click('#enter');
+    await nm.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    check(await nm.locator('#open-map').isVisible(), 'the map is there by default');
+    await nm.click('#open-settings');
+    await nm.uncheck('#s-map');
+    await nm.click('#s-save');
+    check(!(await nm.locator('#open-map').isVisible()), 'with the map turned off, the Map button goes');
+    await nm.fill('#input', 'map');
+    await nm.press('#input', 'Enter');
+    check((await nm.locator('#log').textContent()).includes('There is no map'), 'and the House says there is no map');
+    await nm.fill('#input', 'travel to the fifth western hall');
+    await nm.press('#input', 'Enter');
+    await nm.waitForFunction(() => document.getElementById('log').textContent.includes('never been to'));
+    check(true, 'and a place you have not been to cannot be gone to by name');
+    await nm.close();
   }
 
   // Every kind of bird call, and thunder, can be played without error, and each is counted.

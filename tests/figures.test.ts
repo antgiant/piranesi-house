@@ -75,3 +75,55 @@ describe('statues drawn from the wider cast', () => {
     }
   });
 });
+
+import { listsFor, subOf, SUB_KINDS } from '../src/data/sublists';
+
+describe('wording that fits what is carved', () => {
+  it('has a full set of phrases for every sort of subject, all distinct', () => {
+    for (const s of SUB_KINDS) {
+      const l = listsFor(s);
+      expect(l.poses.length, `${s} poses`).toBeGreaterThanOrEqual(12);
+      expect(l.attributes.length, `${s} attributes`).toBeGreaterThanOrEqual(24);
+      expect(l.solitary.length + l.withs.length, `${s} companions`).toBeGreaterThanOrEqual(12);
+      for (const arr of [l.poses, l.attributes, [...l.solitary, ...l.withs]]) expect(new Set(arr).size, s).toBe(arr.length);
+      for (const p of [...l.poses, ...l.attributes, ...l.solitary, ...l.withs]) expect(p, p).not.toMatch(MODERN);
+    }
+  });
+  it('sorts the catalogue sensibly', () => {
+    const sub = (label: string): string => subOf(FIGURES.find((f) => f.label === label)!);
+    expect(sub('heron')).toBe('bird');
+    expect(sub('dolphin')).toBe('sea');
+    expect(sub('bee')).toBe('insect');
+    expect(sub('tortoise')).toBe('reptile');
+    expect(sub('lion')).toBe('beast');
+    expect(sub('galleon under full sail')).toBe('vessel');
+    expect(sub('trebuchet')).toBe('weapon');
+    expect(sub('harp')).toBe('instrument');
+    expect(sub('coach and four')).toBe('vehicle');
+    expect(sub('lighthouse')).toBe('construction');
+    expect(sub('forge bellows')).not.toBe('instrument');
+  });
+  it('never gives a bird a paw or a ship a coat: every statue\'s words come from its own sort of subject', () => {
+    const w = createWorld('test-seed');
+    const personPoses = new Set(Object.values(POSES).flat());
+    const personAttrs = new Set(ATTRIBUTES);
+    let checked = 0;
+    for (const [x, y] of [[3, 5], [-7, 2], [12, -9], [0, 0], [-4, 8], [9, 1]] as const) {
+      const h = getHall(w, x, y, 1);
+      if (h.regions.drowned) continue;
+      for (const s of hallStatues(w, h)) {
+        if (s.canonId) continue;
+        const fig = FIGURES.find((f) => f.label === s.figure)!;
+        const sb = subOf(fig);
+        if (sb === 'human') { expect(personPoses.has(s.pose) || s.pose !== '', s.pose).toBe(true); continue; }
+        const l = listsFor(sb);
+        expect(l.poses.includes(s.pose), `${s.figure} (${sb}): ${s.pose}`).toBe(true);
+        expect(l.attributes.includes(s.attribute), `${s.figure} (${sb}): ${s.attribute}`).toBe(true);
+        expect([...l.solitary, ...l.withs].includes(s.companion), `${s.figure} (${sb}): ${s.companion}`).toBe(true);
+        expect(personAttrs.has(s.attribute) && sb !== 'mythic' && sb !== 'beast' && sb !== 'tool', `${s.figure}: ${s.attribute}`).toBe(false);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(300);
+  });
+});

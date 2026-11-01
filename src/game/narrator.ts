@@ -498,7 +498,10 @@ export function relicsProse(relics: Relic[], rand: Rand): string {
   return out.join(' ');
 }
 
-/** Where the doors lead, as a sentence a person would say, not a table. */
+/**
+ * Where the doors lead, said as a person would say it on walking in: that there are doors, and roughly where, not how many in each
+ * wall. The count comes when you look in a direction ("look north"); until then a hall has "a great many doors, in every direction".
+ */
 export function exitsProse(h: Hall, exits: NamedExit[], rand: Rand): string {
   if (exits.length === 0) return 'You can see no way out.';
   const sides: Side[] = [];
@@ -508,13 +511,53 @@ export function exitsProse(h: Hall, exits: NamedExit[], rand: Rand): string {
   const stair = h.kind === 'vestibule' && h.stairs.length > 0
     ? ` ${pickBy(rand, [`The great staircase leaves the ${SIDE_WORD[h.stairs[0]!.wall]} wall, going up and down.`, `A great staircase rises from the ${SIDE_WORD[h.stairs[0]!.wall]} wall, and goes down as well.`])}`
     : '';
-  const door = (n: number): string => (n === 1 ? 'a door' : `${numWord(n)} doors`);
-  const form = Math.floor(rand() * 3);
-  if (form === 0 || sides.length === 1) {
-    return `There ${exits.length === 1 ? 'is' : 'are'} ${listOf(sides.map((s) => `${door(count.get(s) as number)} in the ${words(s)} wall`))}.${stair}`;
+  const total = exits.length;
+  let main: string;
+  if (total === 1) {
+    main = pickBy(rand, [`The only way on is a door in the ${words(sides[0] as Side)} wall.`, `There is a single door, in the ${words(sides[0] as Side)} wall.`]);
+  } else if (total <= 3) {
+    main = `There ${total === 2 ? 'are two doors' : 'are three doors'}, ${listOf(sides.map((s) => `${(count.get(s) as number) === 1 ? 'one' : numWord(count.get(s) as number)} in the ${words(s)} wall`))}.`;
+  } else if (sides.length === 4) {
+    main = total >= 10
+      ? pickBy(rand, ['Doors open in every direction, more than you could easily count.', 'There are doors in all four walls, a great many of them.', 'Door after door opens in every wall.'])
+      : pickBy(rand, ['Doors open in every wall.', 'There are doors on every side.', 'Each wall has its doors.']);
+  } else {
+    main = pickBy(rand, [`Doors open to the ${listOf(sides.map(words))}.`, `The ways on lie ${listOf(sides.map((s) => `to the ${words(s)}`))}.`, `There are doors in the ${listOf(sides.map(words))} walls.`]);
   }
-  if (form === 1) return `Doors lead ${listOf(sides.map((s) => words(s)))}${sides.length < 4 ? '' : ', every way'}.${stair}`;
-  return `The ways on are ${listOf(sides.map((s) => `${words(s)}${(count.get(s) as number) > 1 ? ` (${numWord(count.get(s) as number)} doors)` : ''}`))}.${stair}`;
+  return `${main}${stair}`;
+}
+
+/**
+ * Looking out in one direction: the doors in that wall counted and placed (this is where numbers belong, as when someone gives
+ * you directions: "the third door"), what can be seen through the nearest, and what else is on that wall.
+ */
+export function directionProse(h: Hall, side: Side, doors: NamedExit[], vista: { next: string | null; halls: number; passage: boolean }, onWall: string[], rand: Rand): string {
+  const w = `${SIDE_WORD[side]} wall`;
+  const place = (e: NamedExit): string => {
+    const lo = side === 'N' || side === 'S' ? 'west' : 'south';
+    const hi = side === 'N' || side === 'S' ? 'east' : 'north';
+    return e.pos < 250 ? `near the ${lo} end` : e.pos > 750 ? `near the ${hi} end` : e.pos < 450 ? `a little toward the ${lo}` : e.pos > 550 ? `a little toward the ${hi}` : 'in the middle';
+  };
+  const out: string[] = [];
+  if (doors.length === 0) {
+    out.push(`There is no door in the ${w}; it is a blank face of statues and stone.`);
+  } else {
+    const n = doors.length;
+    if (n === 1) out.push(pickBy(rand, [`A single door opens in the ${w}, ${place(doors[0] as NamedExit)}.`, `The ${w} has one door, ${place(doors[0] as NamedExit)}.`]));
+    else if (n === 2) out.push(`Two doors open in the ${w}: one ${place(doors[0] as NamedExit)}, the other ${place(doors[1] as NamedExit)}.`);
+    else if (n <= 6) out.push(`${capFirst(numWord(n))} doors open along the ${w}: ${listOf(doors.map(place))}.`);
+    else out.push(`A long row of doors, ${n} of them, runs along the ${w}.`);
+    if (vista.next) {
+      const near = n === 1 ? 'it' : 'the one nearest the middle';
+      if (vista.passage) out.push(`Through ${near} a long passage runs away, a hall's length or more, before it opens into the ${vista.next}.`);
+      else if (vista.halls >= 10) out.push(`Looking through ${near}, you see a great vista of halls, doorway beyond doorway, receding until the eye gives up.`);
+      else if (vista.halls >= 4) out.push(`Through ${near} you see the ${vista.next}, and beyond it several more halls, one doorway after another.`);
+      else if (vista.halls >= 2) out.push(`Through ${near} lies the ${vista.next}, and beyond it a hall or two more.`);
+      else out.push(`Through ${near} lies the ${vista.next}, and beyond it only another wall of statues.`);
+    }
+  }
+  out.push(...onWall);
+  return out.join(' ');
 }
 
 /** The statues near you, as something said of what the eye falls on, not a numbered list. */

@@ -87,8 +87,10 @@ export interface Game {
   told: Map<string, { keys: Set<string>; at: number }>;
   /** The hall last glanced at, and the last description given, for "repeat". */
   lastGlance: string | null;
-  /** The last sound sentence given in a glance, so the same one is not announced in every hall. */
-  lastSound: string;
+  /** The sort of statues the last glance described. */
+  lastChar: string;
+  /** The keys of the last few things said in glances, anywhere. */
+  recent: string[];
   lastLook: Line[] | null;
   /** Places the visitor has marked to find again: label to where. Private to the visitor and kept on their device. */
   marks: Map<string, { x: number; y: number; level: Level; hall: string }>;
@@ -125,7 +127,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), told: new Map(), lastGlance: null, lastSound: '', lastLook: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
   };
 }
 
@@ -189,6 +191,9 @@ function prepareHall(g: Game, realNowMs: number): { scene: SceneState; audio: Au
   return { scene, audio };
 }
 
+/** How many of the last things said are not said again at once, wherever you are. */
+const RECENT_KEYS = 36;
+
 /** After this long (in the world's time) away from a hall, a visitor notices things afresh. */
 const FORGET_MS = 2 * 3_600_000;
 
@@ -208,11 +213,14 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false): 
     let rec = g.told.get(hid);
     if (rec && scene.t - rec.at > FORGET_MS) { g.told.delete(hid); rec = undefined; }
     const mode = !rec ? 'first' : g.lastGlance === hid ? 'again' : 'return';
-    const r = glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene, rec?.keys.size ?? 0), rec?.keys ?? new Set(), mode, g.lastSound);
-    g.lastSound = r.sound;
+    const r = glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene, rec?.keys.size ?? 0), {
+      told: rec?.keys ?? new Set(), mode, lastChar: g.lastChar, recent: new Set(g.recent),
+    });
+    g.lastChar = r.char;
     paras = r.paras;
     const keys = rec?.keys ?? new Set<string>();
-    for (const k of r.said) keys.add(k);
+    for (const k of r.said) { keys.add(k); g.recent.push(k); }
+    if (g.recent.length > RECENT_KEYS) g.recent.splice(0, g.recent.length - RECENT_KEYS);
     g.told.set(hid, { keys, at: scene.t });
     g.lastGlance = hid;
   } else {
@@ -227,6 +235,10 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false): 
     ]),
     { label: 'listen', command: 'listen' },
   ];
+  // keep going the way you were heading, if there is a door that way; and let the House carry you
+  const ahead = g.exitsListed.some((e) => e.side === g.facing) ? sideWord(g.facing).replace(' wall', '') : null;
+  if (ahead) links.unshift({ label: `go on ${ahead}`, command: `go ${ahead}` });
+  links.push({ label: 'wander', command: 'wander' });
   if (scene.hall.kind === 'vestibule' && scene.hall.stairs.length > 0) {
     if (g.pos.level < 2) links.push({ label: 'go up', command: 'up' });
     if (g.pos.level > 0) links.push({ label: 'go down', command: 'down' });
@@ -611,6 +623,7 @@ export const HELP = [
   'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
   'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
   'Far places:  travel to the Ninth Vestibule  ·  home  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
+  'Keys (when you are not typing):  /  to type  ·  m map  ·  w wander  ·  r say it again  ·  s sound  ·  ?  help',
   'Let the House carry you:  wander (or the Wander button) walks on and on; type anything to stop it.',
   'The tides and the weather follow the real clock. Everything you read is also what you can hear.',
 ].join('\n');

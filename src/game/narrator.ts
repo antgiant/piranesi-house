@@ -74,9 +74,9 @@ const SIZE_PHRASE: Record<Hall['sizeClass'], string> = {
 };
 
 const MOOD_SENTENCE: Record<Hall['mood'], readonly string[]> = {
-  serene: ['Their faces are calm, as if each were listening to something a long way off.', 'A deep calm is carved into every face.'],
-  joyful: ['Many are caught laughing or dancing; the joy in the stone is almost loud.', 'They are mid-laugh, mid-leap, mid-song, and the whole place feels glad.'],
-  solemn: ['They stand grave and upright, watching without a flicker.', 'Every figure is weighty and still, as though keeping a vigil.'],
+  serene: ['Their faces are calm, as if each were listening to something a long way off.', 'A deep calm is carved into every face.', 'There is a great peace in the stone; nothing here is hurrying.', 'The figures are at rest, and the rest is catching.'],
+  joyful: ['Many are caught laughing or dancing; the joy in the stone is almost loud.', 'They are mid-laugh, mid-leap, mid-song, and the whole place feels glad.', 'It is a merry company, caught at the height of a festival.', 'A great many of them are dancing, and you find your step lightens.'],
+  solemn: ['They stand grave and upright, watching without a flicker.', 'Every figure is weighty and still, as though keeping a vigil.', 'The faces are grave; something is being remembered here, a long way back.', 'Nothing is said, and a great deal seems to be meant.'],
   effort: ['Nearly every figure is straining against something, muscles knotted, faces contorted but unbowed.', 'All of them push, pull or heave at weights you cannot see.'],
   violent: ['These are scenes of violence: bodies trampled, torn, dragged and flung, faces twisted in rage and terror.', 'Everywhere you look something is being done to someone; every mouth is open in a cry.'],
   crowd: ['They are not set out in tiers but crowded together, shoulder to shoulder, all of them turned the same way.', 'It is a crowd, jostling and leaning, every face lifted toward the same point.'],
@@ -137,19 +137,27 @@ function structureParagraph(h: Hall): string {
   return bits.join(' ');
 }
 
-export function lightSentence(h: Hall, s: SceneState): string {
+export function lightSentence(h: Hall, s: SceneState, v: Pick = (xs) => xs[0] as never): string {
   const l = s.light;
   if (h.tags.includes('dark-hall')) {
     return l.moonInDoorway ? 'The full moon stands centred in the single doorway and fills the hall with pale light; the statues seem to have just turned to look at it.' : 'There is no light at all here. The dark is complete.';
   }
   const where = LEVEL_WORD[h.level];
   switch (l.tone) {
-    case 'sun': return `Bright daylight falls through the windows${h.level === 0 ? ', greened and shaken by the sea outside' : ''}.`;
-    case 'overcast': return `A dull grey light comes through the windows${s.here.cloudHere > 0 ? ' and the cloud inside' : ''}.`;
-    case 'golden': return 'A wall of the hall blazes with golden light, so bright that the statues on it seem to dissolve.';
-    case 'twilight': return l.sunPhase === 'dawn' ? 'A pale dawn light is growing in the windows.' : 'The windows are going dim and blue with dusk.';
-    case 'moon': return `Moonlight lies in long pale bars across the ${where} hall.`;
-    case 'starlight': return 'Starlight in the windows is all the light there is, enough to see the great shapes of the statues.';
+    case 'sun': return v([
+      `Bright daylight falls through the windows${h.level === 0 ? ', greened and shaken by the sea outside' : ''}.`,
+      `The windows are full of daylight, and it lies in bright slabs across the floor${h.level === 0 ? ', rippling green' : ''}.`,
+      `Sunlight comes in sideways through the tall windows and picks out one statue after another${h.level === 0 ? ', wavering as if underwater' : ''}.`,
+    ]);
+    case 'overcast': return v([
+      `A dull grey light comes through the windows${s.here.cloudHere > 0 ? ' and the cloud inside' : ''}.`,
+      'The light is flat and grey, and the statues have no shadows.',
+      'Grey daylight, with nothing in it, leaks in at the windows.',
+    ]);
+    case 'golden': return v(['A wall of the hall blazes with golden light, so bright that the statues on it seem to dissolve.', 'Gold light pours over one wall, and the statues there glow as if lit from inside.']);
+    case 'twilight': return l.sunPhase === 'dawn' ? v(['A pale dawn light is growing in the windows.', 'The windows are paling, and the nearest statues are coming up out of the dark.']) : v(['The windows are going dim and blue with dusk.', 'Dusk is gathering in the corners, and the far statues have begun to merge.']);
+    case 'moon': return v([`Moonlight lies in long pale bars across the ${where} hall.`, 'Moonlight comes through the windows and lays a silver floor across the stone.', 'A cold white moonlight makes the statues look as if they had just stopped moving.']);
+    case 'starlight': return v(['Starlight in the windows is all the light there is, enough to see the great shapes of the statues.', 'There is only starlight, and the statues are tall shapes of a slightly paler dark.']);
     case 'dark': return 'It is dark.';
   }
 }
@@ -351,14 +359,17 @@ export function portalSentences(a: AudioScene): string[] {
   return a.portals.slice(0, 3).map((p) => `Through the ${SIDE_WORD[p.side]} door, ${BEARING_PHRASE[p.bearing]}, comes ${portalWhat(p)}.`);
 }
 
-export function soundParagraph(a: AudioScene, s: SceneState): string {
+type Pick = <T>(variants: readonly T[]) => T;
+
+/** Everything that could be said about what is heard here, each in one of a few ways. The caller chooses among them. */
+export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
   const bits: string[] = [];
   if (a.hush) bits.push('The silence here is unusual and deep. No sea, no wind; only the occasional drip.');
   else if (a.dark) bits.push('It is very quiet. A cold breath of air moves in the dark.');
   else {
-    if (a.sea.gain >= 0.7) bits.push('The sea is all around you, a heavy rolling roar.');
-    else if (a.sea.gain >= 0.3) bits.push('Beneath the floor the sea breathes, a slow surge and drag against the walls of a thousand chambers.');
-    else if (a.sea.gain >= 0.1) bits.push('The sea is only a faint murmur, far below.');
+    if (a.sea.gain >= 0.7) bits.push(v(['The sea is all around you, a heavy rolling roar.', 'The sea fills the hall with a deep, rolling roar, on every side.', 'You are inside the sound of the sea; it comes from everywhere at once.']));
+    else if (a.sea.gain >= 0.3) bits.push(v(['Beneath the floor the sea breathes, a slow surge and drag against the walls of a thousand chambers.', 'Far under your feet the sea moves in its chambers, with a slow pulse you feel more than hear.', 'The sea is a steady breathing beneath the floor.']));
+    else if (a.sea.gain >= 0.1) bits.push(v(['The sea is only a faint murmur, far below.', 'Somewhere very far down, the sea murmurs.', 'The sea is barely there: a hush at the bottom of the quiet.']));
   }
   switch (a.tide.kind) {
     case 'approach': bits.push(`Somewhere below there is a low thudding, growing: a tide is coming${a.tide.character ? `, with ${a.tide.character}` : ''}.`); break;
@@ -369,11 +380,12 @@ export function soundParagraph(a: AudioScene, s: SceneState): string {
     case 'submerged': bits.push('The water has closed over you and the world has gone strangely silent.'); break;
     case 'none': break;
   }
-  if (a.falls.gain > 0) bits.push('Fresh water trickles and splashes over stone somewhere nearby.');
-  if (a.rain.gain > 0.3) bits.push('Rain drums on the pavement.');
-  else if (a.rain.gain > 0) bits.push('A fine rain patters.');
-  if (a.wind.whistle > 0.1) bits.push('Wind sings through hollows in the statues, a thin shifting whistle.');
-  else if (a.wind.gain > 0.25) bits.push('Wind moans through the vestibule.');
+  if (a.thunder > 0.2) bits.push(v(['Thunder rolls somewhere far above, slow and heavy, and dies away along the walls.', 'A long low rumble of thunder comes down through the building.']));
+  if (a.falls.gain > 0) bits.push(v(['Fresh water trickles and splashes over stone somewhere nearby.', 'Water runs down a wall close by, with a bright, broken sound.', 'You can hear a thread of fresh water falling.']));
+  if (a.rain.gain > 0.3) bits.push(v(['Rain drums on the pavement.', 'Rain beats on the stone, and the whole hall hisses with it.']));
+  else if (a.rain.gain > 0) bits.push(v(['A fine rain patters.', 'Rain whispers somewhere outside the windows.']));
+  if (a.wind.whistle > 0.1) bits.push(v(['Wind sings through hollows in the statues, a thin shifting whistle.', 'A thin whistling comes and goes among the statues as the wind finds its hollows.']));
+  else if (a.wind.gain > 0.25) bits.push(v(['Wind moans through the vestibule.', 'The wind moves through the great room with a low moan.']));
   const b = a.birds;
   if (b.perMinute > 0) {
     if (b.mode === 'nesting') bits.push('Gulls scream and clatter.');
@@ -382,12 +394,22 @@ export function soundParagraph(a: AudioScene, s: SceneState): string {
     else if (b.mode === 'noisy') bits.push('Rooks caw.');
     else if (b.mode === 'sheltering') bits.push('Birds chatter on every ledge.');
     else if (b.mode === 'roosting') bits.push('Soft rustles of roosting birds.');
-    else bits.push('Small birds twitter and flutter.');
+    else if (b.mode === 'soaring') bits.push(v(['Gulls cry high overhead.', 'The thin screams of swifts come and go above the roof.']));
+    else if (b.mode === 'shore') bits.push('Gulls call over the wet stones, and a small bird pipes.');
+    else bits.push(v(['Small birds twitter and flutter.', 'A blackbird sings somewhere among the statues.', 'There is a flutter and twitter of small birds.']));
   } else if (b.mode === 'silent' && s.hall.level === 1 && !a.hush) bits.push('There are no birdsong or wingbeats.');
   bits.push(...portalSentences(a));
   if (s.outside) bits.push(outsideSentence(s.outside, s.hall));
   if (bits.length === 0) bits.push('You hear almost nothing: the echo of your own breathing.');
-  return bits.join(' ');
+  return bits;
+}
+
+export function soundParagraph(a: AudioScene, s: SceneState): string {
+  // stable: the same wording for the same hall and hour
+  const seed = hashInts(Math.floor(s.t / 3_600_000), s.hall.x, s.hall.y, s.hall.level, 0x5047);
+  let i = 0;
+  const v: Pick = (variants) => variants[(seed + i++) % variants.length] as never;
+  return soundBits(a, s, v).join(' ');
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -487,37 +509,61 @@ function exitsBrief(h: Hall, exits: NamedExit[]): string {
 
 export type GlanceMode = 'first' | 'return' | 'again';
 
+/** What the glances have already said: about this hall, and lately about anywhere. */
+export interface GlanceMemo {
+  /** Keys of what has been said about this hall. */
+  told: ReadonlySet<string>;
+  mode: GlanceMode;
+  /** What kind of statues the last hall had ("large|solemn"), so that "much the same" can be said instead of the whole again. */
+  lastChar: string;
+  /** Keys of the last few dozen things said anywhere: nothing is said again in the next few halls. */
+  recent: ReadonlySet<string>;
+}
+
 const AGAIN_LEAD = ['Looking about you again, ', 'Another look round: ', 'You look about once more. ', 'Taking in more of it, '];
 const BACK_LEAD = (h: Hall): string => `You are back in the ${h.name}.`;
+const SAME_AS_BEFORE = ['The statues are much as in the last hall.', 'Statues again, in the same ranks.', 'The same company of statues, in the same tiers.'];
 
 /**
  * The few things worth saying about a place: how big it feels, two or three striking things chosen from all there is (a strange
  * piece of building, a notable statue, the sky or the sea, a bird, the water), the sound, and where the doors lead. Nothing
- * already said about this hall is said again unless asked to be repeated: asking to look again brings new things, as a person
- * would find them, and says so when there is nothing more worth noticing. `look closely` gives the whole.
+ * already said about this hall, or in the last few halls, is said again unless asked to be repeated: asking to look again brings
+ * new things, as a person would find them, and says so when there is nothing more worth noticing. `look closely` gives the whole.
  *
  * Returns the paragraphs and the keys of what was said, so the caller can remember them.
  */
 export function glanceHall(
   h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[], flourishes: readonly Flourish[],
-  rand: Rand, told: ReadonlySet<string> = new Set(), mode: GlanceMode = 'first', lastSound = '',
-): { paras: string[]; said: string[]; sound: string } {
+  rand: Rand, memo: GlanceMemo,
+): { paras: string[]; said: string[]; sound: string; char: string } {
+  const { told, mode, recent } = memo;
   const out: string[] = [];
   const said: string[] = [];
-  let sound = lastSound;
+  let sound = '';
+  const char = `${h.sizeClass}|${h.mood}`;
+  const v: Pick = (xs) => xs[Math.floor(rand() * xs.length)] as never;
+  const fresh = (key: string): boolean => !told.has(key) && !recent.has(key);
+
   if (mode === 'first') {
     out.push(`${h.name}\nThe ${LEVEL_WORD[h.level]} level.`);
-    const count = h.mood === 'crowd' ? `${countWord(h.slotCount)} statues fill the walls` : `${countWord(h.slotCount)} statues cover the walls in tiers`;
-    // life-sized is ordinary and goes unsaid; anything else is said here, once, for the whole hall
-    const sizePhrase = h.sizeClass === 'life' ? '' : `, ${SIZE_PHRASE[h.sizeClass]}`;
-    out.push(`${sizeSentence(h)} ${count}${sizePhrase}. ${MOOD_SENTENCE[h.mood][Math.floor(rand() * MOOD_SENTENCE[h.mood].length)]}`);
+    if (char === memo.lastChar && rand() < 0.7) {
+      // the same sort of statues as the last hall: a person would not describe them all over again
+      out.push(`${sizeSentence(h)} ${rand() < 0.5 ? v(SAME_AS_BEFORE) : ''}`.trim());
+    } else {
+      const n = countWord(h.slotCount);
+      const count = h.mood === 'crowd'
+        ? v([`${n} statues fill the walls`, `The walls are packed with statues, ${n.toLowerCase()} of them`])
+        : v([`${n} statues cover the walls in tiers`, `The walls are tiered with statues, ${n.toLowerCase()} of them`, `${n} figures stand in tiers up the walls`, `Statues crowd every wall: ${n.toLowerCase()}`]);
+      // life-sized is ordinary and goes unsaid; anything else is said here, once, for the whole hall
+      const sizePhrase = h.sizeClass === 'life' ? '' : `, ${SIZE_PHRASE[h.sizeClass]}`;
+      out.push(`${sizeSentence(h)} ${count}${sizePhrase}. ${v(MOOD_SENTENCE[h.mood])}`);
+    }
     said.push('scale:said');
   } else if (mode === 'return') {
     out.push(BACK_LEAD(h));
   }
 
   const items: Item[] = [];
-  const fresh = (key: string): boolean => !told.has(key);
   for (const f of flourishes) if (fresh(f.id)) items.push({ weight: 4, group: 'building', key: f.id, text: f.text });
   const canon = seen.filter((sn) => sn.statue.canonId);
   for (const sn of canon.slice(0, 3)) {
@@ -534,9 +580,9 @@ export function glanceHall(
   add('sea', seaLines(h, s, rand));
   add('birds', birdLines(h, s, rand));
   const water = waterSentence(h, s);
-  if (water) add('water', [water]);
-  const light = lightSentence(h, s);
-  if (light) add('light', [light]);
+  if (water && fresh(`water:${water.slice(0, 30)}`)) items.push({ weight: 1, group: 'water', key: `water:${water.slice(0, 30)}`, text: water });
+  const light = lightSentence(h, s, v);
+  if (light && fresh(`light:${s.light.tone}`)) items.push({ weight: 1, group: 'light', key: `light:${s.light.tone}`, text: light });
   add('weather', weatherSentences(h, s));
   // the theme is a guess about an ordinary hall; the book's own places are not described by it
   if (h.mood !== 'violent' && h.mood !== 'crowd' && h.tags.length === 0) add('theme', [THEME_SENTENCE[h.theme]]);
@@ -578,12 +624,15 @@ export function glanceHall(
   }
   if (s.outside && fresh(`out:${s.outside.id}`)) { out.push(outsideSentence(s.outside, h)); said.push(`out:${s.outside.id}`); }
   if (mode !== 'again') {
-    const heard = soundParagraph(audio, s).split(/(?<=[.!?])\s+/)[0];
-    // the same sound is not announced hall after hall: only when it differs from the last thing you were told of
-    if (heard && heard !== lastSound && fresh(`sound:${heard}`)) { out.push(heard); said.push(`sound:${heard}`); sound = heard; }
+    // one thing heard, and the weather or the tide before the ever-present sea; the same line is not said hall after hall
+    const bits = soundBits(audio, s, v);
+    const noteworthy = bits.length > 1 && rand() < 0.75 ? bits.slice(1) : bits;
+    const heard = noteworthy[Math.floor(rand() * noteworthy.length)] as string;
+    const key = `sound:${heard.slice(0, 40)}`;
+    if (heard && fresh(key)) { out.push(heard); said.push(key); sound = heard; }
   }
   const rp = mode === 'first' ? relicsParagraph(relics, 1) : '';
   if (rp) out.push(rp);
   if (mode !== 'again') out.push(exitsBrief(h, exits));
-  return { paras: out.filter(Boolean), said, sound };
+  return { paras: out.filter(Boolean), said, sound, char };
 }

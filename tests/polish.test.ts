@@ -54,6 +54,7 @@ describe('saying things as a person would', () => {
   it('says how big the statues are once for a hall, and not again when looking again', () => {
     const g = narrated();
     g.pos = { x: 1, y: 1, level: 1, wall: null, pos: 500 };
+    g.lastChar = '';
     const first = all(look(g, NOW));
     const rest = all(step(g, 'look', NOW + 1000)) + all(step(g, 'look', NOW + 2000));
     const phrase = /none of them higher than your shoulder|two or three times your height|towering six to nine metres|fifteen to twenty metres tall/g;

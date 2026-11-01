@@ -7,11 +7,12 @@
   --event: #8fb4c4;
   --line: #3a3228;
   --font: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  --on-accent: #1b1408;
   --scale: 1;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: light) {
-  :root { --bg: #f2ead9; --panel: #e9dfca; --ink: #231d15; --dim: #5d5446; --accent: #7a4f12; --event: #1f5a73; --line: #cdbf9f; }
+  :root { --bg: #f2ead9; --panel: #e9dfca; --ink: #231d15; --dim: #5d5446; --accent: #7a4f12; --on-accent: #fff8e6; --event: #1f5a73; --line: #cdbf9f; }
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: calc(18px * var(--scale)); line-height: 1.55; }
@@ -19,15 +20,15 @@ html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); 
 :root[data-plain] { --font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
 :root[data-plain] body { line-height: 1.8; letter-spacing: 0.02em; word-spacing: 0.08em; }
 /* More contrast */
-:root[data-contrast] { --ink: #ffffff; --bg: #000000; --panel: #151515; --dim: #d8d8d8; --line: #888888; --accent: #ffd166; --event: #9fd8ff; }
-@media (prefers-color-scheme: light) { :root[data-contrast] { --ink: #000000; --bg: #ffffff; --panel: #f0f0f0; --dim: #222222; --line: #555555; --accent: #5a3300; --event: #00415f; } }
+:root[data-contrast] { --ink: #ffffff; --bg: #000000; --panel: #151515; --dim: #d8d8d8; --line: #888888; --accent: #ffd166; --on-accent: #000000; --event: #9fd8ff; }
+@media (prefers-color-scheme: light) { :root[data-contrast] { --ink: #000000; --bg: #ffffff; --panel: #f0f0f0; --dim: #222222; --line: #555555; --accent: #5a3300; --on-accent: #ffffff; --event: #00415f; } }
 #app { display: flex; flex-direction: column; height: 100dvh; max-width: 54rem; margin: 0 auto; padding: 0 16px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 [hidden] { display: none !important; }
 button, input, select { font: inherit; color: inherit; }
 button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 0.35rem 0.8rem; cursor: pointer; }
 button:hover { border-color: var(--accent); }
-button.primary { background: var(--accent); color: #1b1408; border-color: var(--accent); font-weight: bold; padding: 0.6rem 1.4rem; }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: bold; padding: 0.6rem 1.4rem; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .place { display: flex; flex-direction: column; min-width: 0; flex: 1 1 14rem; }
@@ -67,12 +68,12 @@ dialog h2 { margin: 0 0 0.3rem; font-weight: normal; }
 .map { position: fixed; right: 12px; bottom: 12px; z-index: 4; width: min(26rem, calc(100vw - 24px)); max-height: calc(100dvh - 24px); display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; box-shadow: 0 6px 30px rgba(0, 0, 0, 0.45); }
 .map-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .map-head button { padding: 0.2rem 0.55rem; font-size: 0.85rem; }
-.map-back { width: 100%; padding: 0.7rem 1rem; font-size: 1.05rem; font-weight: bold; background: var(--accent); color: #1b1408; border-color: var(--accent); border-radius: 8px; }
+.map-back { width: 100%; padding: 0.7rem 1rem; font-size: 1.05rem; font-weight: bold; background: var(--accent); color: var(--on-accent); border-color: var(--accent); border-radius: 8px; }
 .seg { display: flex; }
 .seg button { border-radius: 0; margin-left: -1px; }
 .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
 .seg button:last-child { border-radius: 0 6px 6px 0; }
-.seg button[aria-pressed="true"] { background: var(--accent); color: #1b1408; border-color: var(--accent); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .zoom { display: flex; gap: 4px; }
 #map-canvas { width: 100%; height: min(22rem, 52dvh); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; touch-action: none; cursor: grab; }
 .map .small { margin: 0; }
@@ -82,3 +83,13 @@ dialog h2 { margin: 0 0 0.3rem; font-weight: normal; }
   #map-canvas { flex: 1; height: auto; }
   .map-head button { min-height: 44px; min-width: 44px; font-size: 1rem; }
 }
+
+.card { margin: 10px 0; padding: 12px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.card h2 { margin: 0 0 0.3rem; font-weight: normal; font-size: 1.1rem; }
+.card ul { margin: 0.4rem 0; padding-left: 1.2rem; }
+.card li { margin: 0.25rem 0; }
+kbd { font-family: var(--mono); font-size: 0.85em; padding: 0 0.35em; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); }
+button.linklike { background: none; border: none; padding: 0; color: var(--dim); text-decoration: underline; font-size: inherit; cursor: pointer; }
+dialog h3 { font-size: 1rem; margin: 0.8rem 0 0.2rem; font-weight: bold; }
+dialog ul { padding-left: 1.2rem; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

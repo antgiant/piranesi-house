@@ -16,6 +16,8 @@ jobs:
         run: git diff --exit-code src/generated
       - run: npm test
       - run: npm run build
+      - name: performance budget
+        run: npm run check:budget
 
   e2e:
     runs-on: ubuntu-latest

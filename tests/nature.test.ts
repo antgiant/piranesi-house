@@ -104,8 +104,8 @@ describe('a glance, as a person would', () => {
       if (/sky|cloud|star|sun|rain|snow|moon|dawn|dusk/i.test(all(look(up, t)))) sky++;
       if (/fish|weed|sea|crab|pool|starfish|lobster|mussel/i.test(all(look(lo, t)))) sea++;
     }
-    expect(sky).toBeGreaterThan(30);
-    expect(sea).toBeGreaterThan(30);
+    expect(sky).toBeGreaterThan(24);
+    expect(sea).toBeGreaterThan(24);
   });
 });
 
@@ -127,7 +127,7 @@ describe('what is said, and not said again', () => {
     let withScale = 0, without = 0;
     for (let x = -10; x <= 10; x++) for (let y = -6; y <= 6; y++) {
       g.pos = { x, y, level: 1, wall: null, pos: 500 };
-      g.told.clear(); g.lastGlance = null;
+      g.told.clear(); g.lastGlance = null; g.lastChar = ''; g.recent = [];
       const txt = all(look(g, NOW));
       const hall = getHall(w, x, y, 1);
       if (hall.sizeClass === 'life') { expect(txt).not.toMatch(/about your own height/); without++; }

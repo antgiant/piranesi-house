@@ -6,6 +6,9 @@
   <meta name="description" content="An endless House of halls and stairs, tides below and clouds above, and silent statues. Listen." />
   <meta name="theme-color" content="#14110e" />
   <title>Piranesi’s House</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="stylesheet" href="/src/web/style.css" />
 </head>
 <body>
@@ -20,6 +23,19 @@
         <button id="open-settings" type="button" title="Settings">Settings</button>
       </div>
     </header>
+
+    <aside id="intro" class="card" hidden aria-labelledby="intro-h">
+      <h2 id="intro-h">Before you go in</h2>
+      <p>This is a House of endless halls and staircases, with the sea beneath it and cloud above, and statues on every wall. You are alone in it, and it is mostly sound.</p>
+      <ul>
+        <li><strong>Look and listen.</strong> Read the description, press <em>listen</em>, or type it.</li>
+        <li><strong>Move.</strong> Press a door button under a description, or type <em>go north</em>. To go far, type <em>travel to the Ninth Vestibule</em> or tap a place on the <em>Map</em>.</li>
+        <li><strong>Let it carry you.</strong> Press <em>Wander</em> and it walks on and on. Turn on <em>Read descriptions aloud</em> in Settings to be read to.</li>
+        <li><strong>Share a place.</strong> The address always names the room you are in. <em>Share</em> sends it to someone.</li>
+        <li><strong>Keys</strong> (when you are not typing): <kbd>/</kbd> to type, <kbd>m</kbd> map, <kbd>w</kbd> wander, <kbd>r</kbd> say it again, <kbd>s</kbd> sound, <kbd>?</kbd> help.</li>
+      </ul>
+      <p><button type="button" id="intro-ok" class="primary">Got it</button></p>
+    </aside>
 
     <main id="log" class="log" role="log" aria-live="polite" aria-label="The House" tabindex="-1"></main>
 
@@ -36,7 +52,7 @@
       <p>You will arrive alone. Listen as much as you look.</p>
       <p class="small">Headphones are best. Everything runs in your browser; nothing is sent anywhere.</p>
       <button id="enter" type="button" class="primary">Enter Piranesi’s House</button>
-      <p class="credit">An unofficial fan project inspired by <a href="https://www.amazon.com/s?k=9781635575637" rel="noopener">Piranesi</a>, a novel. It contains none of the book's text. <a href="https://github.com/antgiant/piranesi-house">Source on GitHub</a>.</p>
+      <p class="credit">An unofficial fan project inspired by <a href="https://www.amazon.com/s?k=9781635575637" rel="noopener">Piranesi</a>, a novel. It contains none of the book's text. <a href="https://github.com/antgiant/piranesi-house">Source on GitHub</a>. <button type="button" id="open-about" class="linklike">About, credits and privacy</button></p>
     </section>
 
     <aside id="map-panel" class="map" hidden aria-label="Map of the halls you have explored">
@@ -59,6 +75,23 @@
       <p class="small legend">Gold ring: you, and the way you face. Solid: halls you have been in. Dashed: seen through a door, not entered. Blue: water there now. Dashed line: a long passage. The map only remembers this visit.</p>
     </aside>
 
+    <dialog id="about" aria-labelledby="about-h">
+      <form method="dialog">
+        <h2 id="about-h">About, credits and privacy</h2>
+        <p>An unofficial fan project, made out of admiration for <em>Piranesi</em>, the novel by Susanna Clarke. It contains none of the book's text; everything said here is written for this project. It is not endorsed by the author or the publisher.</p>
+        <p>The place is also named for the eighteenth-century etcher Giovanni Battista Piranesi, whose drawings of enormous, impossible buildings inspired the halls' strange architecture. The House's statues, halls, tides and weather are generated from a seed, so everyone who uses the same seed finds the same House.</p>
+        <h3>What this page keeps, and what it sends</h3>
+        <ul>
+          <li><strong>It sends nothing.</strong> There are no accounts, no cookies, no analytics and no tracking. After the page has loaded, it needs no network at all.</li>
+          <li><strong>On your device only,</strong> it keeps your settings, what you have noticed that earlier visitors left (the <em>found</em> list) and the places you mark, and the files needed to open offline. Clearing this site's data in your browser removes all of it.</li>
+          <li><strong>A shared link</strong> contains only the name of a room (and the level and world if they are unusual). Nobody else can see your marks or settings.</li>
+          <li><strong>Reading aloud</strong> uses your browser's own voices. Some browsers and devices use voices that run online, in which case the words being read are sent to that voice service by your browser, not by this page. Choose an offline voice in Settings if that matters to you.</li>
+        </ul>
+        <p class="small"><a href="https://github.com/antgiant/piranesi-house" rel="noopener">Source code on GitHub</a> · The novel: <a href="https://www.amazon.com/s?k=9781635575637" rel="noopener">Piranesi</a>.</p>
+        <div class="actions"><button value="ok" class="primary" id="about-close">Close</button></div>
+      </form>
+    </dialog>
+
     <dialog id="settings" aria-labelledby="s-h">
       <form method="dialog">
         <h2 id="s-h">Settings</h2>
@@ -77,6 +110,8 @@
         </label>
         <label class="row check"><input id="s-plain" type="checkbox" /> <span>Plain, spaced-out lettering (easier to read)</span></label>
         <label class="row check"><input id="s-contrast" type="checkbox" /> <span>Higher contrast</span></label>
+        <label class="row check"><input id="s-announce" type="checkbox" /> <span>Let my screen reader announce new text (off while reading aloud)</span></label>
+        <label class="row check"><input id="s-shortcuts" type="checkbox" /> <span>Single-key shortcuts when I am not typing</span></label>
         <label class="row check"><input id="s-diary" type="checkbox" /> <span>Capitalise the House's nouns, like a diary</span></label>
         <label class="row"><span>Speed of time</span>
           <select id="s-scale">
@@ -92,6 +127,7 @@
         </label>
         <label class="row"><span>World seed</span><input id="s-seed" type="text" maxlength="40" /></label>
         <p class="small">Changing the seed, the dead or the speed of time starts you again at the First Vestibule.</p>
+        <p class="row"><button type="button" id="s-transcript">Save what I have read</button> <button type="button" id="s-intro">Show the introduction</button> <button type="button" id="s-about">About and privacy</button></p>
         <div class="actions"><button value="cancel" type="button" id="s-cancel">Cancel</button><button value="ok" id="s-save" class="primary">Save</button></div>
       </form>
     </dialog>

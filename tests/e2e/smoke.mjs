@@ -331,6 +331,92 @@ try {
     await rc.close();
   }
 
+  // Polish: first-run introduction, shortcuts, screen-reader announcements, transcript, about, and offline.
+  {
+    const ctx = await browser.newContext({ viewport: { width: 900, height: 900 }, acceptDownloads: true });
+    const pg = await ctx.newPage();
+    pg.on('pageerror', (e) => errors.push(String(e)));
+    await pg.goto(URL);
+    await pg.click('#enter');
+    await pg.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    check(await pg.locator('#intro').isVisible(), 'the first time in, a short introduction is shown');
+    await pg.click('#intro-ok');
+    check(!(await pg.locator('#intro').isVisible()), 'and can be dismissed');
+    await pg.reload();
+    await pg.click('#enter');
+    await pg.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    check(!(await pg.locator('#intro').isVisible()), 'and does not come back');
+    // shortcuts
+    await pg.locator('body').click({ position: { x: 5, y: 5 } });
+    await pg.keyboard.press('m');
+    check(await pg.locator('#map-panel').isVisible(), 'the key m opens the map');
+    await pg.keyboard.press('Escape');
+    await pg.keyboard.press('/');
+    check(await pg.evaluate(() => document.activeElement.id === 'input'), 'the key / goes to the command line');
+    await pg.keyboard.type('m');
+    check(!(await pg.locator('#map-panel').isVisible()), 'and letters typed there are not shortcuts');
+    await pg.fill('#input', '');
+    await pg.locator('body').click({ position: { x: 5, y: 5 } });
+    await pg.keyboard.press('w');
+    check((await pg.locator('#wander').getAttribute('aria-pressed')) === 'true', 'the key w starts wandering');
+    await pg.keyboard.press('w');
+    // screen reader
+    check((await pg.locator('#log').getAttribute('aria-live')) === 'polite', 'new text is announced to a screen reader by default');
+    await pg.click('#open-settings');
+    await pg.uncheck('#s-shortcuts');
+    await pg.click('#s-save');
+    await pg.locator('body').click({ position: { x: 5, y: 5 } });
+    await pg.keyboard.press('m');
+    check(!(await pg.locator('#map-panel').isVisible()), 'shortcuts can be turned off');
+    // transcript
+    await pg.click('#open-settings');
+    const dl = pg.waitForEvent('download');
+    await pg.click('#s-transcript');
+    const file = await dl;
+    check(/^piranesis-house-\d{4}-\d\d-\d\d\.txt$/.test(file.suggestedFilename()), `the transcript can be saved (${file.suggestedFilename()})`);
+    // about
+    await pg.click('#s-about');
+    check(await pg.locator('#about').isVisible() && (await pg.locator('#about').textContent()).includes('sends nothing'), 'the about page states what is and is not kept or sent');
+    await pg.click('#about-close');
+    await ctx.close();
+  }
+  {
+    const ctx = await browser.newContext({ viewport: { width: 900, height: 900 } });
+    const pg = await ctx.newPage();
+    pg.on('pageerror', (e) => errors.push(String(e)));
+    await pg.addInitScript(() => {
+      window.__spoken = [];
+      window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+      Object.defineProperty(window, 'speechSynthesis', { value: { speaking: false, getVoices: () => [], addEventListener() {}, cancel() {}, speak(u) { setTimeout(() => u.onend && u.onend(), 10); } } });
+    });
+    await pg.goto(URL);
+    await pg.click('#enter');
+    await pg.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await pg.click('#open-settings');
+    await pg.check('#s-narrate');
+    await pg.click('#s-save');
+    check((await pg.locator('#log').getAttribute('aria-live')) === 'off', 'while the House is read aloud, the screen reader is not also told (they would talk over each other)');
+    await ctx.close();
+  }
+  {
+    // offline: once opened, it opens again with no connection
+    const ctx = await browser.newContext({ viewport: { width: 900, height: 900 } });
+    const pg = await ctx.newPage();
+    pg.on('pageerror', (e) => errors.push(String(e)));
+    await pg.goto(`http://localhost:${PORT}/#sw`);
+    await pg.waitForFunction(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.active); }, null, { timeout: 15000 });
+    await pg.reload();
+    // wait until the files have really been stored
+    await pg.waitForFunction(async () => { const c = await caches.open('house-v1'); return (await c.keys()).length >= 3; }, null, { timeout: 15000 });
+    await ctx.setOffline(true);
+    await pg.reload();
+    check(await pg.locator('#title').isVisible(), 'with no connection at all, a visited House still opens');
+    await pg.click('#enter');
+    await pg.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    check(true, 'and can be entered and played offline');
+    await ctx.close();
+  }
+
   // Every kind of bird call, and thunder, can be played without error, and each is counted.
   {
     const species = ['sparrow', 'gull', 'rook', 'albatross', 'flock', 'rustle', 'blackbird', 'swift', 'wader', 'dove', 'owl', 'starling', 'thunder'];

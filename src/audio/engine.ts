@@ -84,6 +84,8 @@ export class AudioEngine {
   private trafficFilter!: BiquadFilterNode;
 
   get started(): boolean { return this.ctx !== null; }
+  /** True when the browser is actually letting the sound play (it may refuse until you tap or press a key). */
+  get running(): boolean { return this.ctx?.state === 'running'; }
 
   /**
    * Phones may suspend or "interrupt" the audio while the speech voice talks or the app is switched away; sounds scheduled

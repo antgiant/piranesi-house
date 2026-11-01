@@ -275,7 +275,7 @@ standing in the same hall hear the same ambience.
 | 7 | **Side-scroller view** (NEXT): walking strip with parallax, tiers, tide/cloud/rain, perched birds, and the statue sprite pipeline | same statue list and tide level as the text view, at the same moment |
 | 8 | **Multiplayer** (UNDER RECONSIDERATION: the owner is thinking of dropping it in favour of shareable links, which exist, plus an outside chat): spike to find a working signalling method for a static site, then presence and other visitors' footsteps and sounds, then **inventory** (random starting kit, take, drop, give) and **visitor marks** (preset chalk and pebble messages that need chalk or pebbles), all shared and ephemeral under the witness rule; relics become pick-up-able here; other visitors appear in the side-scroller | two browsers on different networks meet, marks and dropped items are seen by both, and all of it vanishes when both close |
 | 9 | **3D view**, fidelity step (a) reusing the sprite pipeline, then (b) | same statue list as text and side views |
-| 10 | **Polish, text first** (STARTED; do this before 7): accessibility, mobile, PWA offline, performance budget, credits and fan-work notice, and above all the quality of the text experience | `design/polish.md` is the checklist |
+| 10 | **Polish, text first** (DONE for the text experience; the visual views' polish comes with them): accessibility, mobile, PWA offline, performance budget, credits and fan-work notice, and above all the quality of the text experience | `design/polish.md` is the checklist |
 ## 10. Risks
 
 - **Canon fidelity** depends on a full, careful extraction. Budget real time for M0.

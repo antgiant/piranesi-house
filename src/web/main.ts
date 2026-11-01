@@ -32,6 +32,10 @@ interface Settings {
   textScale: number;
   plainFont: boolean;
   contrast: boolean;
+  /** Let a screen reader announce new text (off while it is being read aloud, so the two do not talk over each other). */
+  announce: boolean;
+  /** Single-key shortcuts when not typing. */
+  shortcuts: boolean;
   narrate: boolean;
   voiceURI: string;
   narrateRate: number;
@@ -39,7 +43,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -275,6 +279,14 @@ async function enter(): Promise<void> {
   engine.setMuted(settings.muted);
   startGame(true);
   try { await engine.start(); } catch { print([{ kind: 'system', text: 'Sound could not be started in this browser. The House is still here to read.' }]); }
+  if (!introSeen()) showIntro();
+  if (engine.started && !engine.running) {
+    // some browsers wait for another tap before letting the sound play
+    print([{ kind: 'system', text: 'Your browser has not yet let the House make sound. Tap or press any key and it will begin.' }]);
+    const wake = (): void => { void engine.start().then(() => engine.resume()); };
+    document.addEventListener('pointerdown', wake, { once: true });
+    document.addEventListener('keydown', wake, { once: true });
+  }
   refresh();
   input.focus();
 }
@@ -336,6 +348,18 @@ input.addEventListener('keydown', (e) => {
 $('mute').addEventListener('click', () => { settings.muted = !settings.muted; saveSettings(settings); engine.setMuted(settings.muted); paintMute(); });
 
 const dlg = $<HTMLDialogElement>('settings');
+const aboutDlg = $<HTMLDialogElement>('about');
+/** Show a dialog; very old browsers without the dialog element get it opened plainly. */
+function openDialog(d: HTMLDialogElement): void {
+  if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', '');
+}
+function closeDialog(d: HTMLDialogElement): void {
+  if (typeof d.close === 'function') d.close(); else d.removeAttribute('open');
+}
+const openAbout = (): void => openDialog(aboutDlg);
+$('open-about').addEventListener('click', openAbout);
+$('s-about').addEventListener('click', openAbout);
+$('about-close').addEventListener('click', (e) => { e.preventDefault(); closeDialog(aboutDlg); });
 function fillSettings(): void {
   $<HTMLInputElement>('s-volume').value = String(settings.volume);
   $<HTMLInputElement>('s-dead').checked = settings.showDead;
@@ -346,6 +370,8 @@ function fillSettings(): void {
   $<HTMLSelectElement>('s-size').value = String(settings.textScale);
   $<HTMLInputElement>('s-plain').checked = settings.plainFont;
   $<HTMLInputElement>('s-contrast').checked = settings.contrast;
+  $<HTMLInputElement>('s-announce').checked = settings.announce;
+  $<HTMLInputElement>('s-shortcuts').checked = settings.shortcuts;
   $<HTMLInputElement>('s-mutter').checked = settings.mutter;
   $<HTMLInputElement>('s-mutter-captions').checked = settings.mutterCaptions;
   fillVoices();
@@ -358,8 +384,8 @@ function fillSettings(): void {
   $('s-speed-note').textContent = speedNote(settings.speedKmh);
   $<HTMLInputElement>('s-seed').value = settings.seed;
 }
-$('open-settings').addEventListener('click', () => { fillSettings(); dlg.showModal(); });
-$('s-cancel').addEventListener('click', () => dlg.close());
+$('open-settings').addEventListener('click', () => { fillSettings(); openDialog(dlg); });
+$('s-cancel').addEventListener('click', () => closeDialog(dlg));
 $<HTMLInputElement>('s-speed').addEventListener('input', (e) => {
   const v = Number((e.target as HTMLInputElement).value);
   $('s-speed-out').textContent = `${v.toFixed(1)} km/h`;
@@ -379,6 +405,8 @@ $('s-save').addEventListener('click', (e) => {
     textScale: Number($<HTMLSelectElement>('s-size').value) || 1,
     plainFont: $<HTMLInputElement>('s-plain').checked,
     contrast: $<HTMLInputElement>('s-contrast').checked,
+    announce: $<HTMLInputElement>('s-announce').checked,
+    shortcuts: $<HTMLInputElement>('s-shortcuts').checked,
     mutter: $<HTMLInputElement>('s-mutter').checked,
     mutterCaptions: $<HTMLInputElement>('s-mutter-captions').checked,
     voiceURI: $<HTMLSelectElement>('s-voice').value,
@@ -396,7 +424,7 @@ $('s-save').addEventListener('click', (e) => {
   applyNarration();
   applyReading();
   if (game && hashParams().get('pace') !== 'instant') game.opts.walkPace = paceFromKmh(settings.speedKmh);
-  dlg.close();
+  closeDialog(dlg);
   if (restart || restyle) {
     // starting again at the First Vestibule: forget the old room, and a seed the settings have just replaced
     const q = new URLSearchParams(withoutRoom(location.hash).replace(/^#/, ''));
@@ -406,6 +434,83 @@ $('s-save').addEventListener('click', (e) => {
     input.focus();
   }
 });
+
+// --- first-run introduction, shortcuts, transcript, offline, and plain-words errors -------------------------------------
+const introEl = $('intro');
+const INTRO_KEY = 'the-house.intro.v1';
+function introSeen(): boolean { try { return localStorage.getItem(INTRO_KEY) === '1'; } catch { return false; } }
+function showIntro(): void { introEl.hidden = false; }
+$('intro-ok').addEventListener('click', () => {
+  introEl.hidden = true;
+  try { localStorage.setItem(INTRO_KEY, '1'); } catch { /* ignore */ }
+  input.focus();
+});
+$('s-intro').addEventListener('click', () => { closeDialog(dlg); showIntro(); introEl.scrollIntoView?.({ block: 'start' }); });
+
+/** Everything read so far, as a plain text file kept on the device: nothing is sent anywhere. */
+function saveTranscript(): void {
+  const when = new Date();
+  const head = `Piranesi’s House: what I have read\nSaved ${when.toLocaleString()}\nWhere I was: ${location.href}\n\n`;
+  const body = Array.from(logEl.children).map((el) => (el as HTMLElement).innerText.trim()).filter(Boolean).join('\n\n');
+  const blob = new Blob([head, body, '\n'], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `piranesis-house-${when.toISOString().slice(0, 10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+$('s-transcript').addEventListener('click', saveTranscript);
+
+/** Single-key shortcuts, only when nothing is being typed and no dialog is open. They can be turned off in Settings. */
+document.addEventListener('keydown', (e) => {
+  if (!settings.shortcuts || e.ctrlKey || e.metaKey || e.altKey || !game) return;
+  const el = e.target as HTMLElement | null;
+  if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return; // typing: leave the keys alone
+  if (dlg.open || aboutDlg.open || !$('title').hidden) return;
+  switch (e.key) {
+    case '/': e.preventDefault(); input.focus(); break;
+    case 'm': toggleMap(); break;
+    case 'w': setWandering(!wandering); break;
+    case 'r': submit('repeat'); break;
+    case 's': $('mute').click(); break;
+    case '?': submit('help'); break;
+    default: return;
+  }
+});
+
+/** Say plainly what went wrong, once in a while, instead of failing silently. */
+let lastProblemMs = 0;
+function problem(text: string): void {
+  if (Date.now() - lastProblemMs < 10000) return;
+  lastProblemMs = Date.now();
+  print([{ kind: 'system', text }], 'end');
+}
+window.addEventListener('error', () => problem('Something went wrong inside the page. The House is still here; if it stops answering, reload this page. Your marks and notes are kept.'));
+window.addEventListener('unhandledrejection', () => problem('Something went wrong inside the page. The House is still here; if it stops answering, reload this page. Your marks and notes are kept.'));
+
+/** Notes for browsers that cannot do everything the House does. */
+(function featureNotes(): void {
+  const notes: string[] = [];
+  const AC = (window as unknown as { AudioContext?: unknown; webkitAudioContext?: unknown });
+  if (!AC.AudioContext && !AC.webkitAudioContext) notes.push('This browser cannot make the sound the House is built from, so you will have the text only. A recent Chrome, Edge, Firefox or Safari will give you the sound.');
+  try { localStorage.setItem('the-house.probe', '1'); localStorage.removeItem('the-house.probe'); } catch { notes.push('This browser is not letting the page keep anything, so your settings, marks and notes will be forgotten when you close it.'); }
+  if (typeof HTMLDialogElement === 'undefined') notes.push('This is an old browser: some panels may look plain, but everything still works.');
+  if (notes.length) {
+    const p = document.createElement('p');
+    p.className = 'small';
+    p.id = 'title-note';
+    p.textContent = notes.join(' ');
+    $('enter').before(p);
+  }
+})();
+
+// Offline: once opened, the House opens again without a connection.
+const isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && (!isLocal || hashParams().has('sw'))) {
+  window.addEventListener('load', () => { void navigator.serviceWorker.register('./sw.js').catch(() => undefined); });
+}
 
 function fillVoices(): void {
   const sel = $<HTMLSelectElement>('s-voice');
@@ -419,6 +524,8 @@ function applyReading(): void {
   r.style.setProperty('--scale', String(settings.textScale));
   if (settings.plainFont) r.setAttribute('data-plain', ''); else r.removeAttribute('data-plain');
   if (settings.contrast) r.setAttribute('data-contrast', ''); else r.removeAttribute('data-contrast');
+  // A screen reader and the browser's reading voice would talk over each other: only one of them announces new text.
+  logEl.setAttribute('aria-live', settings.announce && !narrator.enabled ? 'polite' : 'off');
 }
 applyReading();
 
@@ -441,6 +548,7 @@ function applyNarration(): void {
   narrator.enabled = settings.narrate && narrator.supported;
   syncWalkNarration();
   narrator.rate = settings.narrateRate;
+  applyReading();
   narrator.voiceURI = settings.voiceURI;
   if (!settings.narrate) narrator.cancel();
 }

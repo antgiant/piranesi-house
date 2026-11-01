@@ -93,3 +93,18 @@ button.linklike { background: none; border: none; padding: 0; color: var(--dim);
 dialog h3 { font-size: 1rem; margin: 0.8rem 0 0.2rem; font-weight: bold; }
 dialog ul { padding-left: 1.2rem; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+.journal { position: fixed; right: 12px; bottom: 12px; z-index: 4; width: min(30rem, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 14px; box-shadow: 0 6px 30px rgba(0, 0, 0, 0.45); }
+.journal h2 { margin: 0.2rem 0 0; font-weight: normal; }
+.journal textarea, dialog textarea { width: 100%; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 0.5rem; font: inherit; resize: vertical; }
+.entries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.entries li { border-top: 1px solid var(--line); padding-top: 8px; }
+.entries .when { color: var(--dim); font-size: 0.8rem; margin: 0 0 4px; }
+.entries .body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0 0 6px; }
+.entries .tools { display: flex; gap: 8px; }
+.entries .tools button { padding: 0.15rem 0.6rem; font-size: 0.85rem; }
+@media (max-width: 700px) {
+  .journal { inset: 0; width: auto; max-height: none; border-radius: 0; padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
+  .journal textarea { font-size: 1rem; }
+}
+#title-saved { color: var(--dim); }

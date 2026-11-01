@@ -17,6 +17,7 @@
       <div class="place"><span id="place" role="heading" aria-level="1">The House</span><span id="clock" class="clock"></span></div>
       <div class="tools">
         <button id="wander" type="button" aria-pressed="false" title="Let the House carry you: wander for ever, reading as you go">Wander</button>
+        <button id="open-journal" type="button" aria-expanded="false" aria-controls="journal-panel" title="Your journal: write whatever you like">Journal</button>
         <button id="open-map" type="button" aria-expanded="false" aria-controls="map-panel" title="Show the map of what you have explored">Map</button>
         <button id="share" type="button" title="Copy a link to this room, or share it">Share</button>
         <button id="mute" type="button" aria-pressed="false" title="Mute or unmute the sound">Sound on</button>
@@ -31,8 +32,9 @@
         <li><strong>Look and listen.</strong> Read the description, press <em>listen</em>, or type it.</li>
         <li><strong>Move.</strong> Press a door button under a description, or type <em>go north</em>. To go far, type <em>travel to the Ninth Vestibule</em> or tap a place on the <em>Map</em>.</li>
         <li><strong>Let it carry you.</strong> Press <em>Wander</em> and it walks on and on. Turn on <em>Read descriptions aloud</em> in Settings to be read to.</li>
+        <li><strong>Keep a journal.</strong> Press <em>Journal</em> and write whatever you like. It is yours alone, and your journey, journal included, is here when you come back.</li>
         <li><strong>Share a place.</strong> The address always names the room you are in. <em>Share</em> sends it to someone.</li>
-        <li><strong>Keys</strong> (when you are not typing): <kbd>/</kbd> to type, <kbd>m</kbd> map, <kbd>w</kbd> wander, <kbd>r</kbd> say it again, <kbd>s</kbd> sound, <kbd>?</kbd> help.</li>
+        <li><strong>Keys</strong> (when you are not typing): <kbd>/</kbd> to type, <kbd>m</kbd> map, <kbd>w</kbd> wander, <kbd>j</kbd> journal, <kbd>r</kbd> say it again, <kbd>s</kbd> sound, <kbd>?</kbd> help.</li>
       </ul>
       <p><button type="button" id="intro-ok" class="primary">Got it</button></p>
     </aside>
@@ -51,7 +53,9 @@
       <p class="lede">An endless building of halls and staircases, with the sea beneath it and the clouds above, and on every wall more silent statues than anyone could count. It is always the same house. The tides keep their own time.</p>
       <p>You will arrive alone. Listen as much as you look.</p>
       <p class="small">Headphones are best. Everything runs in your browser; nothing is sent anywhere.</p>
+      <p class="small" id="title-saved" hidden></p>
       <button id="enter" type="button" class="primary">Enter Piranesi’s House</button>
+      <button id="begin-again" type="button" class="linklike" hidden>Begin a new journey instead</button>
       <p class="credit">An unofficial fan project inspired by <a href="https://www.amazon.com/s?k=9781635575637" rel="noopener">Piranesi</a>, a novel. It contains none of the book's text. <a href="https://github.com/antgiant/piranesi-house">Source on GitHub</a>. <button type="button" id="open-about" class="linklike">About, credits and privacy</button></p>
     </section>
 
@@ -75,6 +79,44 @@
       <p class="small legend">Gold ring: you, and the way you face. Solid: halls you have been in. Dashed: seen through a door, not entered. Blue: water there now. Dashed line: a long passage. The map only remembers this visit.</p>
     </aside>
 
+    <aside id="journal-panel" class="journal" hidden aria-labelledby="journal-h">
+      <button type="button" id="journal-close" class="map-back">&larr; Back to the House</button>
+      <h2 id="journal-h">Your journal</h2>
+      <p class="small">Yours alone: it stays on this device, and goes nowhere unless you carry it yourself (Settings, “Take my journey with me”). Write whatever you like.</p>
+      <label for="journal-text" class="sr">Write a new entry</label>
+      <textarea id="journal-text" rows="5" maxlength="20000" placeholder="What do you want to remember?"></textarea>
+      <p class="row"><button type="button" id="journal-add" class="primary">Write it down</button> <span class="small">Ctrl or Cmd + Enter does the same.</span></p>
+      <p class="small" id="journal-count" aria-live="polite"></p>
+      <ol id="journal-list" class="entries" aria-label="Your entries, newest first"></ol>
+    </aside>
+
+    <dialog id="carry" aria-labelledby="carry-h">
+      <form method="dialog">
+        <h2 id="carry-h">Take my journey with me</h2>
+        <p class="small">Your journey is where you have been, what you have found and marked, the way you remember, and your journal. It is kept in this browser only. To go on in another browser or on another device, save a copy here and bring it there. Nothing is sent anywhere: the copy is a file (or a block of text) that you carry yourself, and anyone who has it can read your journal, so keep it as you would a notebook.</p>
+        <h3>Take it</h3>
+        <p class="row"><button type="button" id="carry-file">Save a copy to a file</button> <button type="button" id="carry-code">Copy it as text</button></p>
+        <p class="small" id="carry-out" aria-live="polite"></p>
+        <h3>Bring one here</h3>
+        <p class="small">Choose the file, or paste the text. Bringing a journey here replaces what this browser keeps for that world.</p>
+        <label class="row stack"><span>A saved file</span><input id="carry-pick" type="file" accept=".json,application/json,text/plain" /></label>
+        <label class="row stack"><span>Or paste the text</span><textarea id="carry-paste" rows="3" placeholder="HOUSE1:..."></textarea></label>
+        <p class="row"><button type="button" id="carry-read">Look at it</button></p>
+        <p id="carry-status" class="small" aria-live="polite"></p>
+        <p class="row"><button type="button" id="carry-apply" class="primary" hidden>Bring it here</button></p>
+        <div class="actions"><button value="ok" id="carry-close">Close</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="again" aria-labelledby="again-h">
+      <form method="dialog">
+        <h2 id="again-h">Begin a new journey?</h2>
+        <p>You will start again at the First Vestibule, knowing nothing: no memory of where you have been, no marks, nothing found, and no way back to remember. This cannot be undone, unless you have saved a copy.</p>
+        <label class="row check"><input id="again-journal" type="checkbox" /> <span>Also tear out my journal</span></label>
+        <div class="actions"><button value="cancel" type="button" id="again-no">Keep my journey</button><button value="ok" type="button" id="again-yes" class="primary">Begin again</button></div>
+      </form>
+    </dialog>
+
     <dialog id="about" aria-labelledby="about-h">
       <form method="dialog">
         <h2 id="about-h">About, credits and privacy</h2>
@@ -83,8 +125,9 @@
         <h3>What this page keeps, and what it sends</h3>
         <ul>
           <li><strong>It sends nothing.</strong> There are no accounts, no cookies, no analytics and no tracking. After the page has loaded, it needs no network at all.</li>
-          <li><strong>On your device only,</strong> it keeps your settings, what you have noticed that earlier visitors left (the <em>found</em> list) and the places you mark, and the files needed to open offline. Clearing this site's data in your browser removes all of it.</li>
-          <li><strong>A shared link</strong> contains only the name of a room (and the level and world if they are unusual). Nobody else can see your marks or settings.</li>
+          <li><strong>On your device only,</strong> it keeps your settings and your journey: where you are, where you have been, what you have found and marked, the way you remember, and your journal, along with the files needed to open offline. Clearing this site's data in your browser removes all of it.</li>
+          <li><strong>Taking it elsewhere</strong> is up to you: Settings, “Take my journey with me”, saves a copy as a file or a block of text that you carry yourself. Whoever has that copy can read your journal.</li>
+          <li><strong>A shared link</strong> contains only the name of a room (and the level and world if they are unusual). Nobody else can see your marks, journal or settings.</li>
           <li><strong>Reading aloud</strong> uses your browser's own voices. Some browsers and devices use voices that run online, in which case the words being read are sent to that voice service by your browser, not by this page. Choose an offline voice in Settings if that matters to you.</li>
         </ul>
         <p class="small"><a href="https://github.com/antgiant/piranesi-house" rel="noopener">Source code on GitHub</a> · The novel: <a href="https://www.amazon.com/s?k=9781635575637" rel="noopener">Piranesi</a>.</p>
@@ -127,7 +170,8 @@
           <span class="small" id="s-speed-note"></span>
         </label>
         <label class="row"><span>World seed</span><input id="s-seed" type="text" maxlength="40" /></label>
-        <p class="small">Changing the seed, the dead or the speed of time starts you again at the First Vestibule.</p>
+        <p class="small">Your journey is kept on this device, so it is here when you come back. Changing the world seed goes to that world’s own journey.</p>
+        <p class="row"><button type="button" id="s-carry">Take my journey with me</button> <button type="button" id="s-again">Begin a new journey</button></p>
         <p class="row"><button type="button" id="s-transcript">Save what I have read</button> <button type="button" id="s-intro">Show the introduction</button> <button type="button" id="s-about">About and privacy</button></p>
         <div class="actions"><button value="cancel" type="button" id="s-cancel">Cancel</button><button value="ok" id="s-save" class="primary">Save</button></div>
       </form>

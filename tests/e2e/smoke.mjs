@@ -451,6 +451,117 @@ try {
     await nm.close();
   }
 
+  // The journal, a journey that survives sessions, and carrying it to another browser.
+  {
+    const ctxA = await browser.newContext({ viewport: { width: 900, height: 900 }, acceptDownloads: true });
+    await ctxA.addInitScript(mapOn);
+    const a = await ctxA.newPage();
+    a.on('pageerror', (e) => errors.push(String(e)));
+    await a.goto(URL);
+    check((await a.locator('#enter').textContent()).includes('Enter'), 'a first visit offers to enter');
+    await a.click('#enter');
+    await a.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await a.click('#intro-ok');
+    // journal
+    await a.click('#open-journal');
+    check(await a.locator('#journal-panel').isVisible(), 'the Journal button opens the journal');
+    await a.fill('#journal-text', 'The sea was loud tonight.\nI am counting halls.');
+    await a.click('#journal-add');
+    check((await a.locator('#journal-list li').count()) === 1 && (await a.locator('#journal-list').textContent()).includes('I am counting halls.'), 'an entry written in free text appears, line breaks and all');
+    check((await a.locator('#journal-list .when').first().textContent()).includes('First Vestibule'), 'and says where and when in the House it was written');
+    await a.fill('#journal-text', 'A second page.');
+    await a.press('#journal-text', 'Control+Enter');
+    check((await a.locator('#journal-list li').count()) === 2, 'Ctrl+Enter writes it down too');
+    await a.locator('#journal-list li').first().getByRole('button', { name: /Change/ }).click();
+    await a.locator('#journal-list li textarea').fill('A second page, changed.');
+    await a.getByRole('button', { name: 'Keep the change' }).click();
+    check((await a.locator('#journal-list').textContent()).includes('A second page, changed.'), 'an entry can be changed');
+    await a.locator('#journal-list li').first().getByRole('button', { name: /Tear out/ }).click();
+    await a.locator('#journal-list li').first().getByRole('button', { name: /Really/ }).click();
+    check((await a.locator('#journal-list li').count()) === 1, 'and torn out, after being asked twice');
+    await a.click('#journal-close');
+    // a command writes too
+    await a.fill('#input', 'write The Faun smiled at ME');
+    await a.press('#input', 'Enter');
+    await a.press('#input', 'Enter');
+    await a.fill('#input', 'travel west 3');
+    await a.press('#input', 'Enter');
+    await a.waitForFunction(() => /Western Hall/.test(document.getElementById('place').textContent) && document.getElementById('place').textContent !== 'First Western Hall', null, { timeout: 15000 });
+    const placeBefore = await a.locator('#place').textContent();
+    await a.fill('#input', 'mark the third hall');
+    await a.press('#input', 'Enter');
+    await a.waitForTimeout(300);
+    // a second session: close and open again
+    await a.reload();
+    check((await a.locator('#enter').textContent()).includes('Return'), 'coming back, the title offers to return');
+    check((await a.locator('#title-saved').textContent()).includes('2 entries'), 'and says what is kept (halls, and journal entries)');
+    await a.click('#enter');
+    await a.waitForFunction(() => document.getElementById('log').textContent.includes('where you left off'));
+    check((await a.locator('#place').textContent()) === placeBefore, `the journey survives: you are where you left off (${placeBefore})`);
+    await a.click('#open-journal');
+    check((await a.locator('#journal-list').textContent()).includes('The Faun smiled at ME'), 'and so does the journal, in your own words and case');
+    await a.click('#journal-close');
+    await a.fill('#input', 'marks');
+    await a.press('#input', 'Enter');
+    check((await a.locator('#log').textContent()).includes('third hall'), 'and what you marked');
+    // carry it to another browser
+    await a.click('#open-settings');
+    await a.click('#s-carry');
+    const dl = a.waitForEvent('download');
+    await a.click('#carry-file');
+    const file = await dl;
+    const path = await file.path();
+    check(/^piranesis-house-journey-\d{4}-\d\d-\d\d\.json$/.test(file.suggestedFilename()), `a copy of the journey can be saved (${file.suggestedFilename()})`);
+    // a different browser: a fresh context with nothing kept
+    const ctxB = await browser.newContext({ viewport: { width: 900, height: 900 } });
+    const b = await ctxB.newPage();
+    b.on('pageerror', (e) => errors.push(String(e)));
+    await b.goto(URL);
+    check((await b.locator('#enter').textContent()).includes('Enter'), 'the new browser knows nothing of it');
+    await b.click('#enter');
+    await b.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await b.click('#open-settings');
+    await b.click('#s-carry');
+    await b.setInputFiles('#carry-pick', path);
+    await b.waitForFunction(() => document.getElementById('carry-status').textContent.includes('journal entr'));
+    check((await b.locator('#carry-status').textContent()).includes('1 journal entry') || (await b.locator('#carry-status').textContent()).includes('2 journal entries'), `the file is read and described before anything changes (${(await b.locator('#carry-status').textContent()).slice(0, 70)}...)`);
+    await Promise.all([b.waitForEvent('load'), b.click('#carry-apply')]);
+    await b.click('#enter');
+    await b.waitForFunction(() => document.getElementById('log').textContent.includes('where you left off'));
+    check((await b.locator('#place').textContent()) === placeBefore, 'brought to the new browser, you are where you were');
+    await b.click('#open-journal');
+    check((await b.locator('#journal-list').textContent()).includes('The Faun smiled at ME'), 'with the journal');
+    await b.click('#journal-close');
+    await b.fill('#input', 'marks');
+    await b.press('#input', 'Enter');
+    check((await b.locator('#log').textContent()).includes('third hall'), 'and the marks');
+    // damaged copies are refused in plain words
+    await b.click('#open-settings');
+    await b.click('#s-carry');
+    await b.fill('#carry-paste', 'HOUSE1:not-a-journey');
+    await b.click('#carry-read');
+    check((await b.locator('#carry-status').textContent()).length > 10 && (await b.locator('#carry-apply').isHidden()), 'a damaged copy is refused, and nothing is changed');
+    await b.click('#carry-close');
+    // the text form works too
+    await a.fill('#carry-paste', '');
+    await a.click('#carry-code');
+    await a.waitForTimeout(200);
+    check(((await a.locator('#carry-out').textContent()) ?? '').length > 10, 'a transfer code can be copied as text');
+    await a.click('#carry-close');
+    // beginning again
+    await a.click('#open-settings');
+    await a.click('#s-again');
+    await a.click('#again-yes');
+    await a.waitForFunction(() => document.getElementById('place').textContent === 'First Vestibule');
+    await a.fill('#input', 'marks');
+    await a.press('#input', 'Enter');
+    check((await a.locator('#log').textContent()).includes('not marked anywhere'), 'beginning again forgets the journey');
+    await a.click('#open-journal');
+    check((await a.locator('#journal-list li').count()) === 2, 'but keeps the journal, unless asked to tear it out');
+    await ctxB.close();
+    await ctxA.close();
+  }
+
   // Every kind of bird call, and thunder, can be played without error, and each is counted.
   {
     const species = ['sparrow', 'gull', 'rook', 'albatross', 'flock', 'rustle', 'blackbird', 'swift', 'wader', 'dove', 'owl', 'starling', 'thunder'];

@@ -15,6 +15,8 @@ export type Command =
   | { t: 'unmark'; label: string }
   | { t: 'marks' }
   | { t: 'wayback' }
+  | { t: 'write'; text: string }
+  | { t: 'journal' }
   | { t: 'examine'; what: string }
   | { t: 'wait'; minutes: number }
   | { t: 'stop' }
@@ -91,6 +93,12 @@ export function parse(input: string): Command {
       return content.length ? { t: 'mark', label: content.join(' ') } : { t: 'unknown', input };
     case 'unmark': case 'unflag': case 'forget':
       return content.length ? { t: 'unmark', label: content.join(' ') } : { t: 'unknown', input };
+    case 'write': case 'jot': case 'record': case 'note': {
+      const body = input.replace(/^\s*\w+\s*:?\s*/, '').replace(/^(down|that|in (my )?journal)\s*:?\s*/i, '');
+      return body.trim() ? { t: 'write', text: body } : { t: 'journal' };
+    }
+    case 'journal': case 'diary':
+      return { t: 'journal' };
     case 'retrace': case 'backtrack':
       return { t: 'wayback' };
     case 'way':

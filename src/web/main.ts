@@ -3,7 +3,7 @@
 
 import { audioFor } from '../audio/director';
 import { AudioEngine } from '../audio/engine';
-import { look, newGame, sceneNow, step, tick, walkStatus, type Game, type GameOptions, type Line } from '../game/game';
+import { deleteEntry, editEntry, look, newGame, sceneNow, step, tick, walkStatus, writeEntry, type Game, type GameOptions, type Line } from '../game/game';
 import { BOOK_KMH, MARATHON_KMH, describeDuration, gait, paceFromKmh, stepsPerSecond } from '../game/walk';
 import { formatClock } from '../sim/time';
 import { mapView, type MapCell, type MapView } from '../game/mapdata';
@@ -12,6 +12,8 @@ import { getHall } from '../world/hall';
 import { MapPanel } from './map';
 import { Narrator } from './speech';
 import { parseRoom, withRoom, withoutRoom } from './urlstate';
+import { applySave, exportText, importText, toCode, toSave, type JournalEntry } from '../game/save';
+import { eraseJournal, eraseSave, readJournal, readLegacy, readSave, readSettingsObject, summary, writeJournal, writeSave, writeSettingsObject } from './store';
 import { ScreenWake } from './wakelock';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
@@ -191,6 +193,7 @@ function submit(raw: string, auto = false): void {
     else print([{ kind: 'text', text: 'There is no map. The House has to be remembered.' }], 'end');
     return;
   }
+  if (/^(journal|diary|open journal|open my journal)$/i.test(cmd)) { toggleJournal(true); return; }
   if (/^(wander|wander on|ramble)$/i.test(cmd)) { setWandering(true); return; }
   if (/^(wander off|stop wandering)$/i.test(cmd)) { setWandering(false); return; }
   if (!auto) { setWandering(false); narrator.cancel(); }
@@ -201,8 +204,8 @@ function submit(raw: string, auto = false): void {
   const out = step(game, cmd, Date.now());
   print(out);
   logEl.scrollTop = echoEl.offsetTop - logEl.offsetTop - 8;
-  saveFound();
-  saveMarks();
+  if (game.journal.length !== journalCount) { journalCount = game.journal.length; saveJournal(); if (!journalEl.hidden) renderJournal(); }
+  saveNow();
   refresh();
   // An instant move (pace "instant", or a very short walk) gets a few footsteps; a real walk gets them continuously below.
   const moved = before !== `${game.pos.x},${game.pos.y},${game.pos.level}`;
@@ -212,47 +215,64 @@ function submit(raw: string, auto = false): void {
   }
 }
 
-// What you have noticed that earlier visitors left behind is a private note on this device, per world. Never shared.
-const foundKey = (seed: string): string => `the-house.found.v1.${seed}`;
-function loadFound(g: Game): void {
-  try {
-    const raw = localStorage.getItem(foundKey(g.opts.seed));
-    if (raw) for (const [id, v] of JSON.parse(raw) as [string, { label: string; hall: string }][]) g.found.set(id, v);
-  } catch { /* storage can be blocked */ }
+// --- keeping the journey ---------------------------------------------------------------------------------------------------
+// Where you are, what you have found and marked, the way you remember, and your journal are kept in this browser, per world, so the
+// journey is here when you come back. Nothing is sent anywhere. (To take it to another browser, see "Take my journey with me".)
+let lastSaveSig = '';
+let saveFailedNoted = false;
+function saveNow(force = false): void {
+  if (!game || noSave) return;
+  let passes = 0;
+  for (const v of game.passes.values()) passes += v;
+  const sig = `${game.pos.level}:${game.pos.x},${game.pos.y}|${game.explored.size}|${game.found.size}|${game.marks.size}|${game.trail.length}|${game.recalls}|${passes}`;
+  if (!force && sig === lastSaveSig) return;
+  lastSaveSig = sig;
+  if (!writeSave(game.opts.seed, toSave(game, Date.now())) && !saveFailedNoted) {
+    saveFailedNoted = true;
+    print([{ kind: 'system', text: 'This browser would not keep your journey, so it will be forgotten when you close the page. You can still save a copy from Settings, “Take my journey with me”.' }], 'end');
+  }
 }
-const marksKey = (seed: string): string => `the-house.marks.v1.${seed}`;
-function loadMarks(g: Game): void {
-  try {
-    const raw = localStorage.getItem(marksKey(g.opts.seed));
-    if (raw) for (const [k, v] of JSON.parse(raw) as [string, { x: number; y: number; level: Level; hall: string }][]) g.marks.set(k, v);
-  } catch { /* storage can be blocked */ }
+function saveJournal(): void {
+  if (game && !noSave && !writeJournal(game.opts.seed, game.journal) && !saveFailedNoted) {
+    saveFailedNoted = true;
+    print([{ kind: 'system', text: 'This browser would not keep your journal. Save a copy from Settings, “Take my journey with me”, so that nothing is lost.' }], 'end');
+  }
 }
-let savedMarks = '';
-function saveMarks(): void {
-  if (!game) return;
-  const s = JSON.stringify([...game.marks]);
-  if (s === savedMarks) return;
-  savedMarks = s;
-  try { localStorage.setItem(marksKey(game.opts.seed), s); } catch { /* ignore */ }
-}
-let savedFound = 0;
-function saveFound(): void {
-  if (!game || game.found.size === savedFound) return;
-  savedFound = game.found.size;
-  try { localStorage.setItem(foundKey(game.opts.seed), JSON.stringify([...game.found])); } catch { /* ignore */ }
-}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(true); });
+window.addEventListener('pagehide', () => saveNow(true));
+setInterval(() => saveNow(), 15000);
 
 const DEFAULT_SEED = 'the-house';
 /** Start (or restart). A shared address puts you in the hall it names, on the first start only. */
-function startGame(fromHash = false): void {
+function startGame(fromHash = false, fresh = false): void {
   game = newGame(gameOptions(), Date.now());
-  const shared = fromHash ? parseRoom(game.world, location.hash) : null;
-  if (shared) game.pos = { x: shared.x, y: shared.y, level: shared.level, wall: null, pos: 500 };
+  const seed = game.opts.seed;
+  // pick up where you left off, unless beginning again
+  let resumed = false;
+  if (!fresh) {
+    const raw = readSave(seed);
+    resumed = raw ? applySave(game, raw) : false;
+    if (!resumed) {
+      // a journey kept by an earlier version of this page
+      const old = readLegacy(seed);
+      if (Array.isArray(old.found)) for (const e of old.found) if (Array.isArray(e) && typeof e[0] === 'string' && e[1] && typeof e[1].label === 'string') game.found.set(e[0], { label: e[1].label, hall: String(e[1].hall ?? '') });
+      if (Array.isArray(old.marks)) for (const e of old.marks) if (Array.isArray(e) && typeof e[0] === 'string' && e[1] && Number.isInteger(e[1].x)) game.marks.set(e[0], e[1]);
+    }
+  }
+  game.journal = readJournal(seed); // beginning again keeps the journal unless it was torn out
+  let shared = fromHash ? parseRoom(game.world, location.hash) : null;
+  // refreshing the page leaves the address naming the room you are in: that is not a link, it is where you were
+  if (shared && resumed && shared.x === game.pos.x && shared.y === game.pos.y && shared.level === game.pos.level) shared = null;
+  if (shared) {
+    // a link is a crossing, not a walk: you arrive with no memory of the way
+    game.pos = { x: shared.x, y: shared.y, level: shared.level, wall: null, pos: 500 };
+    game.trail = [];
+    game.trailOrigin = { x: shared.x, y: shared.y, level: shared.level };
+  }
+  game.walk = null;
+  game.journey = null;
   syncWalkNarration();
-  loadFound(game);
-  savedFound = game.found.size;
-  loadMarks(game);
-  savedMarks = JSON.stringify([...game.marks]);
+  lastSaveSig = '';
   logEl.textContent = '';
   // Arriving by a link is a sudden change, as in the stories of crossing into the House: the world stops, the air turns cool and
   // damp, there is the thud of far-off water on stone, and you are simply there.
@@ -260,10 +280,13 @@ function startGame(fromHash = false): void {
     const name = getHall(game.world, shared.x, shared.y, shared.level).name;
     print([{ kind: 'text', text: `Everything stops. The air turns cooler and damper, and far off you can hear water thudding against stone. You suddenly find yourself standing in the ${name}.` }]);
     print([{ kind: 'system', text: 'Type "help" at any time, or use the buttons under each description.' }]);
+  } else if (resumed) {
+    print([{ kind: 'text', text: 'You are back in the House, where you left off.' }]);
   } else {
     print([{ kind: 'system', text: 'You arrive. Type "help" at any time, or use the buttons under each description.' }]);
   }
   print(look(game, Date.now()));
+  saveNow(true);
   refresh();
   if (hashParams().has('debug')) {
     const g = game;
@@ -297,6 +320,100 @@ async function enter(): Promise<void> {
   refresh();
   input.focus();
 }
+
+// --- the journal -----------------------------------------------------------------------------------------------------------
+const journalEl = $<HTMLElement>('journal-panel');
+const journalText = $<HTMLTextAreaElement>('journal-text');
+let journalCount = 0;
+const levelWord = ['lower', 'middle', 'upper'] as const;
+
+function toggleJournal(open?: boolean): void {
+  const show = open ?? journalEl.hidden;
+  journalEl.hidden = !show;
+  $('open-journal').setAttribute('aria-expanded', String(show));
+  if (show) { renderJournal(); journalText.focus(); } else input.focus();
+}
+
+function entryItem(e: JournalEntry): HTMLElement {
+  const li = document.createElement('li');
+  const when = document.createElement('p');
+  when.className = 'when';
+  const real = new Date(e.at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  when.textContent = `Written in the ${e.hall}${e.level !== 1 ? `, on the ${levelWord[e.level]} level` : ''}, ${e.when}. (${real}${e.edited ? ', changed later' : ''})`;
+  const body = document.createElement('p');
+  body.className = 'body';
+  body.textContent = e.text;
+  const tools = document.createElement('div');
+  tools.className = 'tools';
+  const edit = document.createElement('button');
+  edit.type = 'button';
+  edit.textContent = 'Change';
+  edit.setAttribute('aria-label', `Change the entry written ${real}`);
+  edit.addEventListener('click', () => {
+    const area = document.createElement('textarea');
+    area.value = e.text;
+    area.rows = 5;
+    area.maxLength = 20000;
+    area.setAttribute('aria-label', 'Change this entry');
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.textContent = 'Keep the change';
+    save.className = 'primary';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = 'Leave it as it was';
+    const row = document.createElement('div');
+    row.className = 'tools';
+    row.append(save, cancel);
+    li.replaceChildren(when, area, row);
+    area.focus();
+    save.addEventListener('click', () => { if (game && editEntry(game, e.id, area.value, Date.now())) { saveJournal(); } renderJournal(); });
+    cancel.addEventListener('click', () => renderJournal());
+  });
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.textContent = 'Tear out';
+  del.setAttribute('aria-label', `Tear out the entry written ${real}`);
+  let armed: number | undefined;
+  del.addEventListener('click', () => {
+    if (armed === undefined) {
+      del.textContent = 'Really tear it out?';
+      del.setAttribute('aria-label', `Really tear out the entry written ${real}? Press again to confirm.`);
+      armed = window.setTimeout(() => { armed = undefined; del.textContent = 'Tear out'; del.setAttribute('aria-label', `Tear out the entry written ${real}`); }, 4000);
+      return;
+    }
+    clearTimeout(armed);
+    if (game) { deleteEntry(game, e.id); saveJournal(); }
+    renderJournal();
+    journalText.focus();
+  });
+  tools.append(edit, del);
+  li.append(when, body, tools);
+  return li;
+}
+
+function renderJournal(): void {
+  if (!game) return;
+  const list = $('journal-list');
+  list.replaceChildren(...[...game.journal].reverse().map(entryItem));
+  const n = game.journal.length;
+  $('journal-count').textContent = n === 0 ? 'Nothing is written yet.' : n === 1 ? 'One entry.' : `${n} entries.`;
+  journalCount = n;
+}
+
+function addJournalEntry(): void {
+  if (!game) return;
+  if (!writeEntry(game, journalText.value, Date.now())) { journalText.focus(); return; }
+  journalText.value = '';
+  saveJournal();
+  renderJournal();
+  journalText.focus();
+}
+$('open-journal').addEventListener('click', () => toggleJournal());
+$('journal-close').addEventListener('click', () => toggleJournal(false));
+$('journal-add').addEventListener('click', addJournalEntry);
+journalText.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addJournalEntry(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !journalEl.hidden) toggleJournal(false); });
 
 // --- the map ----------------------------------------------------------------------------------------------------
 const mapEl = $<HTMLElement>('map-panel');
@@ -356,6 +473,8 @@ $('mute').addEventListener('click', () => { settings.muted = !settings.muted; sa
 
 const dlg = $<HTMLDialogElement>('settings');
 const aboutDlg = $<HTMLDialogElement>('about');
+const carryDlg = $<HTMLDialogElement>('carry');
+const againDlg = $<HTMLDialogElement>('again');
 /** Show a dialog; very old browsers without the dialog element get it opened plainly. */
 function openDialog(d: HTMLDialogElement): void {
   if (typeof d.showModal === 'function') d.showModal(); else d.setAttribute('open', '');
@@ -363,6 +482,103 @@ function openDialog(d: HTMLDialogElement): void {
 function closeDialog(d: HTMLDialogElement): void {
   if (typeof d.close === 'function') d.close(); else d.removeAttribute('open');
 }
+
+// --- taking a journey to another browser, and beginning a new one --------------------------------------------------------------
+let noSave = false; // set while a journey is being replaced, so that closing the page does not write the old one over it
+let pending: ReturnType<typeof importText> | null = null;
+const carryStatus = $('carry-status');
+const carryApply = $<HTMLButtonElement>('carry-apply');
+
+$('s-carry').addEventListener('click', () => { closeDialog(dlg); carryStatus.textContent = ''; carryApply.hidden = true; pending = null; $('carry-out').textContent = ''; openDialog(carryDlg); });
+$('carry-close').addEventListener('click', (e) => { e.preventDefault(); closeDialog(carryDlg); });
+
+function currentExport(): string | null {
+  if (!game) return null;
+  saveNow(true);
+  return exportText(game, game.journal, readSettingsObject(), Date.now());
+}
+$('carry-file').addEventListener('click', () => {
+  const text = currentExport();
+  if (!text) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  a.download = `piranesis-house-journey-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  $('carry-out').textContent = 'A copy has been saved as a file. Keep it somewhere you will find it, and choose it in the other browser.';
+});
+$('carry-code').addEventListener('click', async () => {
+  const text = currentExport();
+  if (!text) return;
+  const code = toCode(text);
+  try {
+    await navigator.clipboard.writeText(code);
+    $('carry-out').textContent = `Copied. It is ${Math.round(code.length / 1024)} KB of text: paste it into the box in the other browser.`;
+  } catch {
+    $<HTMLTextAreaElement>('carry-paste').value = code;
+    $('carry-out').textContent = 'Your browser would not copy it, so it is in the box below: select all of it and copy it.';
+  }
+});
+$<HTMLInputElement>('carry-pick').addEventListener('change', async (e) => {
+  const f = (e.target as HTMLInputElement).files?.[0];
+  if (!f) return;
+  if (f.size > 30_000_000) { carryStatus.textContent = 'That file is far too big to be a journey.'; return; }
+  $<HTMLTextAreaElement>('carry-paste').value = await f.text();
+  readCarried();
+});
+function readCarried(): void {
+  const text = $<HTMLTextAreaElement>('carry-paste').value;
+  pending = importText(text);
+  carryApply.hidden = true;
+  if (!pending.ok) { carryStatus.textContent = pending.why; return; }
+  const s = pending.transfer.save;
+  const halls = Array.isArray(s.explored) ? s.explored.length : 0;
+  const when = s.savedAt ? ` Saved ${new Date(s.savedAt).toLocaleString()}.` : '';
+  carryStatus.textContent = `This is a journey in the world “${s.seed}”: ${halls} halls been through and ${pending.transfer.journal.length} journal ${pending.transfer.journal.length === 1 ? 'entry' : 'entries'}.${when} Bringing it here replaces what this browser keeps for that world.`;
+  carryApply.hidden = false;
+}
+$('carry-read').addEventListener('click', readCarried);
+carryApply.addEventListener('click', () => {
+  if (!pending || !pending.ok) return;
+  const t = pending.transfer;
+  noSave = true;
+  writeSave(t.save.seed, t.save);
+  writeJournal(t.save.seed, t.journal);
+  // the new browser behaves as the old one did, in the world the journey was in
+  writeSettingsObject({ ...(readSettingsObject() ?? {}), ...(t.settings ?? {}), seed: t.save.seed });
+  window.history.replaceState(null, '', `${location.pathname}${location.search}`);
+  location.reload();
+});
+
+/** Begin again: forget the journey (and, if asked, the journal), and start at the First Vestibule knowing nothing. */
+function askBeginAgain(): void { $<HTMLInputElement>('again-journal').checked = false; openDialog(againDlg); }
+$('s-again').addEventListener('click', () => { closeDialog(dlg); askBeginAgain(); });
+$('begin-again').addEventListener('click', askBeginAgain);
+$('again-no').addEventListener('click', () => closeDialog(againDlg));
+$('again-yes').addEventListener('click', () => {
+  const seed = game ? game.opts.seed : gameOptions().seed ?? settings.seed;
+  eraseSave(seed);
+  if ($<HTMLInputElement>('again-journal').checked) eraseJournal(seed);
+  closeDialog(againDlg);
+  const q = new URLSearchParams(withoutRoom(location.hash).replace(/^#/, ''));
+  window.history.replaceState(null, '', `${location.pathname}${location.search}${q.toString() ? `#${q}` : ''}`);
+  if (game) { startGame(false, true); journalEl.hidden = true; input.focus(); } else paintTitle();
+});
+
+/** The title screen says so if there is a journey to go back to. */
+function paintTitle(): void {
+  const seed = (gameOptions().seed as string) ?? settings.seed;
+  const s = summary(seed);
+  const note = $('title-saved');
+  const resumable = !!s && (s.halls > 0 || s.entries > 0);
+  note.hidden = !resumable;
+  $('begin-again').hidden = !resumable;
+  $('enter').textContent = resumable ? 'Return to Piranesi’s House' : 'Enter Piranesi’s House';
+  if (resumable && s) note.textContent = `Your journey is here: ${s.halls} halls been through${s.entries ? `, and ${s.entries} ${s.entries === 1 ? 'entry' : 'entries'} in your journal` : ''}.`;
+}
+paintTitle();
 const openAbout = (): void => openDialog(aboutDlg);
 $('open-about').addEventListener('click', openAbout);
 $('s-about').addEventListener('click', openAbout);
@@ -435,7 +651,8 @@ $('s-save').addEventListener('click', (e) => {
   if (game && hashParams().get('pace') !== 'instant') game.opts.walkPace = paceFromKmh(settings.speedKmh);
   closeDialog(dlg);
   if (restart || restyle) {
-    // starting again at the First Vestibule: forget the old room, and a seed the settings have just replaced
+    // carry on from the journey kept for this world (a different seed has its own): forget the old room, and a seed just replaced
+    saveNow(true);
     const q = new URLSearchParams(withoutRoom(location.hash).replace(/^#/, ''));
     if (next.seed !== prevSeed) q.delete('seed');
     window.history.replaceState(null, '', `${location.pathname}${location.search}${q.toString() ? `#${q}` : ''}`);
@@ -477,10 +694,11 @@ document.addEventListener('keydown', (e) => {
   if (!settings.shortcuts || e.ctrlKey || e.metaKey || e.altKey || !game) return;
   const el = e.target as HTMLElement | null;
   if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return; // typing: leave the keys alone
-  if (dlg.open || aboutDlg.open || !$('title').hidden) return;
+  if (dlg.open || aboutDlg.open || carryDlg.open || againDlg.open || !$('title').hidden) return;
   switch (e.key) {
     case '/': e.preventDefault(); input.focus(); break;
     case 'm': if (settings.map) toggleMap(); break;
+    case 'j': toggleJournal(); break;
     case 'w': setWandering(!wandering); break;
     case 'r': submit('repeat'); break;
     case 's': $('mute').click(); break;

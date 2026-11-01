@@ -18,8 +18,9 @@ import { parse, type Command } from './parser';
 import { findRoute, nameOf, resolveName, straightRoute, vistaThrough, type Spot, type Step } from './travel';
 import { Rng } from '../world/rng';
 import { dice, opposite, pickIndex, slip, slipChance, type Instr, type TrailEntry } from './lost';
+import { MAX_ENTRY_CHARS, newEntryId, type JournalEntry } from './save';
 import {
-  describeHall, directionProse, glanceHall, glanceRand, locationPhrase, outsideSentence, withArticle, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
+  describeHall, directionProse, timeInWords, glanceHall, glanceRand, locationPhrase, outsideSentence, withArticle, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
   type NamedExit, type Seen, type Style,
 } from './narrator';
 
@@ -105,6 +106,8 @@ export interface Game {
   passes: Map<string, number>;
   /** How many times you have tried to find the way by memory (each try goes its own way). */
   recalls: number;
+  /** What the visitor has written in their journal, oldest first. Private: kept on their device, and carried only if they carry it. */
+  journal: JournalEntry[];
   /** Places the visitor has marked to find again: label to where. Private to the visitor and kept on their device. */
   marks: Map<string, { x: number; y: number; level: Level; hall: string }>;
 }
@@ -143,7 +146,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, journal: [], told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
   };
 }
 
@@ -202,6 +205,45 @@ function directionLinks(g: Game): Link[] {
     const only = g.exitsListed.filter((e) => e.side === s);
     return only.length === 1 ? { label: `${w} door`, command: `go ${(only[0] as NamedExit).index}` } : { label: `look ${w}`, command: `look ${w}` };
   });
+}
+
+// --- the journal -----------------------------------------------------------------------------------------------------------
+
+/** Write in the journal: the words, where and when in the House they were written. */
+export function writeEntry(g: Game, textIn: string, realNowMs: number): JournalEntry | null {
+  const body = textIn.replace(/\r\n/g, '\n').trim().slice(0, MAX_ENTRY_CHARS);
+  if (!body) return null;
+  const s = sceneNow(g, realNowMs);
+  const entry: JournalEntry = {
+    id: newEntryId(realNowMs, g.journal.length), at: realNowMs,
+    when: `${timeInWords(s.clock.minuteOfDay)}, in ${s.clock.season}`, hall: s.hall.name, level: g.pos.level, text: body,
+  };
+  g.journal.push(entry);
+  return entry;
+}
+export function editEntry(g: Game, id: string, textIn: string, realNowMs: number): boolean {
+  const e = g.journal.find((x) => x.id === id);
+  const body = textIn.replace(/\r\n/g, '\n').trim().slice(0, MAX_ENTRY_CHARS);
+  if (!e || !body) return false;
+  e.text = body;
+  e.edited = realNowMs;
+  return true;
+}
+export function deleteEntry(g: Game, id: string): boolean {
+  const k = g.journal.findIndex((x) => x.id === id);
+  if (k < 0) return false;
+  g.journal.splice(k, 1);
+  return true;
+}
+
+function readJournal(g: Game): Line[] {
+  const n = g.journal.length;
+  if (n === 0) return [text(g, 'You have written nothing in your journal yet.')];
+  const last = g.journal[n - 1] as JournalEntry;
+  const where = `the ${last.hall}`;
+  const clip = last.text.length > 600 ? `${last.text.slice(0, 597)}...` : last.text;
+  const head = n === 1 ? 'You have made one entry in your journal.' : `You have made ${n} entries in your journal.`;
+  return [text(g, `${head} The last was written in ${where}, ${last.when}:`), { kind: 'text', text: clip }];
 }
 
 /** Look out in one direction: how many doors there are in that wall, and what lies through them. */
@@ -628,7 +670,8 @@ function recallLeg(g: Game, realNowMs: number): Line[] {
 export function wayBack(g: Game, realNowMs: number): Line[] {
   const here0 = here(g);
   if (sameSpot(here0, HOME)) return [text(g, 'You are already at the great stair, in the hall of the minotaurs. There is no further back.')];
-  if (g.trail.length === 0) return [text(g, 'You came here in a moment, and you have no memory of the way. You will have to find it.')];
+  const lastEntry = g.trail[g.trail.length - 1];
+  if (!lastEntry || !sameSpot(lastEntry.to, here0)) { g.trail = []; return [text(g, 'You came here in a moment, and you have no memory of the way. You will have to find it.')]; }
   const origin = g.trailOrigin;
   const name = sameSpot(origin, HOME) ? 'the First Vestibule' : nameOf(g.world, origin);
   const intro = sameSpot(origin, HOME) ? 'You try to call to mind the way you came.' : `You try to call to mind the way back to where you first found yourself, ${name}.`;
@@ -864,6 +907,7 @@ function examine(g: Game, what: string, realNowMs: number): Line[] {
 
 export const HELP = [
   'Looking:  look  ·  look closely (all of it)  ·  look again, or repeat (the same words again)  ·  listen  ·  time  ·  where  ·  list (numbered, for reference)',
+  'Your journal:  journal (opens it)  ·  write the sea was loud tonight (adds a line)  ·  it is yours alone and stays on your device',
   'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
   'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
   'Far places:  travel to the Ninth Vestibule  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
@@ -908,6 +952,8 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'empty': return look(g, realNowMs);
     case 'look': return look(g, realNowMs, cmd.full === true, cmd.repeat === true, cmd.numbered === true);
     case 'lookdir': return lookDirection(g, cmd.side, realNowMs);
+    case 'write': return writeEntry(g, cmd.text, realNowMs) ? [text(g, 'You write it in your journal.')] : [text(g, 'You hold the pen over the page, but write nothing.')];
+    case 'journal': return readJournal(g);
     case 'listen': {
       const s = sceneNow(g, realNowMs);
       return [text(g, soundParagraph(audioFor(g.world, s, { facing: g.facing }), s))];

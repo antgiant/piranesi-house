@@ -154,13 +154,17 @@ describe('approaching a statue', () => {
 });
 
 describe('getting lost, as in the book', () => {
-  it('with no map you can go by name only where you have been, or home, or to a mark', () => {
+  it('with no map you can still try for any named hall: by memory where you have been, by the names where you have not', () => {
     const g = newGame({ walkPace: Infinity, relicDensity: 0, outsideTraces: false, knownOnly: true }, NOW);
     look(g, NOW);
-    expect(all(step(g, 'travel to the fifth western hall', NOW))).toMatch(/never been to the Fifth Western Hall/);
-    expect(g.pos.x).toBe(0);
+    // a hall never visited can still be tried for, by its name alone
+    expect(all(step(g, 'travel to the fifth western hall', NOW))).toMatch(/never been that way, going by the names alone/);
+    g.pos = { x: 0, y: 0, level: 1, wall: null, pos: 500 };
+    g.trail = [];
     step(g, 'travel west 3', NOW); // walking a straight line is always possible; you have now been through them
-    expect(all(step(g, 'travel to the second western hall', NOW))).toMatch(/by what you remember of the way/);
+    g.pos = { x: 0, y: 0, level: 1, wall: null, pos: 500 };
+    g.trail = [];
+    expect(all(step(g, 'travel to the third western hall', NOW))).toMatch(/by what you remember/);
     expect(all(step(g, 'where', NOW))).not.toMatch(/Cell|\d,/);
   });
   it('with a map, you may name any place', () => {

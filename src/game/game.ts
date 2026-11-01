@@ -101,6 +101,8 @@ export interface Game {
   trailOrigin: Spot;
   /** How many times each hall has been entered, `level:x,y`. */
   visits: Map<string, number>;
+  /** How many times each way (a door between two halls) has been taken, in either direction. The more you take a way, the surer you are of it. */
+  passes: Map<string, number>;
   /** How many times you have tried to find the way by memory (each try goes its own way). */
   recalls: number;
   /** Places the visitor has marked to find again: label to where. Private to the visitor and kept on their device. */
@@ -141,7 +143,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), recalls: 0, told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
   };
 }
 
@@ -511,6 +513,8 @@ function finishWalk(g: Game, w: Walk, realNowMs: number): Line[] {
 const HOME: Spot = { x: 0, y: 0, level: 1 };
 const spotKey = (s: Spot): string => `${s.level}:${s.x},${s.y}`;
 const sameSpot = (a: Spot, b: Spot): boolean => a.x === b.x && a.y === b.y && a.level === b.level;
+/** A way between two halls, the same in either direction. */
+const wayKey = (a: Spot, b: Spot): string => [spotKey(a), spotKey(b)].sort().join('>');
 
 /** The doors of a wall, from its low end (the west end of a north or south wall, the south end of an east or west one). */
 function wallDoorsSorted(g: Game, s: Spot, side: Side): { to: Spot; pos: number; corridor: number; side: Side }[] {
@@ -526,6 +530,8 @@ function wallDoorsSorted(g: Game, s: Spot, side: Side): { to: Spot; pos: number;
 function recordMove(g: Game, from: Spot, via: 'door' | 'stairs', e?: NamedExit, dir?: 'up' | 'down'): void {
   const to = here(g);
   g.visits.set(spotKey(to), (g.visits.get(spotKey(to)) ?? 0) + 1);
+  const wk = wayKey(from, to);
+  g.passes.set(wk, (g.passes.get(wk) ?? 0) + 1);
   const last = g.trail[g.trail.length - 1];
   if (last ? !sameSpot(last.to, from) : false) { g.trail = []; g.trailOrigin = from; }
   else if (!last && g.trail.length === 0 && !sameSpot(g.trailOrigin, from) && !sameSpot(from, g.trailOrigin)) g.trailOrigin = from;
@@ -549,7 +555,7 @@ function memoryConditions(g: Game, realNowMs: number): { dark: boolean; wet: boo
 const isMarked = (g: Game, s: Spot): boolean => [...g.marks.values()].some((m) => sameSpot(m, s));
 
 /** The way as it really was: each step's door, and the hall it leaves, and the hall it should reach. */
-interface TrueStep { instr: Instr; leaves: Spot; reaches: Spot }
+interface TrueStep { instr: Instr; leaves: Spot; reaches: Spot; /** The wall you leave by, to tell whether you are going straight on. */ exitSide?: Side }
 
 function trueFromTrail(g: Game): TrueStep[] {
   const out: TrueStep[] = [];
@@ -557,7 +563,7 @@ function trueFromTrail(g: Game): TrueStep[] {
     const t = g.trail[k] as TrailEntry;
     out.push({
       instr: t.via === 'stairs' ? { via: 'stairs', dir: opposite2(t.dir as 'up' | 'down') } : { via: 'door', side: t.inSide, ord: t.inOrd, of: t.inOf },
-      leaves: t.to, reaches: t.from,
+      leaves: t.to, reaches: t.from, exitSide: t.inSide,
     });
   }
   return out;
@@ -574,7 +580,7 @@ function trueFromRoute(g: Game, route: Step[]): TrueStep[] {
       const e = all[0];
       const doors = e ? wallDoorsSorted(g, cur, e.side) : [];
       const idx = e ? doors.findIndex((d) => d.pos === e.pos) : 0;
-      out.push({ instr: { via: 'door', side: e?.side, ord: idx + 1, of: Math.max(1, doors.length) }, leaves: cur, reaches: { x: step.x, y: step.y, level: step.level } });
+      out.push({ instr: { via: 'door', side: e?.side, ord: idx + 1, of: Math.max(1, doors.length) }, leaves: cur, reaches: { x: step.x, y: step.y, level: step.level }, exitSide: e?.side });
     }
     cur = { x: step.x, y: step.y, level: step.level };
   }
@@ -590,7 +596,8 @@ function beginRecall(g: Game, steps: TrueStep[], destName: string, dest: Spot, i
   const instr: Instr[] = [];
   const route: Step[] = [];
   steps.forEach((s, j) => {
-    const p = slipChance({ visits: g.visits.get(spotKey(s.leaves)) ?? 1, marked: isMarked(g, s.leaves), ...cond });
+    const prev = steps[j - 1];
+    const p = slipChance({ passes: g.passes.get(wayKey(s.leaves, s.reaches)) ?? 0, marked: isMarked(g, s.leaves), straight: !!prev && !!s.exitSide && prev.exitSide === s.exitSide, ...cond });
     let remembered: Instr | null = s.instr;
     if (dice(g.world.seed, attempt, steps.length, j, 1) < p) remembered = slip(s.instr, dice(g.world.seed, attempt, steps.length, j, 2));
     if (remembered) { instr.push(remembered); route.push({ ...s.reaches, via: s.instr.via }); }
@@ -753,25 +760,24 @@ function placeFor(g: Game, said: string): Spot | null {
   return resolveName(g.world, said, g.pos.level);
 }
 
-/** A place you could find the way to without a map: home, a place you have marked, or one you have been in. */
-function isKnown(g: Game, s: Spot): boolean {
-  if (s.x === 0 && s.y === 0 && s.level === 1) return true;
-  if (g.explored.has(exploredKey(s.level, s.x, s.y))) return true;
-  for (const m of g.marks.values()) if (m.x === s.x && m.y === s.y && m.level === s.level) return true;
-  return false;
-}
-
 export function travelTo(g: Game, said: string, realNowMs: number): Line[] {
   const spot = placeFor(g, said);
   if (!spot) return [text(g, `You do not know of a place called "${said}". Try a name as the House gives them, such as the Ninth Vestibule or the Eighty-Eighth Western Hall, or one of your marks.`)];
   if (g.opts.knownOnly) {
-    if (!isKnown(g, spot)) return [text(g, `You have never been to the ${nameOf(g.world, spot)}, and you would not know the way. You would have to find it.`)];
-    if (sameSpot(spot, HOME) && !sameSpot(here(g), HOME)) return wayBack(g, realNowMs);
-    // by what you remember: only through halls you have been in, and a memory may be wrong
-    const known = findRoute(g.world, here(g), spot, 60000, (s) => sameSpot(s, spot) || g.explored.has(exploredKey(s.level, s.x, s.y)));
-    if (!known) return [text(g, `You do not remember a way to the ${nameOf(g.world, spot)} through halls you know.`)];
+    if (sameSpot(spot, HOME) && !sameSpot(here(g), HOME) && g.trail.length > 0) return wayBack(g, realNowMs);
+    // No map: you go by what you remember of the ways you have taken, and by the names of the halls where you have not. The more
+    // you take a way, the surer you are of it.
+    // you favour the ways you know: a known way is worth more than an equally short one you have never taken
+    const route = findRoute(g.world, here(g), spot, 60000, () => true, (a, b) => ((g.passes.get(wayKey(a, b)) ?? 0) > 0 ? 0.6 : 1));
+    if (!route) return [text(g, `You cannot see how to reach the ${nameOf(g.world, spot)}: the water or the Drowned Halls are in the way.`)];
+    if (route.length === 0) return [text(g, 'You are already there.')];
+    const steps = trueFromRoute(g, route);
+    const never = steps.filter((s) => (g.passes.get(wayKey(s.leaves, s.reaches)) ?? 0) === 0).length;
     const nm = `${nameOf(g.world, spot)}${spot.level !== 1 ? `, on the ${LEVEL_NAME[spot.level]} level` : ''}`;
-    return beginRecall(g, trueFromRoute(g, known), nm, spot, `You set out for ${withThe(nm)}, by what you remember of the way.`, realNowMs);
+    const how = never === 0 ? 'by what you remember of the way'
+      : never === steps.length ? 'though you have never been that way, going by the names alone and counting halls'
+      : 'by what you remember of part of the way, and the names of the halls for the rest';
+    return beginRecall(g, steps, nm, spot, `You set out for ${withThe(nm)}, ${how}.`, realNowMs);
   }
   const route = findRoute(g.world, here(g), spot);
   if (!route) return [text(g, `You cannot find a way to ${nameOf(g.world, spot)} that is open to you: the water or the Drowned Halls are in the way.`)];
@@ -861,7 +867,7 @@ export const HELP = [
   'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
   'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
   'Far places:  travel to the Ninth Vestibule  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
-  'Finding your way:  way back (or home): you try to remember the way you came, and may remember wrongly. Marking a hall with chalk makes it sure.',
+  'Finding your way:  way back (or home), or travel to a hall by name: you go by what you remember, and may remember wrongly. A way you have never taken is a guess from the names; the more often you take it, the surer you are. Chalk (mark) makes a hall sure.',
   'Keys (when you are not typing):  /  to type  ·  m map  ·  w wander  ·  r say it again  ·  s sound  ·  ?  help',
   'Let the House carry you:  wander (or the Wander button) walks on and on; type anything to stop it.',
   'The tides and the weather follow the real clock. Everything you read is also what you can hear.',

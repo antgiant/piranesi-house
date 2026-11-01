@@ -446,8 +446,8 @@ try {
     check((await nm.locator('#log').textContent()).includes('There is no map'), 'and the House says there is no map');
     await nm.fill('#input', 'travel to the fifth western hall');
     await nm.press('#input', 'Enter');
-    await nm.waitForFunction(() => document.getElementById('log').textContent.includes('never been to'));
-    check(true, 'and a place you have not been to cannot be gone to by name');
+    await nm.waitForFunction(() => document.getElementById('log').textContent.includes('going by the names alone'));
+    check(true, 'and a hall you have never been to can be tried for by its name alone, with no promise of arriving');
     await nm.close();
   }
 

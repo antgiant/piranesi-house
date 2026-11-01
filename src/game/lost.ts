@@ -33,27 +33,36 @@ export interface Instr {
 }
 
 export interface SlipFactors {
-  /** How many times you have been in the hall you are leaving. */
-  visits: number;
-  /** You marked it with chalk. */
+  /** How many times you have taken this very way (this door, between these two halls), in either direction. Zero: never. */
+  passes: number;
+  /** You marked the hall you are leaving with chalk. */
   marked: boolean;
+  /** This step goes on in the same direction as the one before: easy to keep straight. */
+  straight: boolean;
   dark: boolean;
   wet: boolean;
   /** You are hurrying. */
   hurried: boolean;
 }
 
+/** The chance of going wrong on a way you have never taken, going by the names of the halls alone. */
+export const GUESSING = 0.15;
+/** The chance on a way you have taken once. Each further time makes you surer: P / (1 + 1.5 x further times). */
+export const TAKEN_ONCE = 0.03;
+
 /**
- * The chance of misremembering one step. A hall seen once is a risk; the more you have been in it the surer you are; a chalk mark
- * all but removes it; darkness, water and haste make it worse. (About three in a hundred for a hall seen once, in good conditions.)
+ * The chance of misremembering one step. A way you have never taken is a guess from the names (about one in seven); a way you have
+ * taken once, three in a hundred; and every further time you take it you are surer, as in life: by the tenth time it is a few in a
+ * thousand. A chalk mark all but removes it; going straight on is easier; darkness, water and haste make it worse.
  */
 export function slipChance(f: SlipFactors): number {
-  let p = 0.03 / (1 + Math.max(0, f.visits - 1) * 1.5);
+  let p = f.passes <= 0 ? GUESSING : TAKEN_ONCE / (1 + (f.passes - 1) * 1.5);
   if (f.marked) p *= 0.1;
+  if (f.straight) p *= 0.6;
   if (f.dark) p *= 1.6;
   if (f.wet) p *= 1.5;
   if (f.hurried) p *= 1.5;
-  return Math.min(0.25, p);
+  return Math.min(0.4, p);
 }
 
 /**

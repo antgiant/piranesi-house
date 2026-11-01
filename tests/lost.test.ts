@@ -12,15 +12,24 @@ const fresh = (seed = 'the-house', extra = {}): Game => {
 const atHome = (g: Game): boolean => g.pos.x === 0 && g.pos.y === 0 && g.pos.level === 1;
 
 describe('the chance of misremembering', () => {
-  it('is small for a hall seen once, smaller the more it is known, almost nothing with a chalk mark, and worse in the dark, wet or hurry', () => {
-    const base = { visits: 1, marked: false, dark: false, wet: false, hurried: false };
+  const base = { passes: 1, marked: false, straight: false, dark: false, wet: false, hurried: false };
+  it('is a guess on a way never taken, small on a way taken once, and smaller each further time', () => {
+    const never = slipChance({ ...base, passes: 0 });
+    const once = slipChance(base);
+    expect(never).toBeGreaterThan(0.1);
+    expect(never).toBeLessThan(0.2);
+    expect(once).toBeGreaterThan(0.01);
+    expect(once).toBeLessThan(0.06);
+    let last = once;
+    for (let n = 2; n <= 12; n++) { const p = slipChance({ ...base, passes: n }); expect(p).toBeLessThan(last); last = p; }
+    expect(slipChance({ ...base, passes: 10 })).toBeLessThan(0.005);
+  });
+  it('is nearly nothing with a chalk mark, a little easier going straight on, worse in the dark, wet or hurry', () => {
     const p1 = slipChance(base);
-    expect(p1).toBeGreaterThan(0.01);
-    expect(p1).toBeLessThan(0.06);
-    expect(slipChance({ ...base, visits: 4 })).toBeLessThan(p1 / 2);
     expect(slipChance({ ...base, marked: true })).toBeLessThan(p1 / 5);
+    expect(slipChance({ ...base, straight: true })).toBeLessThan(p1);
     for (const k of ['dark', 'wet', 'hurried'] as const) expect(slipChance({ ...base, [k]: true })).toBeGreaterThan(p1);
-    expect(slipChance({ visits: 1, marked: false, dark: true, wet: true, hurried: true })).toBeLessThanOrEqual(0.25);
+    expect(slipChance({ passes: 0, marked: false, straight: false, dark: true, wet: true, hurried: true })).toBeLessThanOrEqual(0.4);
   });
   it('a slip is a door counted one out, a wall confused for its neighbour, or a hall forgotten', () => {
     const i = { via: 'door' as const, side: 'N' as const, ord: 2, of: 4 };
@@ -97,6 +106,58 @@ describe('the way back', () => {
       if (atHome(b)) marked++;
     }
     expect(marked).toBeGreaterThan(plain);
+  });
+  it('learns: the more often you take a way, the less likely you are to lose it', () => {
+    const rate = (rounds: number): number => {
+      let ok = 0;
+      const N = 20;
+      for (let i = 0; i < N; i++) {
+        const g = fresh(`learn-${i}`);
+        for (let r = 0; r < rounds; r++) {
+          g.pos = { x: 0, y: 0, level: 1, wall: null, pos: 500 };
+          g.trail = [];
+          step(g, 'travel west 12', NOW);
+          if (r < rounds - 1) { step(g, 'way back', NOW); }
+        }
+        step(g, 'way back', NOW);
+        if (atHome(g)) ok++;
+      }
+      return ok / N;
+    };
+    const first = rate(1);
+    const practised = rate(6);
+    expect(practised).toBeGreaterThan(first);
+    expect(practised).toBeGreaterThan(0.9);
+    expect(first).toBeLessThan(0.97);
+  });
+  it('lets you try for a named hall you have never been to, by its name alone, and may lose you', () => {
+    let ok = 0, lost = 0;
+    let said = '';
+    for (let i = 0; i < 30; i++) {
+      const g = fresh(`guess-${i}`);
+      const out = all(step(g, 'travel to the eighth western hall', NOW));
+      if (!said) said = out;
+      if (g.pos.x === -8 && g.pos.y === 0) ok++; else lost++;
+    }
+    expect(said).toMatch(/never been that way, going by the names alone/);
+    expect(ok).toBeGreaterThan(0);
+    expect(lost).toBeGreaterThan(0);
+  });
+  it('and a way you have walked many times is a way you do not lose', () => {
+    let ok = 0, tried = 0;
+    for (let i = 0; i < 24; i++) {
+      const g = fresh(`known-${i}`);
+      let reached = true;
+      for (let r = 0; r < 6; r++) { g.pos = { x: 0, y: 0, level: 1, wall: null, pos: 500 }; g.trail = []; step(g, 'travel west 8', NOW); if (g.pos.x !== -8) reached = false; }
+      if (!reached) continue; // the sea was across the way in this world: it could not be walked
+      tried++;
+      g.pos = { x: 0, y: 0, level: 1, wall: null, pos: 500 };
+      g.trail = [];
+      step(g, 'travel to the eighth western hall', NOW);
+      if (g.pos.x === -8) ok++;
+    }
+    expect(tried).toBeGreaterThan(8);
+    expect(ok / tried).toBeGreaterThan(0.9);
   });
   it('says plainly when there is no way to remember: you came here in a moment', () => {
     const g = fresh();

@@ -32,7 +32,7 @@ interface Settings {
   textScale: number;
   plainFont: boolean;
   contrast: boolean;
-  /** Keep a map of where you have been. Off: no map, and travelling by name only to places you know. */
+  /** Keep a map of where you have been. Off (the default, as in the book): no map; you can get lost, and go back by what you remember. */
   map: boolean;
   /** Let a screen reader announce new text (off while it is being read aloud, so the two do not talk over each other). */
   announce: boolean;
@@ -45,7 +45,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: true, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));

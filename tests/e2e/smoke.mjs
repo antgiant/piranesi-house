@@ -28,7 +28,12 @@ const check = (ok, msg) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${msg}`); if 
 try {
   await waitUp();
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
-  const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
+  // The House has no map by default, as in the book; most tests use it, so they turn it on.
+  const mapOn = () => { try { if (!localStorage.getItem('the-house.settings.v1')) localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true })); } catch { /* ignore */ } };
+  const newPage = async (opts) => { const p = await browser.newPage(opts); await p.addInitScript(mapOn); return p; };
+  const page = await newPage({ viewport: { width: 900, height: 900 } });
+  // the main tests use the map, which is off by default (as in the book)
+  await page.addInitScript(() => { try { if (!localStorage.getItem('the-house.settings.v1')) localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true })); } catch { /* ignore */ } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -145,7 +150,7 @@ try {
 
   // --- what earlier visitors left behind ---
   {
-    const r = await browser.newPage({ viewport: { width: 900, height: 700 } });
+    const r = await newPage({ viewport: { width: 900, height: 700 } });
     r.on('pageerror', (e) => errors.push(String(e)));
     await r.goto(URL);
     await r.click('#enter');
@@ -175,7 +180,7 @@ try {
       const w = createWorld('the-house');
       for (let d = 0; d < 400; d++) { const e = outsideEventForDay(w, d); if (e && e.x === 0 && e.y === 0 && e.kind === 'draught') { console.log(new Date(Date.UTC(2026, 0, 1) + Math.floor((e.startMs + e.endMs) / 2)).toISOString()); break; } }
     `], { encoding: 'utf8' }).trim();
-    const o = await browser.newPage({ viewport: { width: 900, height: 700 } });
+    const o = await newPage({ viewport: { width: 900, height: 700 } });
     o.on('pageerror', (e) => errors.push(String(e)));
     await o.goto(`http://localhost:${PORT}/#debug&pace=instant&at=${iso}`);
     await o.click('#enter');
@@ -191,7 +196,7 @@ try {
 
   // --- walking takes time ---
   for (const pace of ['real', 'fast']) {
-    const w = await browser.newPage({ viewport: { width: 900, height: 700 } });
+    const w = await newPage({ viewport: { width: 900, height: 700 } });
     w.on('pageerror', (e) => errors.push(String(e)));
     await w.goto(URL_WALK(pace));
     await w.click('#enter');
@@ -225,7 +230,7 @@ try {
 
   // Narration and wander, with the browser's speech stubbed so we can see what would be spoken.
   {
-    const n = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    const n = await newPage({ viewport: { width: 900, height: 900 } });
     await n.addInitScript(() => {
       window.__wake = { held: 0, requests: 0 };
       Object.defineProperty(navigator, 'wakeLock', { value: { request: async () => {
@@ -268,7 +273,7 @@ try {
 
   // The address bar names the room, and a copied address leads back to it.
   {
-    const ad = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    const ad = await newPage({ viewport: { width: 900, height: 900 } });
     ad.on('pageerror', (e) => errors.push(String(e)));
     await ad.goto(URL);
     await ad.click('#enter');
@@ -284,7 +289,7 @@ try {
     await ad.press('#input', 'Enter');
     await ad.waitForTimeout(300);
     // a link opened in a fresh tab goes to the same room
-    const friend = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    const friend = await newPage({ viewport: { width: 900, height: 900 } });
     friend.on('pageerror', (e) => errors.push(String(e)));
     await friend.goto(`http://localhost:${PORT}/${await ad.evaluate(() => location.hash)}`);
     await friend.click('#enter');
@@ -296,7 +301,7 @@ try {
     await friend.waitForFunction(() => document.getElementById('place').textContent === 'Second Western Hall', null, { timeout: 5000 });
     check(true, 'changing the address while playing takes you to that room');
     // a link to a room that does not exist is ignored
-    const lost = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    const lost = await newPage({ viewport: { width: 900, height: 900 } });
     await lost.goto(`http://localhost:${PORT}/#room=nowhere+at+all`);
     await lost.click('#enter');
     await lost.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
@@ -306,7 +311,7 @@ try {
 
   // Reading comfort and sharing.
   {
-    const rc = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    const rc = await newPage({ viewport: { width: 390, height: 780 } });
     await rc.addInitScript(() => { window.__shared = null; navigator.share = async (d) => { window.__shared = d; }; });
     rc.on('pageerror', (e) => errors.push(String(e)));
     await rc.goto(URL);
@@ -334,6 +339,7 @@ try {
   // Polish: first-run introduction, shortcuts, screen-reader announcements, transcript, about, and offline.
   {
     const ctx = await browser.newContext({ viewport: { width: 900, height: 900 }, acceptDownloads: true });
+    await ctx.addInitScript(mapOn);
     const pg = await ctx.newPage();
     pg.on('pageerror', (e) => errors.push(String(e)));
     await pg.goto(URL);
@@ -382,6 +388,7 @@ try {
   }
   {
     const ctx = await browser.newContext({ viewport: { width: 900, height: 900 } });
+    await ctx.addInitScript(mapOn);
     const pg = await ctx.newPage();
     pg.on('pageerror', (e) => errors.push(String(e)));
     await pg.addInitScript(() => {
@@ -401,13 +408,14 @@ try {
   {
     // offline: once opened, it opens again with no connection
     const ctx = await browser.newContext({ viewport: { width: 900, height: 900 } });
+    await ctx.addInitScript(mapOn);
     const pg = await ctx.newPage();
     pg.on('pageerror', (e) => errors.push(String(e)));
     await pg.goto(`http://localhost:${PORT}/#sw`);
     await pg.waitForFunction(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.active); }, null, { timeout: 15000 });
     await pg.reload();
     // wait until the files have really been stored
-    await pg.waitForFunction(async () => { const c = await caches.open('house-v1'); return (await c.keys()).length >= 3; }, null, { timeout: 15000 });
+    await pg.waitForFunction(async () => { const c = await caches.open('house-v1'); const keys = (await c.keys()).map((r) => r.url); return keys.some((u) => u.endsWith('/')) && keys.some((u) => u.endsWith('.js')) && keys.some((u) => u.endsWith('.css')); }, null, { timeout: 15000 });
     await ctx.setOffline(true);
     await pg.reload();
     check(await pg.locator('#title').isVisible(), 'with no connection at all, a visited House still opens');
@@ -424,11 +432,15 @@ try {
     await nm.goto(URL);
     await nm.click('#enter');
     await nm.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
-    check(await nm.locator('#open-map').isVisible(), 'the map is there by default');
+    check(!(await nm.locator('#open-map').isVisible()), 'there is no map by default, as in the book');
+    await nm.click('#open-settings');
+    await nm.check('#s-map');
+    await nm.click('#s-save');
+    check(await nm.locator('#open-map').isVisible(), 'the map can be turned on in Settings');
     await nm.click('#open-settings');
     await nm.uncheck('#s-map');
     await nm.click('#s-save');
-    check(!(await nm.locator('#open-map').isVisible()), 'with the map turned off, the Map button goes');
+    check(!(await nm.locator('#open-map').isVisible()), 'and off again');
     await nm.fill('#input', 'map');
     await nm.press('#input', 'Enter');
     check((await nm.locator('#log').textContent()).includes('There is no map'), 'and the House says there is no map');
@@ -456,7 +468,7 @@ try {
 
   // The visitor's murmuring: `mutter=2` makes it every 2 s so we need not wait minutes.
   {
-    const m = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    const m = await newPage({ viewport: { width: 900, height: 900 } });
     m.on('pageerror', (e) => errors.push(String(e)));
     await m.goto(`${URL}&mutter=2`);
     await m.click('#enter');
@@ -474,7 +486,7 @@ try {
 
   // Phone width: the header must not squeeze the place name into a column of single letters.
   {
-    const ph = await browser.newPage({ viewport: { width: 360, height: 700 } });
+    const ph = await newPage({ viewport: { width: 360, height: 700 } });
     await ph.goto(URL);
     await ph.click('#enter');
     await ph.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
@@ -485,7 +497,7 @@ try {
 
   // Travel: a named place far away in one command, marks, and the map's "Travel here" button.
   {
-    const tr = await browser.newPage({ viewport: { width: 390, height: 780 }, hasTouch: true });
+    const tr = await newPage({ viewport: { width: 390, height: 780 }, hasTouch: true });
     tr.on('pageerror', (e) => errors.push(String(e)));
     await tr.goto(URL);
     await tr.click('#enter');
@@ -524,7 +536,7 @@ try {
 
   // Narrated walking: with narration on, a real-pace walk gives no distance or time, and the setting off is spoken.
   {
-    const nw = await browser.newPage({ viewport: { width: 900, height: 900 } });
+    const nw = await newPage({ viewport: { width: 900, height: 900 } });
     await nw.addInitScript(() => {
       window.__spoken = [];
       window.SpeechSynthesisUtterance = function (t) { this.text = t; };

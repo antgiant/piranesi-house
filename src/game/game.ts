@@ -17,6 +17,7 @@ import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance,
 import { parse, type Command } from './parser';
 import { findRoute, nameOf, resolveName, straightRoute, vistaThrough, type Spot, type Step } from './travel';
 import { Rng } from '../world/rng';
+import { dice, opposite, pickIndex, slip, slipChance, type Instr, type TrailEntry } from './lost';
 import {
   describeHall, directionProse, glanceHall, glanceRand, locationPhrase, outsideSentence, withArticle, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
   type NamedExit, type Seen, type Style,
@@ -95,15 +96,25 @@ export interface Game {
   /** The keys of the last few things said in glances, anywhere. */
   recent: string[];
   lastLook: Line[] | null;
+  /** The way you came from where you started, a hall at a time, and what you remember of each door. Kept only for finding the way back. */
+  trail: TrailEntry[];
+  trailOrigin: Spot;
+  /** How many times each hall has been entered, `level:x,y`. */
+  visits: Map<string, number>;
+  /** How many times you have tried to find the way by memory (each try goes its own way). */
+  recalls: number;
   /** Places the visitor has marked to find again: label to where. Private to the visitor and kept on their device. */
   marks: Map<string, { x: number; y: number; level: Level; hall: string }>;
 }
 
 export interface Journey {
   destName: string;
+  /** The halls you expect to pass through, one per leg. */
   route: Step[];
   /** Index of the leg being walked. */
   idx: number;
+  /** Going by memory, which may be wrong: the way as remembered, and whether you have already strayed from it. */
+  recall?: { instr: Instr[]; dest: Spot; diverged: boolean; attempt: number };
 }
 
 export interface Walk {
@@ -130,7 +141,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), recalls: 0, told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
   };
 }
 
@@ -411,8 +422,10 @@ function finishDoor(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const t = worldNow(g, realNowMs);
   const dest = getHall(g.world, e.to.x, e.to.y, g.pos.level);
   const there = sceneAtWorldTime(g.world, e.to.x, e.to.y, g.pos.level, t);
+  const fromSpot = here(g);
   g.pos = arrivalPosition(g, e, g.pos.level);
   g.said.clear();
+  recordMove(g, fromSpot, 'door', e);
   const quiet = passThrough(g, dest.name, there.tide.depthDm, realNowMs);
   if (quiet) return quiet;
   const how = e.corridor > 0
@@ -452,8 +465,10 @@ function finishStairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
   const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
   const stair = h.stairs[0] as NonNullable<Hall['stairs'][number]>;
   const target = (g.pos.level + (dir === 'up' ? 1 : -1)) as Level;
+  const fromSpot = here(g);
   g.pos = { x: g.pos.x, y: g.pos.y, level: target, wall: stair.wall, pos: stair.pos };
   g.said.clear();
+  recordMove(g, fromSpot, 'stairs', undefined, dir);
   const quiet = passThrough(g, `the ${(['lower', 'middle', 'upper'] as const)[target]} halls`, 0, realNowMs);
   if (quiet) return quiet;
   const how = dir === 'up'
@@ -491,6 +506,128 @@ function finishWalk(g: Game, w: Walk, realNowMs: number): Line[] {
 
 // --- journeys: a long way, one leg at a time ----------------------------------------------------------------------
 
+// --- the way back, by memory -----------------------------------------------------------------------------------------
+
+const HOME: Spot = { x: 0, y: 0, level: 1 };
+const spotKey = (s: Spot): string => `${s.level}:${s.x},${s.y}`;
+const sameSpot = (a: Spot, b: Spot): boolean => a.x === b.x && a.y === b.y && a.level === b.level;
+
+/** The doors of a wall, from its low end (the west end of a north or south wall, the south end of an east or west one). */
+function wallDoorsSorted(g: Game, s: Spot, side: Side): { to: Spot; pos: number; corridor: number; side: Side }[] {
+  return hallExits(g.world, s.x, s.y, s.level).filter((e) => e.side === side).sort((a, b) => a.pos - b.pos)
+    .map((e) => ({ to: { x: e.to.x, y: e.to.y, level: s.level }, pos: e.pos, corridor: e.corridor, side: e.side }));
+}
+
+/**
+ * Note a move for the way back: which door of the new hall you came in by, counted from the low end of its wall. A move that does not
+ * follow on from the last one (you were carried somewhere) forgets the way; coming back to a hall you have been in forgets the loop;
+ * and arriving home forgets everything, since you are home.
+ */
+function recordMove(g: Game, from: Spot, via: 'door' | 'stairs', e?: NamedExit, dir?: 'up' | 'down'): void {
+  const to = here(g);
+  g.visits.set(spotKey(to), (g.visits.get(spotKey(to)) ?? 0) + 1);
+  const last = g.trail[g.trail.length - 1];
+  if (last ? !sameSpot(last.to, from) : false) { g.trail = []; g.trailOrigin = from; }
+  else if (!last && g.trail.length === 0 && !sameSpot(g.trailOrigin, from) && !sameSpot(from, g.trailOrigin)) g.trailOrigin = from;
+  if (sameSpot(to, HOME)) { g.trail = []; g.trailOrigin = HOME; return; }
+  const loop = g.trail.findIndex((t) => sameSpot(t.from, to));
+  if (loop >= 0 || sameSpot(to, g.trailOrigin)) { g.trail = g.trail.slice(0, Math.max(0, loop)); return; }
+  if (via === 'stairs') { g.trail.push({ from, to, via, dir }); return; }
+  const side = (g.pos.wall ?? opposite((e as NamedExit).side)) as Side;
+  const doors = wallDoorsSorted(g, to, side);
+  const toward = doors.map((d, i) => ({ d, i })).filter((x) => sameSpot(x.d.to, from));
+  const near = toward.sort((a, b) => Math.abs(a.d.pos - g.pos.pos) - Math.abs(b.d.pos - g.pos.pos))[0];
+  g.trail.push({ from, to, via, inSide: side, inOrd: (near?.i ?? 0) + 1, inOf: Math.max(1, doors.length) });
+}
+
+/** The conditions that make a memory worse, right now. */
+function memoryConditions(g: Game, realNowMs: number): { dark: boolean; wet: boolean; hurried: boolean } {
+  const s = sceneNow(g, realNowMs);
+  return { dark: s.light.level < 120, wet: s.tide.depthDm >= 4 || s.weather.storm, hurried: Number.isFinite(g.opts.walkPace) && g.opts.walkPace >= 3 };
+}
+
+const isMarked = (g: Game, s: Spot): boolean => [...g.marks.values()].some((m) => sameSpot(m, s));
+
+/** The way as it really was: each step's door, and the hall it leaves, and the hall it should reach. */
+interface TrueStep { instr: Instr; leaves: Spot; reaches: Spot }
+
+function trueFromTrail(g: Game): TrueStep[] {
+  const out: TrueStep[] = [];
+  for (let k = g.trail.length - 1; k >= 0; k--) {
+    const t = g.trail[k] as TrailEntry;
+    out.push({
+      instr: t.via === 'stairs' ? { via: 'stairs', dir: opposite2(t.dir as 'up' | 'down') } : { via: 'door', side: t.inSide, ord: t.inOrd, of: t.inOf },
+      leaves: t.to, reaches: t.from,
+    });
+  }
+  return out;
+}
+const opposite2 = (d: 'up' | 'down'): 'up' | 'down' => (d === 'up' ? 'down' : 'up');
+
+function trueFromRoute(g: Game, route: Step[]): TrueStep[] {
+  const out: TrueStep[] = [];
+  let cur = here(g);
+  for (const step of route) {
+    if (step.via === 'stairs') out.push({ instr: { via: 'stairs', dir: step.level > cur.level ? 'up' : 'down' }, leaves: cur, reaches: { x: step.x, y: step.y, level: step.level } });
+    else {
+      const all = hallExits(g.world, cur.x, cur.y, cur.level).filter((e) => e.to.x === step.x && e.to.y === step.y).sort((a, b) => a.corridor - b.corridor || Math.abs(a.pos - 500) - Math.abs(b.pos - 500));
+      const e = all[0];
+      const doors = e ? wallDoorsSorted(g, cur, e.side) : [];
+      const idx = e ? doors.findIndex((d) => d.pos === e.pos) : 0;
+      out.push({ instr: { via: 'door', side: e?.side, ord: idx + 1, of: Math.max(1, doors.length) }, leaves: cur, reaches: { x: step.x, y: step.y, level: step.level } });
+    }
+    cur = { x: step.x, y: step.y, level: step.level };
+  }
+  return out;
+}
+
+/** Remember the way, as a person does: mostly right, now and then a door counted out or a wall confused. */
+function beginRecall(g: Game, steps: TrueStep[], destName: string, dest: Spot, intro: string, realNowMs: number): Line[] {
+  if (g.walk || g.journey) return [text(g, 'You are already on your way; you would have to stop first.')];
+  if (steps.length === 0) return [text(g, 'You are already there.')];
+  const attempt = g.recalls++;
+  const cond = memoryConditions(g, realNowMs);
+  const instr: Instr[] = [];
+  const route: Step[] = [];
+  steps.forEach((s, j) => {
+    const p = slipChance({ visits: g.visits.get(spotKey(s.leaves)) ?? 1, marked: isMarked(g, s.leaves), ...cond });
+    let remembered: Instr | null = s.instr;
+    if (dice(g.world.seed, attempt, steps.length, j, 1) < p) remembered = slip(s.instr, dice(g.world.seed, attempt, steps.length, j, 2));
+    if (remembered) { instr.push(remembered); route.push({ ...s.reaches, via: s.instr.via }); }
+  });
+  if (instr.length === 0) return [text(g, 'You cannot call to mind any of the way.')];
+  g.journey = { destName, route, idx: 0, recall: { instr, dest, diverged: false, attempt } };
+  return [text(g, intro), ...runJourney(g, realNowMs)];
+}
+
+/** One leg of a way followed by memory: the door as remembered, if there is one. */
+function recallLeg(g: Game, realNowMs: number): Line[] {
+  const j = g.journey as Journey;
+  const r = j.recall as NonNullable<Journey['recall']>;
+  const ins = r.instr[j.idx] as Instr;
+  g.exitsListed = listExits(g, g.pos.level);
+  const lost = (why: string): Line[] => { g.journey = null; return [text(g, why), ...look(g, realNowMs)]; };
+  if (ins.via === 'stairs') {
+    const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+    if (h.kind !== 'vestibule' || h.stairs.length === 0) return lost('You look for the great stair you remember, and there is none here. You have gone wrong somewhere.');
+    return stairs(g, ins.dir as 'up' | 'down', realNowMs);
+  }
+  const doors = g.exitsListed.filter((e) => e.side === ins.side).sort((a, b) => a.pos - b.pos);
+  if (doors.length === 0) return lost(`You look for the door you remember, in the ${sideWord(ins.side as Side)}, and there is none. This is not the place you thought.`);
+  return go(g, doors[pickIndex(doors.length, ins.ord ?? 1)] as NamedExit, realNowMs);
+}
+
+/** Go back the way you came, from memory. It may not go as remembered. */
+export function wayBack(g: Game, realNowMs: number): Line[] {
+  const here0 = here(g);
+  if (sameSpot(here0, HOME)) return [text(g, 'You are already at the great stair, in the hall of the minotaurs. There is no further back.')];
+  if (g.trail.length === 0) return [text(g, 'You came here in a moment, and you have no memory of the way. You will have to find it.')];
+  const origin = g.trailOrigin;
+  const name = sameSpot(origin, HOME) ? 'the First Vestibule' : nameOf(g.world, origin);
+  const intro = sameSpot(origin, HOME) ? 'You try to call to mind the way you came.' : `You try to call to mind the way back to where you first found yourself, ${name}.`;
+  return beginRecall(g, trueFromTrail(g), name, origin, intro, realNowMs);
+}
+
 const withThe = (name: string): string => (/^the /i.test(name) ? name : `the ${name}`);
 const here = (g: Game): Spot => ({ x: g.pos.x, y: g.pos.y, level: g.pos.level });
 
@@ -502,6 +639,27 @@ function passThrough(g: Game, name: string, depthDm: number, realNowMs: number):
   const j = g.journey;
   if (!j) return null;
   j.idx++;
+  const r = j.recall;
+  if (r) {
+    // Going by memory: is this the hall you expected? A wrong turn may be noticed at once, or not for a while.
+    const expected = j.route[j.idx - 1];
+    const now = here(g);
+    const ok = !!expected && sameSpot(expected, now);
+    if (!ok) r.diverged = true;
+    if (j.idx >= j.route.length) {
+      g.journey = null;
+      if (sameSpot(r.dest, now)) return null;
+      return [text(g, `You have come to the end of what you remember, and this is not ${withThe(j.destName)}. You have lost the way.`), ...look(g, realNowMs)];
+    }
+    if (!ok && dice(g.world.seed, r.attempt, j.route.length, j.idx, 7) < 0.45) {
+      g.journey = null;
+      return [text(g, pickLost(g, r.attempt, j.idx)), ...look(g, realNowMs)];
+    }
+    g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
+    g.prev = sceneNow(g, realNowMs);
+    const strange = (g.visits.get(spotKey(now)) ?? 0) <= 1 && r.diverged;
+    return [{ kind: 'event', text: stylise(strange ? 'You go on, through a hall you do not know.' : `You pass through ${withThe(name)}.`, g.opts.style) }];
+  }
   if (j.idx >= j.route.length) { g.journey = null; return null; }
   g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
   g.prev = sceneNow(g, realNowMs);
@@ -509,8 +667,17 @@ function passThrough(g: Game, name: string, depthDm: number, realNowMs: number):
   return [{ kind: 'event', text: stylise(`You pass through ${withThe(name)}${wet}.`, g.opts.style) }];
 }
 
+const LOST_LINES = [
+  'This does not look as you remember it. Somewhere you have gone wrong.',
+  'You stop. The hall is not the one you were expecting; you must have turned wrongly a while back.',
+  'Nothing here is familiar. The way you remember has led you somewhere else.',
+  'You stand still and look about you. You do not know this place, and you cannot say where you went wrong.',
+];
+const pickLost = (g: Game, attempt: number, k: number): string => LOST_LINES[hashInts(g.world.seed, attempt, k, 0x10d) % LOST_LINES.length] as string;
+
 function startLeg(g: Game, realNowMs: number): Line[] {
   const j = g.journey as Journey;
+  if (j.recall) return recallLeg(g, realNowMs);
   const step = j.route[j.idx] as Step;
   g.exitsListed = listExits(g, g.pos.level);
   if (step.via === 'stairs') return stairs(g, step.level > g.pos.level ? 'up' : 'down', realNowMs);
@@ -597,7 +764,15 @@ function isKnown(g: Game, s: Spot): boolean {
 export function travelTo(g: Game, said: string, realNowMs: number): Line[] {
   const spot = placeFor(g, said);
   if (!spot) return [text(g, `You do not know of a place called "${said}". Try a name as the House gives them, such as the Ninth Vestibule or the Eighty-Eighth Western Hall, or one of your marks.`)];
-  if (g.opts.knownOnly && !isKnown(g, spot)) return [text(g, `You have never been to the ${nameOf(g.world, spot)}, and you would not know the way. You would have to find it.`)];
+  if (g.opts.knownOnly) {
+    if (!isKnown(g, spot)) return [text(g, `You have never been to the ${nameOf(g.world, spot)}, and you would not know the way. You would have to find it.`)];
+    if (sameSpot(spot, HOME) && !sameSpot(here(g), HOME)) return wayBack(g, realNowMs);
+    // by what you remember: only through halls you have been in, and a memory may be wrong
+    const known = findRoute(g.world, here(g), spot, 60000, (s) => sameSpot(s, spot) || g.explored.has(exploredKey(s.level, s.x, s.y)));
+    if (!known) return [text(g, `You do not remember a way to the ${nameOf(g.world, spot)} through halls you know.`)];
+    const nm = `${nameOf(g.world, spot)}${spot.level !== 1 ? `, on the ${LEVEL_NAME[spot.level]} level` : ''}`;
+    return beginRecall(g, trueFromRoute(g, known), nm, spot, `You set out for ${withThe(nm)}, by what you remember of the way.`, realNowMs);
+  }
   const route = findRoute(g.world, here(g), spot);
   if (!route) return [text(g, `You cannot find a way to ${nameOf(g.world, spot)} that is open to you: the water or the Drowned Halls are in the way.`)];
   return beginJourney(g, route, `${nameOf(g.world, spot)}${spot.level !== 1 ? `, on the ${LEVEL_NAME[spot.level]} level` : ''}`, realNowMs);
@@ -685,7 +860,8 @@ export const HELP = [
   'Looking:  look  ·  look closely (all of it)  ·  look again, or repeat (the same words again)  ·  listen  ·  time  ·  where  ·  list (numbered, for reference)',
   'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
   'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
-  'Far places:  travel to the Ninth Vestibule  ·  home  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
+  'Far places:  travel to the Ninth Vestibule  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
+  'Finding your way:  way back (or home): you try to remember the way you came, and may remember wrongly. Marking a hall with chalk makes it sure.',
   'Keys (when you are not typing):  /  to type  ·  m map  ·  w wander  ·  r say it again  ·  s sound  ·  ?  help',
   'Let the House carry you:  wander (or the Wander button) walks on and on; type anything to stop it.',
   'The tides and the weather follow the real clock. Everything you read is also what you can hear.',
@@ -711,7 +887,7 @@ function closestVerb(input: string): string | null {
   return best;
 }
 
-const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs', 'travel', 'trek', 'approach']);
+const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs', 'travel', 'trek', 'approach', 'wayback']);
 
 export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
   if (g.walk && (cmd.t === 'empty' || (cmd.t === 'look' && !cmd.repeat) || cmd.t === 'where')) return [walkingLine(g, realNowMs)];
@@ -737,6 +913,7 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     }
     case 'walk': return walkTo(g, cmd.wall, realNowMs);
     case 'travel': return travelTo(g, cmd.place, realNowMs);
+    case 'wayback': return g.opts.knownOnly ? wayBack(g, realNowMs) : travelTo(g, 'first vestibule', realNowMs);
     case 'trek': return trek(g, cmd.side, cmd.n, realNowMs);
     case 'approach': return approach(g, cmd.n, realNowMs);
     case 'mark': {

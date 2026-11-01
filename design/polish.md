@@ -46,3 +46,6 @@ The aim: a really good text experience before any visual one. Written as a check
 
 ## Thoughts on multiplayer
 Under consideration: replacing milestone 8 with the links we already have plus an outside chat. See the note in PLAN.md.
+
+## Getting lost
+The map is off by default, as in the book; `way back` and going by name are by memory and may go wrong. See `design/lost.md`.

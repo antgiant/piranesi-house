@@ -82,7 +82,7 @@ next hall, the third door on the right"), and in a person's chalk marks and writ
 
 ## Getting lost (setting "Keep a map of where I have been")
 The book is explicit: there is no map, and people easily get lost; its people mark doorways with chalk, write directions back
-to where they came from, or carry the House in their memory. The map is therefore a setting. On (the default for now): the
+to where they came from, or carry the House in their memory. The map is therefore a setting, off by default. On: the
 Map button, "Travel here", and travelling by name to any named place. Off: no Map button, "map" answers that there is no map,
-and `travel to` works only for home, places you have marked and halls you have been in. Marks are the in-world memory aid.
+and going anywhere by name is by memory, which may be wrong (see `design/lost.md`). Marks are the in-world memory aid.
 Straight runs (`travel west 40`) always work. `where` no longer shows coordinates.

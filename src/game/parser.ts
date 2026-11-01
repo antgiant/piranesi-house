@@ -14,6 +14,7 @@ export type Command =
   | { t: 'mark'; label: string }
   | { t: 'unmark'; label: string }
   | { t: 'marks' }
+  | { t: 'wayback' }
   | { t: 'examine'; what: string }
   | { t: 'wait'; minutes: number }
   | { t: 'stop' }
@@ -90,6 +91,12 @@ export function parse(input: string): Command {
       return content.length ? { t: 'mark', label: content.join(' ') } : { t: 'unknown', input };
     case 'unmark': case 'unflag': case 'forget':
       return content.length ? { t: 'unmark', label: content.join(' ') } : { t: 'unknown', input };
+    case 'retrace': case 'backtrack':
+      return { t: 'wayback' };
+    case 'way':
+      return content[0] === 'back' || content[0] === 'home' ? { t: 'wayback' } : { t: 'unknown', input };
+    case 'back':
+      return { t: 'wayback' };
     case 'marks': case 'bookmarks': case 'places':
       return { t: 'marks' };
     case 'u': case 'up': case 'ascend': return { t: 'stairs', dir: 'up' };

@@ -23,7 +23,7 @@ interface Node { s: Spot; g: number; f: number; from: Node | null; via: 'door' |
  * The shortest way from one hall to another, through doors, long passages and the great stairs of vestibules. Counts a stair
  * as three halls' walking. Returns the legs to take (not including where you stand), or null if no way is found.
  */
-export function findRoute(world: World, from: Spot, to: Spot, maxExpansions = 60000): Step[] | null {
+export function findRoute(world: World, from: Spot, to: Spot, maxExpansions = 60000, allow: (s: Spot) => boolean = () => true): Step[] | null {
   if (key(from) === key(to)) return [];
   if (impassable(world, to)) return null;
   const h = (s: Spot): number => Math.abs(s.x - to.x) + Math.abs(s.y - to.y) + 3 * Math.abs(s.level - to.level);
@@ -44,11 +44,11 @@ export function findRoute(world: World, from: Spot, to: Spot, maxExpansions = 60
     const next: { s: Spot; cost: number; via: 'door' | 'stairs' }[] = [];
     for (const e of hallExits(world, cur.s.x, cur.s.y, cur.s.level)) {
       const s: Spot = { x: e.to.x, y: e.to.y, level: cur.s.level };
-      if (!impassable(world, s)) next.push({ s, cost: 1 + e.corridor, via: 'door' });
+      if (!impassable(world, s) && allow(s)) next.push({ s, cost: 1 + e.corridor, via: 'door' });
     }
     const here = getHall(world, cur.s.x, cur.s.y, cur.s.level);
     if (here.kind === 'vestibule' && here.stairs.length > 0) {
-      for (const l of [cur.s.level - 1, cur.s.level + 1]) if (l >= 0 && l <= 2) next.push({ s: { ...cur.s, level: l as Level }, cost: 3, via: 'stairs' });
+      for (const l of [cur.s.level - 1, cur.s.level + 1]) if (l >= 0 && l <= 2 && allow({ ...cur.s, level: l as Level })) next.push({ s: { ...cur.s, level: l as Level }, cost: 3, via: 'stairs' });
     }
     for (const n of next) {
       const g = cur.g + n.cost;

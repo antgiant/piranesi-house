@@ -288,9 +288,9 @@ try {
     friend.on('pageerror', (e) => errors.push(String(e)));
     await friend.goto(`http://localhost:${PORT}/${await ad.evaluate(() => location.hash)}`);
     await friend.click('#enter');
-    await friend.waitForFunction(() => document.getElementById('log').textContent.includes('arrive'));
+    await friend.waitForFunction(() => document.getElementById('log').textContent.includes('suddenly find yourself'));
     check((await friend.locator('#place').textContent()) === (await ad.locator('#place').textContent()), `a shared link leads to the same room (${await friend.locator('#place').textContent()})`);
-    check((await friend.locator('#log').textContent()).includes('link you were sent'), 'and says so');
+    check((await friend.locator('#log').textContent()).includes('You suddenly find yourself standing in the Third Western Hall'), 'and says so, as a sudden crossing');
     // editing the address in the same tab moves you
     await friend.evaluate(() => { location.hash = '#debug&pace=instant&room=Second+Western+Hall'; });
     await friend.waitForFunction(() => document.getElementById('place').textContent === 'Second Western Hall', null, { timeout: 5000 });

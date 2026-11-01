@@ -8,6 +8,7 @@ import { BOOK_KMH, MARATHON_KMH, describeDuration, gait, paceFromKmh, stepsPerSe
 import { formatClock } from '../sim/time';
 import { mapView, type MapCell, type MapView } from '../game/mapdata';
 import type { Level } from '../world/layout';
+import { getHall } from '../world/hall';
 import { MapPanel } from './map';
 import { Narrator } from './speech';
 import { parseRoom, withRoom, withoutRoom } from './urlstate';
@@ -238,7 +239,15 @@ function startGame(fromHash = false): void {
   loadMarks(game);
   savedMarks = JSON.stringify([...game.marks]);
   logEl.textContent = '';
-  print([{ kind: 'system', text: shared ? 'You arrive where the link you were sent leads. Type "help" at any time, or use the buttons under each description.' : 'You arrive. Type "help" at any time, or use the buttons under each description.' }]);
+  // Arriving by a link is a sudden change, as in the stories of crossing into the House: the world stops, the air turns cool and
+  // damp, there is the thud of far-off water on stone, and you are simply there.
+  if (shared) {
+    const name = getHall(game.world, shared.x, shared.y, shared.level).name;
+    print([{ kind: 'text', text: `Everything stops. The air turns cooler and damper, and far off you can hear water thudding against stone. You suddenly find yourself standing in the ${name}.` }]);
+    print([{ kind: 'system', text: 'Type "help" at any time, or use the buttons under each description.' }]);
+  } else {
+    print([{ kind: 'system', text: 'You arrive. Type "help" at any time, or use the buttons under each description.' }]);
+  }
   print(look(game, Date.now()));
   refresh();
   if (hashParams().has('debug')) {

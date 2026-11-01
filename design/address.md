@@ -13,7 +13,7 @@ someone straight to the same hall.
 * The address is updated whenever you arrive somewhere new, with `history.replaceState`, so walking never fills the back
   button with history.
 * Opening a link starts the House as usual (the title screen and the click that allows sound are still needed) and then puts
-  you in the named hall; the log says "You arrive where the link you were sent leads."
+  you in the named hall; the log says, in the voice of a sudden crossing: "Everything stops. The air turns cooler and damper, and far off you can hear water thudding against stone. You suddenly find yourself standing in the Third Western Hall." (The wording follows how the book has crossings into the House feel: the world stops, the air goes cold and damp, there is the sound of waves on walls, and you are there. See `canon/senses.yaml` ARR-002.)
 * Changing the fragment while playing (pasting another address into the same tab, following a link) takes you there; if it
   names a different world the page reloads into it.
 * A name we do not know is ignored and you start in the First Vestibule.

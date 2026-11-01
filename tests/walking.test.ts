@@ -83,7 +83,7 @@ describe('walking in the game', () => {
     expect(g.pos).toMatchObject({ x: 0, y: 0 });
     const arrival = all(tick(g, end + 100));
     expect(arrival).toContain('You go through the west door into the First Western Hall');
-    expect(arrival).toContain('Ways out');
+    expect(arrival).toMatch(/Doors lead|There (is|are) |The ways on are/);
     expect(g.pos).toMatchObject({ x: -1, y: 0 });
     expect(g.walk).toBeNull();
   });
@@ -100,7 +100,7 @@ describe('walking in the game', () => {
   it('while you walk, moving again is refused and looking shows progress', () => {
     const g = start();
     step(g, 'go west', NOW);
-    expect(all(step(g, 'go north', NOW + 1000))).toMatch(/already on your way/);
+    expect(all(step(g, 'go north', NOW + 1000))).toMatch(/still on your way/);
     const status = all(step(g, 'look', NOW + 30_000));
     expect(status).toMatch(/on your way to First Western Hall, \d+% of the way there/);
     expect(walkStatus(g, NOW + 30_000)!.fraction).toBeGreaterThan(0);

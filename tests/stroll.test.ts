@@ -100,7 +100,7 @@ describe('flourishes', () => {
     }
     expect(some).toBeGreaterThan(500);
     const g = newGame({ walkPace: Infinity }, NOW);
-    expect(all(look(g, NOW))).toContain('Above the statues the building does stranger things.');
+    expect(all(look(g, NOW, true))).toContain('Above the statues the building does stranger things.');
   });
   it('differ from hall to hall: many different kinds are seen', () => {
     const kinds = new Set<string>();

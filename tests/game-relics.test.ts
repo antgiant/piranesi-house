@@ -18,19 +18,20 @@ describe('what was left behind', () => {
   it('the First Vestibule shows the sleeping bag and the litter by the stair', () => {
     const g = fresh();
     const out = all(look(g, NOW));
-    expect(out).toContain('Left behind by someone, long ago:');
+    expect(out).not.toContain('Left behind by someone');
+    expect(out).not.toMatch(/\[\d+\]/); // told as something you notice, not a list
     expect(out).toMatch(/stiff old sleeping bag/);
+    expect(out).toMatch(/long ago|a very long time|once made a bed/);
     expect(g.relicsListed.length).toBeGreaterThanOrEqual(2);
   });
-  it('is numbered after the statues, and examining it shows our description and notes it privately', () => {
+  it('examining it shows our description and notes it privately (by number, from the reference list)', () => {
     const g = fresh();
-    look(g, NOW);
+    look(g, NOW, false, false, true);
     const n = g.seenListed.length + g.relicsListed.findIndex((r) => r.kind === 'old-sleeping-bag') + 1;
     const out = all(step(g, `examine ${n}`, NOW));
     expect(out).toMatch(/pale hollow beneath the great stair/);
-    expect(out).toContain('You make a note of it');
     expect(g.found.size).toBe(1);
-    expect(all(step(g, `examine ${n}`, NOW))).not.toContain('You make a note of it');
+    expect(all(step(g, `examine ${n}`, NOW))).not.toContain('make a note');
     expect(g.found.size).toBe(1);
   });
   it('can be examined by name', () => {
@@ -41,7 +42,7 @@ describe('what was left behind', () => {
   it('"found" lists what you have noticed, and starts empty', () => {
     const g = fresh();
     look(g, NOW);
-    expect(all(step(g, 'found', NOW))).toMatch(/not yet noticed anything/);
+    expect(all(step(g, 'found', NOW))).toMatch(/not noticed anything/);
     step(g, `examine ${g.seenListed.length + 1}`, NOW);
     expect(all(step(g, 'found', NOW))).toMatch(/1\. .*\(First Vestibule\)/);
   });
@@ -62,7 +63,9 @@ describe('what was left behind', () => {
     const g = fresh();
     g.pos = { x: -88, y: 0, level: 1, wall: null, pos: 500 };
     const out = all(look(g, NOW));
-    expect(out).toMatch(/torn scraps of paper scattered over the pavement/);
+    expect(out).toMatch(/torn scraps of paper/);
+    expect(out).toMatch(/scattered over the pavement/i);
+    expect(out).not.toMatch(/\d+ or so/);
     const n = g.seenListed.length + g.relicsListed.findIndex((r) => r.id.endsWith('scraps-floor')) + 1;
     expect(all(step(g, `examine ${n}`, NOW))).toMatch(/Almost all are blank or smeared beyond reading/);
   });

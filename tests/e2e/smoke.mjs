@@ -39,7 +39,7 @@ try {
   await page.click('#enter');
   await page.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
   check(!(await page.locator('#title').isVisible()), 'title hides after entering');
-  check((await page.locator('#log').textContent()).includes('Ways out'), 'the arrival description lists the ways out');
+  check(/(Doors lead|There are|The ways on are)/.test(await page.locator('#log').textContent()), 'the arrival description says where the doors lead, in words');
 
   await page.fill('#input', 'go west');
   await page.press('#input', 'Enter');
@@ -151,10 +151,10 @@ try {
     await r.click('#enter');
     await r.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
     const text0 = await r.locator('#log').textContent();
-    check(text0.includes('Left behind by someone, long ago') && /sleeping bag/.test(text0), 'the First Vestibule shows what earlier visitors left');
+    check(/sleeping bag/.test(text0) && !text0.includes('Left behind by someone'), 'the First Vestibule tells, in a sentence, what earlier visitors left');
     await r.fill('#input', 'examine sleeping bag');
     await r.press('#input', 'Enter');
-    await r.waitForFunction(() => document.getElementById('log').textContent.includes('You make a note of it'));
+    await r.waitForFunction(() => document.getElementById('log').textContent.includes('hollow beneath the great stair'));
     await r.fill('#input', 'found');
     await r.press('#input', 'Enter');
     check((await r.locator('#log').textContent()).includes('1. a stiff old sleeping bag'), '"found" lists what you noticed');
@@ -248,11 +248,11 @@ try {
     await n.click('#open-settings');
     await n.check('#s-narrate');
     await n.click('#s-save');
-    await n.fill('#input', 'look');
+    await n.fill('#input', 'look closely');
     await n.press('#input', 'Enter');
     await n.waitForTimeout(300);
     const said = await n.evaluate(() => window.__spoken.join(' | '));
-    check(said.includes('First Vestibule') && said.includes('Number 1,'), 'with narration on, the description is read aloud, door numbers as words');
+    check(said.includes('First Vestibule') && !said.includes('['), 'with narration on, the description is read aloud, in words with no list marks');
     const startPlace = await n.locator('#place').textContent();
     await n.click('#wander');
     check((await n.locator('#wander').getAttribute('aria-pressed')) === 'true', 'wander starts');

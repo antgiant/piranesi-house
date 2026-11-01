@@ -178,6 +178,18 @@ export function visibleStatues(g: Game, h: Hall): Seen[] {
 
 export const exploredKey = (level: Level, x: number, y: number): string => `${level}:${x},${y}`;
 
+/** A button for a door: "north door", or "north door, west end" where a wall has several. */
+function doorLabel(e: NamedExit, all: NamedExit[]): string {
+  const side = sideWord(e.side).replace(' wall', '');
+  const same = all.filter((x) => x.side === e.side);
+  if (same.length === 1) return `${side} door`;
+  const lo = e.side === 'N' || e.side === 'S' ? 'west' : 'south';
+  const hi = e.side === 'N' || e.side === 'S' ? 'east' : 'north';
+  const place = e.pos < 333 ? `${lo} end` : e.pos > 667 ? `${hi} end` : 'middle';
+  const sameplace = same.filter((x) => (x.pos < 333 ? 'a' : x.pos > 667 ? 'c' : 'b') === (e.pos < 333 ? 'a' : e.pos > 667 ? 'c' : 'b'));
+  return `${side} door, ${place}${sameplace.length > 1 ? ` (${sameplace.indexOf(e) + 1})` : ''}`;
+}
+
 /** Take in where you are without saying anything: what the exits, statues and relics are, and note the hall as explored. */
 function prepareHall(g: Game, realNowMs: number): { scene: SceneState; audio: AudioScene } {
   g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
@@ -202,10 +214,12 @@ const FORGET_MS = 2 * 3_600_000;
  * time you look again in the same place, since nobody describes the same room the same way twice. "look closely" gives
  * everything, and `repeat` says the last description again, word for word.
  */
-export function look(g: Game, realNowMs: number, full = false, repeat = false): Line[] {
+export function look(g: Game, realNowMs: number, full = false, repeat = false, numbered = false): Line[] {
   if (repeat && g.lastLook) return g.lastLook;
   const { scene, audio } = prepareHall(g, realNowMs);
-  const brief = g.opts.walkNarration && !full;
+  // A description is prose, a few striking things at a time, however you are playing. `look closely` gives all of it, still as
+  // prose; `list` gives the numbered reference (for "examine 3" and "go 2").
+  const brief = !full && !numbered;
   const fl = flourishesFor(g.world, scene.hall);
   let paras: string[];
   if (brief) {
@@ -224,15 +238,15 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false): 
     g.told.set(hid, { keys, at: scene.t });
     g.lastGlance = hid;
   } else {
-    paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl);
+    paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, numbered);
     g.lastGlance = null;
   }
   const links: Link[] = [
-    ...g.exitsListed.map((e) => ({ label: `${e.index} ${sideWord(e.side)}`, command: `go ${e.index}` })),
-    ...(brief ? [{ label: 'look closely', command: 'look closely' }] : [
+    ...g.exitsListed.map((e) => ({ label: doorLabel(e, g.exitsListed), command: `go ${e.index}` })),
+    ...(brief ? [{ label: 'look closely', command: 'look closely' }] : numbered ? [
       ...g.seenListed.map((_, i) => ({ label: `examine ${i + 1}`, command: `examine ${i + 1}` })),
       ...g.relicsListed.map((r, i) => ({ label: `examine ${g.seenListed.length + i + 1}`, command: `examine ${g.seenListed.length + i + 1}` })),
-    ]),
+    ] : [{ label: 'look closely', command: 'look closely' }]),
     { label: 'listen', command: 'listen' },
   ];
   // keep going the way you were heading, if there is a door that way; and let the House carry you
@@ -511,13 +525,13 @@ function squash(g: Game, lines: Line[]): Line[] {
 }
 
 function beginJourney(g: Game, route: Step[], destName: string, realNowMs: number): Line[] {
-  if (g.walk || g.journey) return [text(g, 'You are already on your way. Type "stop" first.')];
+  if (g.walk || g.journey) return [text(g, 'You are already on your way; you would have to stop first.')];
   if (route.length === 0) return [text(g, 'You are already there.')];
   g.journey = { destName, route, idx: 0 };
   const rough = describeDuration(walkSeconds(route.length * 180) / g.opts.walkPace);
   const intro = g.opts.walkNarration
     ? text(g, `You set out for ${withThe(destName)}.`)
-    : text(g, `You set out for ${withThe(destName)}, ${route.length === 1 ? 'one hall' : `${route.length} halls`} away; about ${rough} on foot at your pace. Type "stop" to stop.`);
+    : text(g, `You set out for ${withThe(destName)}, ${route.length === 1 ? 'one hall' : `${route.length} halls`} away; about ${rough} on foot at your pace.`);
   return [intro, ...runJourney(g, realNowMs)];
 }
 
@@ -535,7 +549,7 @@ function placeFor(g: Game, said: string): Spot | null {
 
 export function travelTo(g: Game, said: string, realNowMs: number): Line[] {
   const spot = placeFor(g, said);
-  if (!spot) return [text(g, `You do not know a place called "${said}". Name it as the House does ("the Ninth Vestibule", "the Eighty-Eighth Western Hall"), say "home", or use one of your marks (type "marks").`)];
+  if (!spot) return [text(g, `You do not know of a place called "${said}". Try a name as the House gives them, such as the Ninth Vestibule or the Eighty-Eighth Western Hall, or one of your marks.`)];
   const route = findRoute(g.world, here(g), spot);
   if (!route) return [text(g, `You cannot find a way to ${nameOf(g.world, spot)} that is open to you: the water or the Drowned Halls are in the way.`)];
   return beginJourney(g, route, `${nameOf(g.world, spot)}${spot.level !== 1 ? `, on the ${LEVEL_NAME[spot.level]} level` : ''}`, realNowMs);
@@ -570,8 +584,8 @@ function stopWalk(g: Game, realNowMs: number): Line[] {
 
 function walkingLine(g: Game, realNowMs: number): Line {
   const st = walkStatus(g, realNowMs) as NonNullable<ReturnType<typeof walkStatus>>;
-  if (g.opts.walkNarration) return text(g, `You are on your way to ${g.journey ? g.journey.destName : st.label}. Type "stop" to stop.`);
-  return text(g, `You are on your way to ${st.label}, ${Math.round(st.fraction * 100)}% of the way there, with ${describeDuration(st.remainingWorldS)} to go. Type "stop" to stop.`);
+  if (g.opts.walkNarration) return text(g, `You are still on your way to ${g.journey ? g.journey.destName : st.label}.`);
+  return text(g, `You are on your way to ${st.label}, ${Math.round(st.fraction * 100)}% of the way there, with ${describeDuration(st.remainingWorldS)} to go.`);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -582,7 +596,8 @@ function walkingLine(g: Game, realNowMs: number): Line {
 function noticeRelic(g: Game, r: Relic, h: Hall): string {
   const first = !g.found.has(r.id);
   g.found.set(r.id, { label: r.label, hall: h.name });
-  return `${r.detail}${first ? ' (You make a note of it. Type "found" to see what you have noticed.)' : ''}`;
+  void first;
+  return r.detail;
 }
 
 const STOP = new Set(['the', 'and', 'with', 'statue', 'that', 'this']);
@@ -619,7 +634,7 @@ function examine(g: Game, what: string, realNowMs: number): Line[] {
 // ---------------------------------------------------------------------------------------------------------------
 
 export const HELP = [
-  'Looking:  look  ·  look closely (everything)  ·  look again, or repeat (the same words again)  ·  listen  ·  time  ·  where',
+  'Looking:  look  ·  look closely (all of it)  ·  look again, or repeat (the same words again)  ·  listen  ·  time  ·  where  ·  list (numbered, for reference)',
   'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
   'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
   'Far places:  travel to the Ninth Vestibule  ·  home  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
@@ -652,16 +667,16 @@ const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs', 'trav
 
 export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
   if (g.walk && (cmd.t === 'empty' || (cmd.t === 'look' && !cmd.repeat) || cmd.t === 'where')) return [walkingLine(g, realNowMs)];
-  if (g.walk && MOVING.has(cmd.t)) return [text(g, 'You are already on your way. Type "stop" to stop, or wait until you arrive.'), walkingLine(g, realNowMs)];
+  if (g.walk && MOVING.has(cmd.t)) return [text(g, 'You are still on your way; you could stop, or wait until you arrive.'), walkingLine(g, realNowMs)];
   switch (cmd.t) {
     case 'stop': return stopWalk(g, realNowMs);
     case 'found': {
-      if (g.found.size === 0) return [text(g, 'You have not yet noticed anything that earlier visitors left behind. Look closely at things with "examine".')];
+      if (g.found.size === 0) return [text(g, 'You have not noticed anything that earlier visitors left behind.')];
       const lines = [...g.found.values()].map((f, i) => `${i + 1}. ${f.label} (${f.hall})`);
       return [text(g, `What you have noticed that was left behind, in your own list (nobody else can see it):\n${lines.join('\n')}`)];
     }
     case 'empty': return look(g, realNowMs);
-    case 'look': return look(g, realNowMs, cmd.full === true, cmd.repeat === true);
+    case 'look': return look(g, realNowMs, cmd.full === true, cmd.repeat === true, cmd.numbered === true);
     case 'listen': {
       const s = sceneNow(g, realNowMs);
       return [text(g, soundParagraph(audioFor(g.world, s, { facing: g.facing }), s))];
@@ -679,11 +694,11 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
       const label = cmd.label.toLowerCase();
       const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
       g.marks.set(label, { x: g.pos.x, y: g.pos.y, level: g.pos.level, hall: h.name });
-      return [text(g, `You mark ${h.name} as "${label}". Type "travel to ${label}" to come back to it, or "marks" to see your marks.`)];
+      return [text(g, `You will remember the ${h.name} as "${label}".`)];
     }
     case 'unmark': return g.marks.delete(cmd.label.toLowerCase()) ? [text(g, `You forget the mark "${cmd.label}".`)] : [text(g, `You have no mark called "${cmd.label}".`)];
     case 'marks': {
-      if (g.marks.size === 0) return [text(g, 'You have marked no places. Type "mark" and a name where you stand to mark it, for example "mark the fountain".')];
+      if (g.marks.size === 0) return [text(g, 'You have not marked anywhere yet.')];
       return [text(g, `Your marks (private to you):\n${[...g.marks].map(([l, m]) => `${l}: ${m.hall}${m.level !== 1 ? `, ${LEVEL_NAME[m.level]} level` : ''}`).join('\n')}`)];
     }
     case 'stairs': return stairs(g, cmd.dir, realNowMs);

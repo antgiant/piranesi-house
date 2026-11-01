@@ -2,7 +2,7 @@ import type { Side } from '../world/layout';
 
 export type Command =
   | { t: 'empty' }
-  | { t: 'look'; full?: boolean; repeat?: boolean }
+  | { t: 'look'; full?: boolean; repeat?: boolean; numbered?: boolean }
   | { t: 'listen' }
   | { t: 'go'; side?: Side; n?: number }
   | { t: 'walk'; wall: Side }
@@ -47,6 +47,8 @@ export function parse(input: string): Command {
       return { t: 'look' };
     case 'x': case 'examine': case 'inspect': case 'study': case 'read': case 'statue':
       return content.length ? { t: 'examine', what: content.join(' ') } : { t: 'unknown', input };
+    case 'list': case 'reference': case 'inventory': case 'numbers':
+      return { t: 'look', numbered: true };
     case 'details': case 'survey':
       return { t: 'look', full: true };
     case 'listen': case 'hear':

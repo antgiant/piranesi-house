@@ -80,7 +80,7 @@ describe('a journey', () => {
     expect(g.journey).toBeNull();
     expect(out).toContain('You set out for');
     expect(out).toContain('You pass through');
-    expect(out.match(/Ways out:/g)?.length).toBe(1);
+    expect(out.match(/The middle level\./g)?.length).toBe(1);
   });
   it('can go home again from anywhere', () => {
     const g = fast();
@@ -120,7 +120,7 @@ describe('a journey', () => {
   it('says so plainly when the place is unknown or the way is shut', () => {
     const g = fast();
     look(g, NOW);
-    expect(all(step(g, 'travel to nowhere in particular', NOW))).toContain('do not know a place');
+    expect(all(step(g, 'travel to nowhere in particular', NOW))).toContain('do not know of a place');
     expect(all(step(g, 'travel to the first vestibule', NOW))).toContain('already there');
   });
 });

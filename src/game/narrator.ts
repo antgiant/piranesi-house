@@ -262,8 +262,13 @@ export function locationPhrase(sn: Seen): string {
   const f = s.alongM / sn.hallLengthM;
   const ends: Record<Side, [string, string]> = { N: ['west', 'east'], S: ['west', 'east'], E: ['south', 'north'], W: ['south', 'north'] };
   const where = f < 0.2 ? `near the ${ends[s.wall][0]} end` : f > 0.8 ? `near the ${ends[s.wall][1]} end` : 'near the middle';
-  const up = s.baseM < 1.5 ? 'at floor level' : `about ${Math.round(s.baseM)} metres up`;
-  return `on the ${SIDE_WORD[s.wall]} wall, ${where}, ${up}`;
+  const up = s.baseM < 1.5 ? '' : `, about ${Math.round(s.baseM)} metres up`;
+  return `on the ${SIDE_WORD[s.wall]} wall, ${where}${up}`;
+}
+
+/** The same, in a sentence-friendly form for prose: "against the south wall, near the middle". */
+export function placeInProse(sn: Seen): string {
+  return locationPhrase(sn).replace(/^on the/, 'against the');
 }
 
 export function seenParagraph(seen: Seen[], hall: Hall): string {
@@ -440,7 +445,89 @@ export function relicsParagraph(relics: Relic[], startNumber: number): string {
   return `Left behind by someone, long ago:\n${lines.join('\n')}`;
 }
 
-export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[] = [], flourishes: readonly Flourish[] = []): string[] {
+const NUMWORD = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'] as const;
+const BIGWORDS = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+const numWord = (n: number): string => NUMWORD[n] ?? BIGWORDS[n] ?? String(n);
+/** "14 or so" reads as "fourteen or so": a person does not say digits. */
+const wordy = (s: string): string => s.replace(/\b(\d{1,2}) or so\b/g, (_, d) => `${numWord(Number(d))} or so`);
+const listOf = (xs: string[]): string => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+const capFirst = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+const pickBy = <T,>(rand: Rand, xs: readonly T[]): T => xs[Math.min(xs.length - 1, Math.floor(rand() * xs.length))] as T;
+
+/**
+ * What earlier visitors left, told as something you notice, not as a list: where it lies and what it is, in a sentence or two.
+ * Nothing is numbered; you look at it closer by naming it ("examine the sleeping bag").
+ */
+export function relicsProse(relics: Relic[], rand: Rand): string {
+  if (relics.length === 0) return '';
+  const out: string[] = [];
+  const bag = relics.find((r) => r.kind === 'old-sleeping-bag');
+  const rest = relics.filter((r) => r !== bag);
+  let others = rest;
+  if (bag) {
+    const near = rest.filter((r) => r.kind === 'litter' && r.where.startsWith('caught'));
+    others = rest.filter((r) => !near.includes(r));
+    const aside = near.length ? ` ${pickBy(rand, [`Caught against it are ${listOf(near.map((r) => r.thing))}.`, `${capFirst(listOf(near.map((r) => r.thing)))} ${near.length > 1 ? 'have' : 'has'} blown in against it, and stayed.`])}` : '';
+    out.push(`${pickBy(rand, [
+      `${capFirst(bag.where)} lies ${bag.thing}, left behind long ago by someone who slept here and did not take it with them.`,
+      `Someone once made a bed ${bag.where}; ${bag.thing} is all that is left of it.`,
+    ])}${aside}`);
+  }
+  // the rest, by where they lie
+  const byPlace = new Map<string, Relic[]>();
+  for (const r of others) {
+    const where = r.where || (r.wall ? `on the ${SIDE_WORD[r.wall]} wall` : 'on the pavement');
+    byPlace.set(where, [...(byPlace.get(where) ?? []), r]);
+  }
+  for (const [where, rs] of byPlace) {
+    const things = rs.map((r) => wordy(r.thing));
+    const plural = rs.length > 1 || /(scraps|strokes|or so)/.test(things[0] as string);
+    if (rs.length === 1) {
+      out.push(pickBy(rand, [
+        `${capFirst(where)} ${plural ? 'lie' : 'lies'} ${things[0]}, left by someone a very long time ago.`,
+        `You notice ${things[0]} ${where}; it has been there a very long time.`,
+        `Someone left ${things[0]} ${where}, long ago.`,
+      ]));
+    } else {
+      out.push(pickBy(rand, [
+        `${capFirst(where)} someone has left ${listOf(things)}, long ago.`,
+        `Long ago, ${listOf(things)} were left ${where}.`,
+      ]));
+    }
+  }
+  return out.join(' ');
+}
+
+/** Where the doors lead, as a sentence a person would say, not a table. */
+export function exitsProse(h: Hall, exits: NamedExit[], rand: Rand): string {
+  if (exits.length === 0) return 'You can see no way out.';
+  const sides: Side[] = [];
+  const count = new Map<Side, number>();
+  for (const e of exits) { if (!count.has(e.side)) sides.push(e.side); count.set(e.side, (count.get(e.side) ?? 0) + 1); }
+  const words = (s: Side): string => sideWord(s).replace(' wall', '');
+  const stair = h.kind === 'vestibule' && h.stairs.length > 0
+    ? ` ${pickBy(rand, [`The great staircase leaves the ${SIDE_WORD[h.stairs[0]!.wall]} wall, going up and down.`, `A great staircase rises from the ${SIDE_WORD[h.stairs[0]!.wall]} wall, and goes down as well.`])}`
+    : '';
+  const door = (n: number): string => (n === 1 ? 'a door' : `${numWord(n)} doors`);
+  const form = Math.floor(rand() * 3);
+  if (form === 0 || sides.length === 1) {
+    return `There ${exits.length === 1 ? 'is' : 'are'} ${listOf(sides.map((s) => `${door(count.get(s) as number)} in the ${words(s)} wall`))}.${stair}`;
+  }
+  if (form === 1) return `Doors lead ${listOf(sides.map((s) => words(s)))}${sides.length < 4 ? '' : ', every way'}.${stair}`;
+  return `The ways on are ${listOf(sides.map((s) => `${words(s)}${(count.get(s) as number) > 1 ? ` (${numWord(count.get(s) as number)} doors)` : ''}`))}.${stair}`;
+}
+
+/** The statues near you, as something said of what the eye falls on, not a numbered list. */
+export function seenProse(seen: Seen[], hall: Hall): string {
+  if (seen.length === 0) return '';
+  const bits = seen.slice(0, 6).map((sn) => {
+    const label = sn.statue.canonId ? withArticle(sn.statue.canonLabel as string) : withArticle(describeStatue(hall, sn.statue, true));
+    return `${shorten(label, 140)}, ${locationPhrase(sn)}`;
+  });
+  return `Near you, the eye falls on ${bits.map((b, i) => (i === 0 ? b : `${['and then', 'then', 'and', 'and beside it', 'and past that'][Math.min(i - 1, 4)]} ${b}`)).join('; ')}.`;
+}
+
+export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: NamedExit[], seen: Seen[], relics: Relic[] = [], flourishes: readonly Flourish[] = [], numbered = false): string[] {
   const lvl = LEVEL_WORD[h.level];
   const out: string[] = [];
   out.push(`${h.name}\nThe ${lvl} level.`);
@@ -454,23 +541,54 @@ export function describeHall(h: Hall, s: SceneState, audio: AudioScene, exits: N
   const env = [lightSentence(h, s), sky ?? '', waterSentence(h, s), sea ?? '', ...weatherSentences(h, s), birdSentence(s), ...featureSentences(h)].filter(Boolean);
   out.push(env.join(' '));
   out.push(soundParagraph(audio, s));
-  const sp = seenParagraph(seen, h);
-  if (sp) out.push(sp);
-  const rp = relicsParagraph(relics, seen.length + 1);
-  if (rp) out.push(rp);
-  out.push(exitsParagraph(exits));
+  if (numbered) {
+    // the reference form: numbered, for typing "examine 3" and "go 2"
+    const sp = seenParagraph(seen, h);
+    if (sp) out.push(sp);
+    const rp = relicsParagraph(relics, seen.length + 1);
+    if (rp) out.push(rp);
+    out.push(exitsParagraph(exits));
+  } else {
+    const r = new Rng(hashInts(s.t > 0 ? Math.floor(s.t / 2_700_000) : 0, h.x, h.y, h.level, 0x91a9));
+    const rr: Rand = () => r.u32() / 4294967296;
+    const sp = seenProse(seen, h);
+    if (sp) out.push(sp);
+    const rp = relicsProse(relics, rr);
+    if (rp) out.push(rp);
+    out.push(exitsProse(h, exits, rr));
+  }
   return out.filter(Boolean);
+}
+
+/** A time of day as a person says it: "about a quarter past nine in the morning". */
+export function timeInWords(minuteOfDay: number): string {
+  const q = Math.round(minuteOfDay / 15) % 96; // quarter hours
+  let h = Math.floor(q / 4);
+  const part = q % 4;
+  const names = ['twelve', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'];
+  const period = (hh: number): string => (hh < 4 ? 'at night' : hh < 12 ? 'in the morning' : hh < 17 ? 'in the afternoon' : hh < 21 ? 'in the evening' : 'at night');
+  if (q === 0) return 'midnight';
+  if (q === 48) return 'noon';
+  if (part === 3) h += 1; // "a quarter to ten"
+  const hh = h % 24;
+  const say = names[hh % 12] as string;
+  const prefix = part === 0 ? '' : part === 1 ? 'a quarter past ' : part === 2 ? 'half past ' : 'a quarter to ';
+  return `${prefix}${say} ${period(hh)}`;
 }
 
 export function skyParagraph(s: SceneState): string {
   const { sunrise, sunset } = sunTimes(s.clock.dayOfYear);
-  const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   const m = s.moon;
+  const wind = s.weather.windSpeed > 600 ? 'a strong wind' : s.weather.windSpeed > 250 ? 'a steady wind' : 'a light wind';
+  const weather = s.weather.precip === 'snow' ? 'It is snowing' : s.weather.precip === 'rain' ? 'It is raining' : s.weather.cloud > 600 ? 'The sky is overcast' : 'The sky is clear';
+  const moon = m.up
+    ? `The ${m.phase} moon is up${m.illumination > 800 ? ', bright' : m.illumination < 200 ? ', a thin sliver' : ''}.`
+    : `The moon, ${m.phase}, is below the horizon.`;
   return [
-    `It is ${formatClock(s.clock)}.`,
-    `The sun rises at ${hm(sunrise)} and sets at ${hm(sunset)} today.`,
-    `The moon is ${m.phase}, about ${Math.round(m.illumination / 10)}% lit, and is ${m.up ? 'above the horizon' : 'below the horizon'}.`,
-    `Outside, the weather is ${s.weather.precip === 'snow' ? 'snowing' : s.weather.precip === 'rain' ? 'raining' : s.weather.cloud > 600 ? 'overcast' : 'clear'}, with a ${s.weather.windSpeed > 600 ? 'strong' : s.weather.windSpeed > 250 ? 'steady' : 'light'} wind from the ${s.weather.windDir}.`,
+    `It is about ${timeInWords(s.clock.minuteOfDay)}, in ${s.clock.season === 'autumn' ? 'autumn' : s.clock.season}.`,
+    `The sun rose at ${timeInWords(sunrise)} and will set at ${timeInWords(sunset)}.`,
+    moon,
+    `Outside, ${weather.charAt(0).toLowerCase()}${weather.slice(1)}, with ${wind} from the ${s.weather.windDir}.`,
   ].join(' ');
 }
 
@@ -566,14 +684,24 @@ export function glanceHall(
   const items: Item[] = [];
   for (const f of flourishes) if (fresh(f.id)) items.push({ weight: 4, group: 'building', key: f.id, text: f.text });
   const canon = seen.filter((sn) => sn.statue.canonId);
-  for (const sn of canon.slice(0, 3)) {
+  // one of each of the book's statues at a time (eight minotaurs are not all described in one breath)
+  const seenCanon = new Set<string>();
+  for (const sn of canon.filter((c) => !seenCanon.has(c.statue.canonId as string) && !!seenCanon.add(c.statue.canonId as string)).slice(0, 3)) {
     const key = `st:${sn.statue.id}`;
-    if (fresh(key)) items.push({ weight: 8, group: 'statue', key, text: `Among the statues you notice ${withArticle(sn.statue.canonLabel as string)}, ${locationPhrase(sn)}.` });
+    if (fresh(key)) items.push({ weight: 8, group: 'statue', key, text: v([
+      `Among the statues you notice ${withArticle(sn.statue.canonLabel as string)}, ${placeInProse(sn)}.`,
+      `Your eye is drawn to ${withArticle(sn.statue.canonLabel as string)}, ${placeInProse(sn)}.`,
+      `Standing out from the rest is ${withArticle(sn.statue.canonLabel as string)}, ${placeInProse(sn)}.`,
+    ]) });
   }
   const plain = seen.filter((sn) => !sn.statue.canonId && fresh(`st:${sn.statue.id}`));
   if (plain.length > 0) {
     const sn = plain[Math.floor(rand() * plain.length)] as Seen;
-    items.push({ weight: 2, group: 'statue', key: `st:${sn.statue.id}`, text: `Your eye is caught by ${lowerFirst(describeStatue(h, sn.statue, true)).replace(/\.$/, '')}, ${locationPhrase(sn)}.` });
+    items.push({ weight: 2, group: 'statue', key: `st:${sn.statue.id}`, text: v([
+      `Your eye is caught by ${lowerFirst(describeStatue(h, sn.statue, true)).replace(/\.$/, '')}, ${placeInProse(sn)}.`,
+      `${capFirst(placeInProse(sn))} stands ${lowerFirst(describeStatue(h, sn.statue, true)).replace(/\.$/, '')}.`,
+      `Near you is ${lowerFirst(describeStatue(h, sn.statue, true)).replace(/\.$/, '')}, ${placeInProse(sn)}.`,
+    ]) });
   }
   const add = (group: string, lines: string[]): void => { for (const l of lines) if (fresh(`${group}:${l}`)) items.push({ weight: 1, group, key: `${group}:${l}`, text: l }); };
   add('sky', skyLines(h, s, rand));
@@ -584,6 +712,8 @@ export function glanceHall(
   const light = lightSentence(h, s, v);
   if (light && fresh(`light:${s.light.tone}`)) items.push({ weight: 1, group: 'light', key: `light:${s.light.tone}`, text: light });
   add('weather', weatherSentences(h, s));
+  // what the hall itself holds (an empty niche, a niche with its occupant) is always worth saying
+  for (const f of featureSentences(h)) if (fresh(`feature:${f.slice(0, 30)}`)) items.push({ weight: 9, group: 'feature', key: `feature:${f.slice(0, 30)}`, text: f });
   // the theme is a guess about an ordinary hall; the book's own places are not described by it
   if (h.mood !== 'violent' && h.mood !== 'crowd' && h.tags.length === 0) add('theme', [THEME_SENTENCE[h.theme]]);
   // the size of the statues is said once, in the hall's first glance; it is not said again
@@ -592,7 +722,7 @@ export function glanceHall(
 
   // Each kind of thing has its own pull, however many ways there are of saying it: the sky or the sea when they are there,
   // the birds, a striking statue, the building's strangeness. Spread a group's pull over its items.
-  const PULL: Record<string, number> = { building: 10, statue: 8, sky: 11, sea: 11, birds: 12, water: 4, light: 3, weather: 3, theme: 1, scale: 3 };
+  const PULL: Record<string, number> = { building: 10, statue: 8, sky: 11, sea: 11, birds: 12, water: 4, light: 3, weather: 3, theme: 1, scale: 3, feature: 9 };
   const size = new Map<string, number>();
   for (const i of items) size.set(i.group, (size.get(i.group) ?? 0) + 1);
   for (const i of items) i.weight = (PULL[i.group] ?? 2) / (size.get(i.group) as number);
@@ -600,6 +730,12 @@ export function glanceHall(
   const chosen: Item[] = [];
   const groups = new Map<string, number>();
   let pool = items.slice();
+  // A hall that has one of the book's own statues always mentions it the first time: it is what the place is known for.
+  if (mode === 'first') {
+    const notable = items.find((i) => i.group === 'statue' && i.key.startsWith('st:') && i.weight >= 2 && canon.some((c) => `st:${c.statue.id}` === i.key));
+    if (notable) { chosen.push(notable); groups.set('statue', 1); pool = pool.filter((p) => p !== notable); }
+    for (const f of items.filter((i) => i.group === 'feature')) { chosen.push(f); groups.set('feature', (groups.get('feature') ?? 0) + 1); pool = pool.filter((p) => p !== f); }
+  }
   while (chosen.length < want && pool.length > 0) {
     const total = pool.reduce((a2, i) => a2 + i.weight, 0);
     let r = rand() * total;
@@ -612,7 +748,7 @@ export function glanceHall(
     pool = pool.filter((p) => p !== it && ((groups.get(p.group) ?? 0) < 2));
   }
   // in the order you would see them: the building first, then what moves in it
-  const order = ['building', 'theme', 'scale', 'statue', 'sky', 'light', 'weather', 'water', 'sea', 'birds'];
+  const order = ['building', 'theme', 'scale', 'statue', 'feature', 'sky', 'light', 'weather', 'water', 'sea', 'birds'];
   chosen.sort((a2, b2) => order.indexOf(a2.group) - order.indexOf(b2.group));
   if (chosen.length) {
     const body = chosen.map((c) => c.text).join(' ');
@@ -631,8 +767,8 @@ export function glanceHall(
     const key = `sound:${heard.slice(0, 40)}`;
     if (heard && fresh(key)) { out.push(heard); said.push(key); sound = heard; }
   }
-  const rp = mode === 'first' ? relicsParagraph(relics, 1) : '';
+  const rp = mode === 'first' ? relicsProse(relics, rand) : '';
   if (rp) out.push(rp);
-  if (mode !== 'again') out.push(exitsBrief(h, exits));
+  if (mode !== 'again') out.push(exitsProse(h, exits, rand));
   return { paras: out.filter(Boolean), said, sound, char };
 }

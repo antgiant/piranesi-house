@@ -15,6 +15,9 @@ export interface Relic {
   kind: RelicKind;
   /** A short phrase for lists. */
   label: string;
+  /** The thing itself, as a noun phrase, and where it lies, for sentences ("a flattened cardboard box", "in the hollow under the stair"). */
+  thing: string;
+  where: string;
   /** What you see when you look closely. */
   detail: string;
   wall: Side | null;
@@ -113,14 +116,14 @@ export function relicsIn(world: World, hall: Hall, month: number, density = 1): 
   if (hall.x === 0 && hall.y === 0) {
     const stairWall = hall.stairs[0]?.wall ?? 'S';
     out.push({
-      id: `${base}:sleeping-bag`, kind: 'old-sleeping-bag', label: 'a stiff old sleeping bag, rolled up',
+      id: `${base}:sleeping-bag`, kind: 'old-sleeping-bag', label: 'a stiff old sleeping bag, rolled up', thing: 'a stiff old sleeping bag, rolled up', where: 'in the pale hollow beneath the great stair',
       detail: 'Abandoned in the pale hollow beneath the great stair. It is stiff with damp and salt and smells strongly of a long time ago. Someone slept here once and did not take it with them.',
       wall: stairWall, pos: hall.stairs[0]?.pos ?? 500,
     });
     const n = 1 + (hashInts(world.seed, 0x11d, 0) % 3);
     for (let i = 0; i < n; i++) {
       const l = pick(LITTER, hashInts(world.seed, 0x11e, i));
-      out.push({ id: `${base}:litter:${i}`, kind: 'litter', label: `${l.label}, caught in the hollow under the stair`, detail: l.detail, wall: stairWall, pos: (hall.stairs[0]?.pos ?? 500) + (i - 1) * 60 });
+      out.push({ id: `${base}:litter:${i}`, kind: 'litter', label: `${l.label}, caught in the hollow under the stair`, thing: l.label, where: 'caught in the hollow under the stair', detail: l.detail, wall: stairWall, pos: (hall.stairs[0]?.pos ?? 500) + (i - 1) * 60 });
     }
   }
 
@@ -129,7 +132,7 @@ export function relicsIn(world: World, hall: Hall, month: number, density = 1): 
     const h = hashInts(world.seed, 0x5c4a, hall.x);
     const onFloor = 10 + (h % 11);
     out.push({
-      id: `${base}:scraps-floor`, kind: 'torn-scraps', label: `about ${onFloor} torn scraps of paper scattered over the pavement`,
+      id: `${base}:scraps-floor`, kind: 'torn-scraps', label: `about ${onFloor} torn scraps of paper scattered over the pavement`, thing: `${onFloor} or so torn scraps of paper`, where: 'scattered over the pavement',
       detail: `Torn scraps of paper, hasty and damp, lying thick on the pavement. Almost all are blank or smeared beyond reading. One shows a few words: "${fragmentNote(at(h, 1))}".`,
       wall: null, pos: 500,
     });
@@ -137,7 +140,7 @@ export function relicsIn(world: World, hall: Hall, month: number, density = 1): 
     if (!nesting) {
       const inNests = 5 + (at(h, 2) % 6);
       out.push({
-        id: `${base}:scraps-nests`, kind: 'torn-scraps', label: `about ${inNests} more scraps woven into the empty nests`,
+        id: `${base}:scraps-nests`, kind: 'torn-scraps', label: `about ${inNests} more scraps woven into the empty nests`, thing: `${inNests} or so more scraps of paper`, where: 'woven into the empty nests',
         detail: `The gulls have gone, and their ramshackle nests of dry weed and fishbone are empty. Scraps of paper are woven through the weed. None of them can be read.`,
         wall: pick(SIDES, at(h, 3)), pos: 100 + (at(h, 4) % 800),
       });
@@ -155,15 +158,15 @@ export function relicsIn(world: World, hall: Hall, month: number, density = 1): 
       const spot = placeOn(at(roll, 2));
       if (k === 'litter') {
         const l = pick(LITTER, at(roll, 3));
-        out.push({ id: `${base}:litter`, kind: 'litter', label: l.label, detail: l.detail, ...spot });
+        out.push({ id: `${base}:litter`, kind: 'litter', label: l.label, thing: l.label, where: '', detail: l.detail, ...spot });
       } else if (k === 'crumpled-note') {
         out.push({
-          id: `${base}:note`, kind: 'crumpled-note', label: 'a crumpled sheet of paper, ruined by damp',
+          id: `${base}:note`, kind: 'crumpled-note', label: 'a crumpled sheet of paper, ruined by damp', thing: 'a crumpled sheet of paper, ruined by damp', where: '',
           detail: `A crumpled sheet, softened to pulp by damp and nearly blank. You can make out only: "${fragmentNote(at(roll, 4))}".`, ...spot,
         });
       } else {
         const s = pick(STRAYS, at(roll, 5));
-        out.push({ id: `${base}:stray`, kind: 'small-stray', label: s.label, detail: s.detail, ...spot });
+        out.push({ id: `${base}:stray`, kind: 'small-stray', label: s.label, thing: s.label, where: '', detail: s.detail, ...spot });
       }
     }
   }
@@ -177,7 +180,7 @@ export function relicsIn(world: World, hall: Hall, month: number, density = 1): 
       const pos = doorPos(hall, dir);
       if (pos === null) continue;
       const m = markFor(run.style, dir, k, k === run.length - 1);
-      out.push({ id: `${base}:mark:${dir}`, kind: 'door-mark', label: `${m.label}, on the ${SIDE_WORD[dir]} doorframe`, detail: m.detail, wall: dir, pos });
+      out.push({ id: `${base}:mark:${dir}`, kind: 'door-mark', label: `${m.label}, on the ${SIDE_WORD[dir]} doorframe`, thing: m.label, where: `low on the ${SIDE_WORD[dir]} doorframe`, detail: m.detail, wall: dir, pos });
     }
   }
   void OPPOSITE;

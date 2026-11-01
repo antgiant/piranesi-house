@@ -26,7 +26,9 @@ describe('arrival', () => {
     const out = all(look(g, NOW));
     expect(out).toContain('First Vestibule');
     expect(out).toMatch(/massive minotaur/i);
-    expect(out).toContain('Ways out');
+    expect(out).toMatch(/great staircase/i);
+    expect(out).not.toMatch(/Ways out|\[\d+\]/); // prose, not a menu
+    expect(all(look(g, NOW, false, false, true))).toContain('Ways out');
     expect(g.exitsListed.length).toBeGreaterThanOrEqual(5);
   });
   it('offers clickable ways out and statues', () => {
@@ -34,7 +36,10 @@ describe('arrival', () => {
     const lines = look(g, NOW);
     const links = lines.flatMap((l) => l.links ?? []);
     expect(links.some((l) => l.command === 'go 1')).toBe(true);
-    expect(links.some((l) => l.command.startsWith('examine'))).toBe(true);
+    expect(links.some((l) => /door/.test(l.label))).toBe(true);
+    expect(links.some((l) => /^\d/.test(l.label))).toBe(false); // buttons are named, not numbered
+    const ref = look(g, NOW, false, false, true).flatMap((l) => l.links ?? []);
+    expect(ref.some((l) => l.command.startsWith('examine'))).toBe(true);
     expect(links.map((l) => l.command)).toContain('listen');
     expect(links.map((l) => l.command)).toContain('down');
   });
@@ -45,7 +50,7 @@ describe('the dog-fox route, played with commands (ROUTE-DOGFOX)', () => {
     const g = newGame(FAST, NOW);
     look(g, NOW);
     expect(all(step(g, 'go west', NOW))).toContain('First Western Hall');
-    expect(all(step(g, 'look', NOW))).toMatch(/horned figure/i);
+    expect(all(step(g, 'list', NOW))).toMatch(/horned figure/i);
     expect(all(step(g, 'go north 3', NOW))).toContain('First North-Western Hall');
     const out = all(step(g, 'go south 1', NOW));
     expect(out).toContain('Fourth Western Hall');
@@ -116,7 +121,7 @@ describe('the prose agrees with the simulation', () => {
         const c = at(g, name, level);
         const s = sceneAtWorldTime(g.world, c.x, c.y, level, t);
         g.cfg.realZeroMs = NOW - t;
-        const out = all(look(g, NOW));
+        const out = all(look(g, NOW, true));
         const hasDepthWords = /ankle-deep|knee-deep|waist-deep|heaving mass of water/.test(out);
         expect(hasDepthWords, `${name} @${t}`).toBe(s.tide.depthDm > 0);
         if (s.tide.depthDm > 0) wet++;
@@ -138,9 +143,9 @@ describe('the prose agrees with the simulation', () => {
   it('mentions windows only if there are some, and courtyard sides when there are', () => {
     const g = newGame({}, NOW);
     at(g, 'One-Hundred-and-Ninety-Second Western Hall');
-    expect(all(look(g, NOW))).toMatch(/no windows at all/);
+    expect(all(look(g, NOW, true))).toMatch(/no windows at all/);
     at(g, 'Fourth Western Hall');
-    const out = all(look(g, NOW));
+    const out = all(look(g, NOW, true));
     expect(out).toMatch(/courtyard with (three|four|six|eight) sides/);
     expect(out).not.toMatch(/no windows at all/);
   });

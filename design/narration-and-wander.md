@@ -48,3 +48,19 @@ Not requested merely for playing the soundscape or for a plain walk.
   new. After two hours of the world's time, the hall is seen afresh. `repeat` (or `again`, `look again`) says the last
   description again exactly; `look closely` gives the whole.
 * Unnarrated play is unchanged: `look` is a reference description and gives the same full text each time.
+
+## It reads like a novel, not a menu (milestone 10)
+A description is prose however you play. There are no numbered lists, no "[1]" and no "Ways out:" in what you read:
+* **What earlier visitors left** is told as something you notice ("In the pale hollow beneath the great stair lies a stiff old
+  sleeping bag, rolled up, left behind long ago ..."), in a sentence or two, with a few ways of saying it. You look closer by
+  naming it: "examine the sleeping bag".
+* **The doors** are a sentence ("There are three doors in the north wall, four in the east ..."; "Doors lead north, east and
+  south"; "The ways on are ..."), and the great staircase says which wall it leaves. The buttons are named ("north door",
+  "north door, west end"), not numbered.
+* **The statues near you** are what the eye falls on ("Among the statues you notice a massive minotaur ... against the south
+  wall, near the middle"), one of the book's own statues at a time. Height is said only when the statue is up the wall.
+* **Time** is said as a person says it ("about a quarter past nine in the morning, in summer"), not as a timestamp.
+* **Small replies** do not teach commands inside the story ("You will remember the First Vestibule as 'here'."); commands are in
+  `help` and the introduction.
+* `look closely` is the whole description, still prose. `list` (or `reference`) is the numbered reference, for typing
+  "examine 3" and "go 2" when that is wanted.

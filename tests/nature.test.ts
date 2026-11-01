@@ -73,15 +73,18 @@ describe('a glance, as a person would', () => {
     const glance = all(look(g, NOW));
     const full = all(look(g, NOW, true));
     expect(glance.length).toBeLessThan(full.length * 0.7);
-    expect(glance).toMatch(/Doors lead/);
-    expect(glance).not.toMatch(/You can make out:|Ways out:/);
-    expect(full).toMatch(/Ways out:/);
+    expect(glance).toMatch(/Doors lead|There (is|are) |The ways on are/);
+    expect(glance).not.toMatch(/You can make out:|Ways out:|\[\d+\]/);
+    const ref = all(look(g, NOW, false, false, true));
+    expect(ref).toMatch(/Ways out:/);
+    expect(full).not.toMatch(/Ways out:|\[\d+\]/);
   });
   it('is the full description when you look closely, and the links offer it', () => {
     const g = fresh();
     const lines = look(g, NOW);
     expect(lines[lines.length - 1]?.links?.some((l) => l.command === 'look closely')).toBe(true);
-    expect(all(step(g, 'look closely', NOW))).toMatch(/Ways out:/);
+    expect(all(step(g, 'look closely', NOW))).toMatch(/Above the statues the building does stranger things/);
+    expect(all(step(g, 'list', NOW))).toMatch(/Ways out:/);
     expect(all(step(g, 'look', NOW))).not.toMatch(/Ways out:/);
   });
   it('is the same at the same moment and not always the same later, so a second visit notices other things', () => {
@@ -91,9 +94,10 @@ describe('a glance, as a person would', () => {
     for (let k = 0; k < 12; k++) later.add(all(look(fresh(), NOW + k * 3 * 3600_000)));
     expect(later.size).toBeGreaterThan(4);
   });
-  it('is the old full description when not narrated', () => {
+  it('is prose whether or not it is narrated, and the numbered reference is its own command', () => {
     const g = newGame({ walkPace: Infinity, relicDensity: 0 }, NOW);
-    expect(all(look(g, NOW))).toMatch(/Ways out:/);
+    expect(all(look(g, NOW))).not.toMatch(/Ways out:/);
+    expect(all(step(g, 'list', NOW))).toMatch(/Ways out:/);
   });
   it('mentions the sky in an upper hall and the sea in a lower one, over a number of visits', () => {
     const up = fresh(); up.pos = { x: -14, y: -6, level: 2, wall: null, pos: 500 };
@@ -171,17 +175,18 @@ describe('what is said, and not said again', () => {
   it('greets a hall you come back to, with something new', () => {
     const g = narrated();
     const a = all(look(g, NOW));
-    expect(a).toMatch(/Doors lead/);
+    expect(a).toMatch(/Doors lead|There (is|are) |The ways on are/);
     g.pos = { x: -1, y: 0, level: 1, wall: null, pos: 500 };
     look(g, NOW + 5000);
     g.pos = { x: 0, y: 0, level: 1, wall: null, pos: 500 };
     const back = all(look(g, NOW + 10000));
     expect(back).toMatch(/You are back in the First Vestibule\./);
-    for (const s of a.split(/(?<=[.!?])\s+/).filter((q) => q.length > 60 && !/Doors lead/.test(q))) expect(back).not.toContain(s);
+    for (const s of a.split(/(?<=[.!?])\s+/).filter((q) => q.length > 60 && !/Doors lead|There (is|are) |The ways on are|great stair/.test(q))) expect(back).not.toContain(s);
   });
-  it('is the full, unchanging description when not narrated', () => {
+  it('looking closely is the whole description, in prose, and unchanging', () => {
     const g = newGame({ walkPace: Infinity, relicDensity: 0, outsideTraces: false }, NOW);
-    expect(all(look(g, NOW))).toBe(all(look(g, NOW)));
-    expect(all(look(g, NOW))).toMatch(/life-sized|larger-than-life|small|huge|colossal/);
+    expect(all(look(g, NOW, true))).toBe(all(look(g, NOW, true)));
+    expect(all(look(g, NOW, true))).toMatch(/life-sized|larger-than-life|small|huge|colossal|none of them higher|towering|times your height|your own height/);
+    expect(all(look(g, NOW, true))).not.toMatch(/\[\d+\]/);
   });
 });

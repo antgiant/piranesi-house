@@ -16,6 +16,7 @@ export type Command =
   | { t: 'marks' }
   | { t: 'wayback' }
   | { t: 'write'; text: string }
+  | { t: 'name'; place: string }
   | { t: 'journal' }
   | { t: 'examine'; what: string }
   | { t: 'wait'; minutes: number }
@@ -30,6 +31,9 @@ const DIRS: Record<string, Side> = { n: 'N', north: 'N', e: 'E', east: 'E', s: '
 const ARTICLES = new Set(['the', 'a', 'an', 'to', 'at', 'through', 'toward', 'towards', 'on', 'of', 'into', 'wall', 'door', 'doors', 'exit']);
 
 export function parse(input: string): Command {
+  // "this is the Third Western Hall", "I think I am in the third western hall": saying where you believe you are
+  const naming = /^\s*(?:i (?:think|believe|guess|reckon)\s+|perhaps\s+|maybe\s+|surely\s+)?(?:this is|this must be|this has to be|it is|it's|i am in|i'm in|i am at|i'm at|we are in|i must be in|i must be at)\s+(?:the\s+)?([a-z][a-z0-9 ,'-]*?)\s*[.!]?\s*$/i.exec(input);
+  if (naming && /\b(hall|vestibule)s?\b/i.test(naming[1] as string)) return { t: 'name', place: naming[1] as string };
   const words = input.toLowerCase().replace(/[^a-z0-9\s'-]/g, ' ').split(/\s+/).filter(Boolean);
   if (words.length === 0) return { t: 'empty' };
   const verb = words[0] as string;

@@ -79,3 +79,12 @@ With a map (Settings) none of this applies: the indicator is always right. Belie
 The service worker (`public/sw.js`, cache `house-v2`) stores every file the page names when it is installed, so a fresh install works offline
 at once. A page that was already open when the worker first activates is not controlled by it until it is claimed or reloaded; a test that
 goes offline in that instant used to fail, so the test now waits for the claim.
+
+## Putting yourself right by naming the hall
+Say where you think you are: "this is the Third Western Hall", "I think I am in the first vestibule" (any of *this is / I am in / I'm in /
+it is* followed by a hall's name). If you are astray or lost and the name is **right**, you recognise the place for what it is, you are
+sure again, and the header and descriptions are true again ("Saying it aloud, you know it for what it is..."). If it is **wrong** it does
+not settle ("it does not feel right"), and you cannot simply read the House's names out until one fits: a second guess in the same hall is
+not taken ("look about you, or go somewhere else, before you trust another guess"); moving on allows another. Naming what you believe
+when astray changes nothing. When you are sure, it just says whether you are right. How you work the name out (the statues you remember,
+a chalk mark, your journal, counting halls) is up to you. This works with the map off; with it on you are never wrong to begin with.

@@ -99,6 +99,8 @@ export interface Game {
   lastLook: Line[] | null;
   /** What you believe about where you are. Null: you know. Only a way gone wrong by memory (no map) can change it. */
   belief: Belief;
+  /** The hall in which you last tried a name and were wrong; you must look about, or move, before another guess is taken seriously. */
+  guessed: string;
   /** The way you came from where you started, a hall at a time, and what you remember of each door. Kept only for finding the way back. */
   trail: TrailEntry[];
   trailOrigin: Spot;
@@ -148,7 +150,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), belief: null, trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, journal: [], told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), belief: null, guessed: '', trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, journal: [], told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
   };
 }
 
@@ -633,6 +635,7 @@ function wallDoorsSorted(g: Game, s: Spot, side: Side): { to: Spot; pos: number;
  */
 function recordMove(g: Game, from: Spot, via: 'door' | 'stairs', e?: NamedExit, dir?: 'up' | 'down'): void {
   const to = here(g);
+  g.guessed = '';
   g.visits.set(spotKey(to), (g.visits.get(spotKey(to)) ?? 0) + 1);
   const wk = wayKey(from, to);
   g.passes.set(wk, (g.passes.get(wk) ?? 0) + 1);
@@ -726,6 +729,34 @@ function recallLeg(g: Game, realNowMs: number): Line[] {
   const doors = g.exitsListed.filter((e) => e.side === ins.side).sort((a, b) => a.pos - b.pos);
   if (doors.length === 0) return lost(`You look for the door you remember, in the ${sideWord(ins.side as Side)}, and there is none. This is not the place you thought.`);
   return go(g, doors[pickIndex(doors.length, ins.ord ?? 1)] as NamedExit, realNowMs);
+}
+
+/**
+ * Saying what hall you think this is. If you are astray or lost and the name is right, you know where you are again: you recognise it
+ * for what it is. A wrong guess does not settle, and is not tried again in the same hall until you have looked about or moved: a person
+ * cannot simply read the House's names out until one is right.
+ */
+export function nameHall(g: Game, said: string, realNowMs: number): Line[] {
+  const spot = resolveName(g.world, said, g.pos.level);
+  if (!spot) return [text(g, 'You do not know of a hall by that name.')];
+  const truth = here(g);
+  const real = getHall(g.world, truth.x, truth.y, truth.level).name;
+  const right = sameSpot(spot, truth);
+  if (g.belief === null) return [text(g, right ? `Yes: this is the ${real}.` : 'You think it over, and no: it is not that.')];
+  const believed = believedSpot(g);
+  if (believed && sameSpot(spot, believed) && !right) return [text(g, 'It is what you thought. You are as sure of it as you were.')];
+  if (right) {
+    const wasWrong = g.belief.kind === 'wrong';
+    g.belief = null;
+    g.guessed = '';
+    g.prev = sceneNow(g, realNowMs);
+    return [text(g, wasWrong
+      ? `You look again, and it is plain: this is the ${real}, and you had been mistaken about it. You know where you are now.`
+      : `Saying it aloud, you know it for what it is: this is the ${real}. You know where you are again.`), ...look(g, realNowMs)];
+  }
+  if (g.guessed === spotKey(truth)) return [text(g, 'You have already tried a name here, and it would not settle. Look about you, or go somewhere else, before you trust another guess.')];
+  g.guessed = spotKey(truth);
+  return [text(g, 'You say it, and it does not feel right. Perhaps it is, but nothing about the place agrees.')];
 }
 
 /** Go back the way you came, from memory. It may not go as remembered. */
@@ -987,7 +1018,7 @@ export const HELP = [
   'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
   'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
   'Far places:  travel to the Ninth Vestibule  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
-  'Finding your way:  way back (or home), or travel to a hall by name: you go by what you remember, and may remember wrongly. A way you have never taken is a guess from the names; the more often you take it, the surer you are. Chalk (mark) makes a hall sure.',
+  'Finding your way:  way back (or home), or travel to a hall by name: you go by what you remember, and may remember wrongly. A way you have never taken is a guess from the names; the more often you take it, the surer you are. Chalk (mark) makes a hall sure. If you think you know where you are, say so: this is the Third Western Hall.',
   'Keys (when you are not typing):  /  to type  ·  m map  ·  w wander  ·  r say it again  ·  s sound  ·  ?  help',
   'Let the House carry you:  wander (or the Wander button) walks on and on; type anything to stop it.',
   'The tides and the weather follow the real clock. Everything you read is also what you can hear.',
@@ -1041,6 +1072,7 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     }
     case 'walk': return walkTo(g, cmd.wall, realNowMs);
     case 'travel': return travelTo(g, cmd.place, realNowMs);
+    case 'name': return nameHall(g, cmd.place, realNowMs);
     case 'wayback': return g.opts.knownOnly ? wayBack(g, realNowMs) : travelTo(g, 'first vestibule', realNowMs);
     case 'trek': return trek(g, cmd.side, cmd.n, realNowMs);
     case 'approach': return approach(g, cmd.n, realNowMs);

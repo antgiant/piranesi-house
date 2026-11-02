@@ -585,6 +585,14 @@ try {
     check(!(await lp.evaluate(() => location.hash)).includes('room='), 'and the address bar names no room');
     await lp.click('#share');
     check((await lp.locator('#log').textContent()).includes('cannot share a place you cannot name'), 'and there is no sharing a place you cannot name');
+    // naming the hall rightly puts you right; a wrong name does not
+    await lp.fill('#input', 'this is the fifth south-eastern hall');
+    await lp.press('#input', 'Enter');
+    check((await lp.locator('#log').textContent()).includes('does not feel right') && (await lp.locator('#place').textContent()) === 'Somewhere you do not know', 'a wrong name does not settle');
+    await lp.fill('#input', `this is the ${truth}`);
+    await lp.press('#input', 'Enter');
+    await lp.waitForFunction((tr) => document.getElementById('place').textContent === tr, truth, { timeout: 5000 });
+    check((await lp.locator('#log').textContent()).includes('You know where you are'), 'and naming the hall rightly puts you right again');
     await lp.click('#open-settings');
     await lp.click('#s-ios');
     check(await lp.locator('#ios').isVisible() && (await lp.locator('#ios').textContent()).includes('Add to Home Screen'), 'Settings opens instructions for installing on an iPhone or iPad');

@@ -11,6 +11,18 @@ const fresh = (seed = 'the-house', extra = {}): Game => {
 };
 const atHome = (g: Game): boolean => g.pos.x === 0 && g.pos.y === 0 && g.pos.level === 1;
 
+/** A game that ends a long way back lost or astray, found once and replayed (the same seed always goes the same way). */
+const replay = (seed: string): Game => { const g = fresh(seed); step(g, 'travel west 30', NOW); step(g, 'way back', NOW); return g; };
+const seedMemo: Record<string, string> = {};
+function seedFor(kind: 'wrong' | 'lost'): string {
+  if (seedMemo[kind]) return seedMemo[kind] as string;
+  for (let i = 0; i < 200; i++) {
+    const g = replay(`belief-${i}`);
+    if (g.belief?.kind === kind) return (seedMemo[kind] = `belief-${i}`);
+  }
+  throw new Error(`no game found that ends ${kind}`);
+}
+
 describe('the chance of misremembering', () => {
   const base = { passes: 1, marked: false, straight: false, dark: false, wet: false, hurried: false };
   it('is a guess on a way never taken, small on a way taken once, and smaller each further time', () => {
@@ -201,19 +213,7 @@ import { applySave, toSave } from '../src/game/save';
 import { getHall } from '../src/world/hall';
 
 describe('where you think you are', () => {
-  /** Find games that ended a way back astray (believing a wrong place) and lost (knowing they do not know). */
-  function scan(): { wrong: Game | null; lost: Game | null } {
-    let wrong: Game | null = null, lost: Game | null = null;
-    for (let i = 0; i < 150 && !(wrong && lost); i++) {
-      const g = fresh(`belief-${i}`);
-      step(g, 'travel west 30', NOW);
-      step(g, 'way back', NOW);
-      if (g.belief?.kind === 'wrong' && !wrong) wrong = g;
-      if (g.belief?.kind === 'lost' && !lost) lost = g;
-    }
-    return { wrong, lost };
-  }
-  const found = scan();
+  const found = { wrong: replay(seedFor('wrong')), lost: replay(seedFor('lost')) };
 
   it('is always right when you have not gone astray, or have a map', () => {
     const g = fresh();
@@ -281,5 +281,65 @@ describe('where you think you are', () => {
       expect(b.belief).toEqual(g.belief);
       expect(shownName(b)).toBe(shownName(g));
     }
+  });
+});
+
+import { parse } from '../src/game/parser';
+
+describe('saying where you are', () => {
+  it('is understood in the ways a person would say it', () => {
+    for (const s of ['this is the third western hall', 'This is the Third Western Hall.', 'I think this is the third western hall', "i'm in the first vestibule", 'I am in the Ninth Vestibule', 'it must be... no, it is the second northern hall', 'maybe this is the fifth north-eastern hall, 2 rows north']) {
+      const c = parse(s);
+      if (s.startsWith('it must')) continue;
+      expect(c.t, s).toBe('name');
+    }
+    expect(parse('this is the third western hall')).toEqual({ t: 'name', place: 'third western hall' });
+    expect(parse('it is raining')).not.toMatchObject({ t: 'name' });
+    expect(parse('this is nonsense')).not.toMatchObject({ t: 'name' });
+  });
+  const lostGame = (): Game => replay(seedFor('lost'));
+  it('lost, naming the hall rightly is knowing where you are again', () => {
+    const g = lostGame();
+    const real = getHall(g.world, g.pos.x, g.pos.y, g.pos.level).name;
+    const out = all(step(g, `this is the ${real.toLowerCase()}`, NOW));
+    expect(out).toMatch(/know where you are/);
+    expect(g.belief).toBeNull();
+    expect(shownName(g)).toBe(real);
+    expect(all(step(g, 'where', NOW))).toContain(real);
+    // and travelling by name works from here again
+    expect(all(step(g, 'travel to the first western hall', NOW))).not.toMatch(/do not know where you are/);
+  });
+  it('a wrong name does not settle, cannot be repeated in the same hall, and is not a way to try every name', () => {
+    const g = lostGame();
+    const real = getHall(g.world, g.pos.x, g.pos.y, g.pos.level).name;
+    const wrong = real === 'Fifth Western Hall' ? 'Sixth Western Hall' : 'Fifth Western Hall';
+    expect(all(step(g, `this is the ${wrong}`, NOW))).toMatch(/does not feel right/);
+    expect(g.belief?.kind).toBe('lost');
+    expect(all(step(g, 'this is the fourth western hall', NOW))).toMatch(/already tried a name here/);
+    // even the right name is still taken: a guess that was right is never refused, only repeated wrong ones
+    expect(all(step(g, `this is the ${real}`, NOW))).toMatch(/know where you are/);
+  });
+  it('after moving on, another guess is taken again', () => {
+    const g = lostGame();
+    step(g, 'this is the fourth western hall', NOW);
+    step(g, 'travel west 1', NOW);
+    expect(g.guessed).toBe('');
+  });
+  it('astray: naming the true hall puts you right; naming what you believe changes nothing; anything else does not settle', () => {
+    const a = replay(seedFor('wrong'));
+    expect(a).not.toBeNull();
+    const real = getHall(a.world, a.pos.x, a.pos.y, a.pos.level).name;
+    const shown = shownName(a) as string;
+    expect(all(step(a, `this is the ${shown}`, NOW))).toMatch(/as sure of it/);
+    expect(a.belief?.kind).toBe('wrong');
+    const out = all(step(a, `i think this is the ${real}`, NOW));
+    expect(out).toMatch(/you had been mistaken/);
+    expect(a.belief).toBeNull();
+  });
+  it('when you are sure, it just tells you, and a name that is not a hall is not one', () => {
+    const g = fresh();
+    expect(all(step(g, 'this is the first vestibule', NOW))).toContain('Yes: this is the First Vestibule');
+    expect(all(step(g, 'this is the second western hall', NOW))).toMatch(/no: it is not that/);
+    expect(all(step(g, 'this is the hall of nonsense', NOW))).toContain('do not know of a hall by that name');
   });
 });

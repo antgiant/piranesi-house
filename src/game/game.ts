@@ -11,6 +11,7 @@ import { describeStatue, type Statue } from '../world/statues';
 import { createWorld, type World } from '../world/world';
 import { relicsIn, type Relic } from '../world/relics';
 import { flourishesFor } from '../world/flourishes';
+import { framedInDoorway } from '../sim/stars';
 import { strollBeats } from './stroll';
 import { hashInts } from '../world/rng';
 import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance, describeDuration, distanceM, gait, terrainFactor, walkSeconds } from './walk';
@@ -19,8 +20,10 @@ import { findRoute, nameOf, resolveName, straightRoute, vistaThrough, type Spot,
 import { Rng } from '../world/rng';
 import { dice, opposite, pickIndex, slip, slipChance, type Belief, type Instr, type TrailEntry } from './lost';
 import { MAX_ENTRY_CHARS, newEntryId, type JournalEntry } from './save';
+import { FORGOTTEN, SURE, giveName, howSure, keyOf, landmarkChance, looseKey, rehearse, remembered, retention, tidy, type Named, type ThingKind } from './memory';
+import { epithetFor } from '../world/epithets';
 import {
-  describeHall, directionProse, timeInWords, glanceHall, glanceRand, locationPhrase, outsideSentence, withArticle, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
+  describeHall, directionProse, placeInProse, timeInWords, glanceHall, glanceRand, locationPhrase, outsideSentence, withArticle, sideWord, skyParagraph, soundParagraph, statueDetail, stylise, waterSentence,
   type NamedExit, type Seen, type Style,
 } from './narrator';
 
@@ -110,6 +113,10 @@ export interface Game {
   passes: Map<string, number>;
   /** How many times you have tried to find the way by memory (each try goes its own way). */
   recalls: number;
+  /** What the visitor has named: halls, statues, stairs, anything. A name is a landmark, and is remembered as people remember. */
+  names: Named[];
+  /** The thing last looked at closely, for "call it ...". */
+  lastThing: { id: string; kind: ThingKind; hall: Spot; label: string } | null;
   /** What the visitor has written in their journal, oldest first. Private: kept on their device, and carried only if they carry it. */
   journal: JournalEntry[];
   /** Places the visitor has marked to find again: label to where. Private to the visitor and kept on their device. */
@@ -150,7 +157,7 @@ export function newGame(opts: Partial<GameOptions>, realNowMs: number): Game {
   if (o.startAtWorldMs !== undefined) cfg.realZeroMs = realNowMs - Math.floor(o.startAtWorldMs / o.timeScale);
   return {
     world, cfg, opts: o, pos: { x: 0, y: 0, level: 1, wall: null, pos: 500 },
-    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), belief: null, guessed: '', trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, journal: [], told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
+    exitsListed: [], seenListed: [], prev: null, said: new Set(), walk: null, facing: 'N', explored: new Set(), relicsListed: [], found: new Map(), journey: null, marks: new Map(), belief: null, guessed: '', trail: [], trailOrigin: { x: 0, y: 0, level: 1 }, visits: new Map([['1:0,0', 1]]), passes: new Map(), recalls: 0, names: [], lastThing: null, journal: [], told: new Map(), lastGlance: null, lastChar: '', recent: [], lastLook: null,
   };
 }
 
@@ -277,6 +284,26 @@ export function lookDirection(g: Game, side: Side, realNowMs: number): Line[] {
   return paras.map((p, i) => text(g, p, i === paras.length - 1 ? links : undefined));
 }
 
+/** A line about something you have named, as you come upon it. */
+function namedLine(g: Game, n: Named, nowW: number, hall: Hall): string {
+  const r = retention(n, nowW);
+  const q = `“${n.name}”`;
+  const sure = r >= SURE;
+  switch (n.kind) {
+    case 'hall': return sure ? `This is the place you call ${q}.` : `Something about this place seems to be what you once called ${q}.`;
+    case 'stair': return sure ? `Here is the stair you call ${q}.` : `The stair seems to be the one you once called ${q}.`;
+    case 'door': return sure ? `There is the door you call ${q}.` : `One door seems to be the one you once called ${q}.`;
+    case 'statue': {
+      const sn = g.seenListed.find((s) => s.statue.id === n.id);
+      const w = sn ? `, ${placeInProse(sn)}` : '';
+      return sure ? `There is the statue you call ${q}${w}.` : `A statue here looks like the one you once called ${q}${w}.`;
+    }
+    case 'flourish': return sure ? `Here is the feature you call ${q}.` : `Something here seems to be what you once called ${q}.`;
+    case 'relic': return sure ? `There lies what you call ${q}.` : `That seems to be what you once called ${q}.`;
+  }
+  void hall;
+}
+
 /** A button for a door: "north door", or "north door, west end" where a wall has several. */
 function doorLabel(e: NamedExit, all: NamedExit[]): string {
   const side = sideWord(e.side).replace(' wall', '');
@@ -320,6 +347,13 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false, n
   // prose; `list` gives the numbered reference (for "examine 3" and "go 2").
   const brief = !full && !numbered;
   const fl = flourishesFor(g.world, scene.hall);
+  const nowW = worldNow(g, realNowMs);
+  // The things here that you have named: met again, they are brought to mind (which is what makes a name last); and if you know where
+  // you are, they are among what you notice. (Astray, they are how you might find out; that happens as you arrive.)
+  const here0 = here(g);
+  const named = g.names.filter((n) => sameSpot(n.hall, here0) && retention(n, nowW) >= FORGOTTEN);
+  for (const n of named) rehearse(n, nowW);
+  const namedItems = g.belief ? [] : named.map((n) => ({ key: `named:${n.id}`, text: namedLine(g, n, nowW, scene.hall) }));
   let paras: string[];
   if (brief) {
     const hid = scene.hall.id;
@@ -327,7 +361,7 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false, n
     if (rec && scene.t - rec.at > FORGET_MS) { g.told.delete(hid); rec = undefined; }
     const mode = !rec ? 'first' : g.lastGlance === hid ? 'again' : 'return';
     const r = glanceHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, glanceRand(scene.hall, scene, rec?.keys.size ?? 0), {
-      told: rec?.keys ?? new Set(), mode, lastChar: g.lastChar, recent: new Set(g.recent), heading: headingFor(g), nameFor: hallLabel(g),
+      told: rec?.keys ?? new Set(), mode, lastChar: g.lastChar, recent: new Set(g.recent), heading: headingFor(g, realNowMs), nameFor: hallLabel(g), named: namedItems,
     });
     g.lastChar = r.char;
     paras = r.paras;
@@ -337,7 +371,7 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false, n
     g.told.set(hid, { keys, at: scene.t });
     g.lastGlance = hid;
   } else {
-    paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, numbered, headingFor(g));
+    paras = describeHall(scene.hall, scene, audio, g.exitsListed, g.seenListed, g.relicsListed, fl, numbered, headingFor(g, realNowMs));
     g.lastGlance = null;
   }
   const links: Link[] = [
@@ -351,6 +385,7 @@ export function look(g: Game, realNowMs: number, full = false, repeat = false, n
   // keep going the way you were heading, if there is a door that way; and let the House carry you
   const ahead = g.exitsListed.some((e) => e.side === g.facing) ? sideWord(g.facing).replace(' wall', '') : null;
   if (ahead) links.unshift({ label: `go on ${ahead}`, command: `go ${ahead}` });
+  links.push({ label: 'name this place', command: 'prefill:call this hall ' });
   links.push({ label: 'wander', command: 'wander' });
   if (scene.hall.kind === 'vestibule' && scene.hall.stairs.length > 0) {
     if (g.pos.level < 2) links.push({ label: 'go up', command: 'up' });
@@ -477,7 +512,7 @@ function finishDoor(g: Game, e: NamedExit, realNowMs: number): Line[] {
   recordMove(g, fromSpot, 'door', e);
   const quiet = passThrough(g, null, there.tide.depthDm, realNowMs);
   if (quiet) return quiet;
-  const known = recognise(g);
+  const known = recognise(g, realNowMs);
   const how = e.corridor > 0
     ? `You take the ${sideWord(e.side)} door into a long passage of ${e.corridor === 1 ? 'a hall\'s length' : `${e.corridor} halls' length`}, and come out at last into`
     : `You go through the ${sideWord(e.side)} door into`;
@@ -521,7 +556,7 @@ function finishStairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
   recordMove(g, fromSpot, 'stairs', undefined, dir);
   const quiet = passThrough(g, `the ${(['lower', 'middle', 'upper'] as const)[target]} halls`, 0, realNowMs);
   if (quiet) return quiet;
-  const known = recognise(g);
+  const known = recognise(g, realNowMs);
   const how = dir === 'up'
     ? 'You climb the great stair, twenty-five metres of steps each almost twice as high as is comfortable, and come out into'
     : 'You descend the great stair, step after enormous step, into';
@@ -593,24 +628,68 @@ function shownLevel(g: Game, s: Spot = here(g)): string {
   return LEVEL_NAME[Math.max(0, Math.min(2, lv))] as string;
 }
 /** The heading of a description: the name you would give the hall, and the level. */
-export function headingFor(g: Game, s: Spot = here(g)): string {
+export function headingFor(g: Game, realNowMs: number, s: Spot = here(g)): string {
   const n = shownName(g, s);
-  return `${n ?? 'A place you do not know'}\nThe ${shownLevel(g, s)} level.`;
+  if (!n) return `A place you do not know\nThe ${shownLevel(g, s)} level.`;
+  // what you call it, if you have named it and remember: otherwise what it is known for
+  const own = !g.belief ? ownHallName(g, s, worldNow(g, realNowMs)) : null;
+  const shown = (!g.belief || g.belief.kind === 'wrong') ? believedSpotOf(g, s) : null;
+  const ep = shown ? epithetFor(g.world, getHall(g.world, shown.x, shown.y, shown.level)) : null;
+  const tail = own ? `, which you call “${own}”` : ep ? `, ${ep}` : '';
+  return `${n}${tail}\nThe ${shownLevel(g, s)} level.`;
+}
+
+/** The hall you would take an actual hall to be, given what you believe (the same hall if you are sure; null if you are lost). */
+function believedSpotOf(g: Game, s: Spot): Spot | null {
+  if (!g.belief) return s;
+  if (g.belief.kind === 'lost') return null;
+  const lv = s.level + g.belief.dl;
+  return lv >= 0 && lv <= 2 ? { x: s.x + g.belief.dx, y: s.y + g.belief.dy, level: lv as Level } : null;
+}
+
+/** The epithet of the hall you believe you are in, for the address bar and sharing: "the Hall of the Railless Bridge". */
+export function shownEpithet(g: Game, realNowMs: number): string | null {
+  const b = believedSpot(g);
+  if (!b) return null;
+  const own = !g.belief ? ownHallName(g, here(g), worldNow(g, realNowMs)) : null;
+  return own ?? epithetFor(g.world, getHall(g.world, b.x, b.y, b.level));
+}
+
+// --- names the visitor gives ----------------------------------------------------------------------------------------------------
+
+const hallThingId = (g: Game, s: Spot): string => `hall:${getHall(g.world, s.x, s.y, s.level).id}`;
+
+/** What you call this hall, if you have named it and still remember. */
+function ownHallName(g: Game, s: Spot, nowW: number): string | null {
+  const n = g.names.find((x) => x.id === hallThingId(g, s));
+  return n && retention(n, nowW) >= FORGOTTEN ? n.name : null;
 }
 
 /**
  * Coming into a hall when you are not sure where you are: a place you know well you may recognise; a place you do not know, when you
  * thought you knew, you may realise is not what you expected. Home, with its minotaurs, is always known.
  */
-function recognise(g: Game): Line[] {
+function recognise(g: Game, realNowMs: number): Line[] {
   if (!g.belief) return [];
   const h = here(g);
+  const nowW = worldNow(g, realNowMs);
   const v = g.visits.get(spotKey(h)) ?? 0;
   const home = sameSpot(h, HOME);
   const roll = dice(g.world.seed, g.recalls, v, h.x * 131 + h.y + h.level * 7, 0x2ec);
-  if (home || (v >= 2 && roll < 1 - Math.pow(0.5, v - 1))) {
+  const real = getHall(g.world, h.x, h.y, h.level).name;
+  // What you have named here is the surest thing to know a place by: a hall you called something, a statue, a stair, whatever you
+  // noticed and named, as well as it is remembered. It adds to knowing the place from having been there.
+  const { chance: pNamed, by } = landmarkChance(g.names, h, nowW);
+  const pBase = home ? 1 : v >= 2 ? 1 - Math.pow(0.5, v - 1) : 0;
+  const p = 1 - (1 - pBase) * (1 - pNamed);
+  if (home || roll < p) {
     g.belief = null;
-    return [text(g, `You know where you are now: this is the ${getHall(g.world, h.x, h.y, h.level).name}.`)];
+    if (by && !home) {
+      rehearse(by, nowW);
+      const what = by.kind === 'hall' ? `the place you called “${by.name}”` : `the ${kindWord(by.kind)} you called “${by.name}”`;
+      return [text(g, `You know it. This is ${what}, and so this is the ${real}. You know where you are again.`)];
+    }
+    return [text(g, `You know where you are now: this is the ${real}.`)];
   }
   if (g.belief.kind === 'wrong' && roll < 0.3) {
     g.belief = { kind: 'lost' };
@@ -618,6 +697,8 @@ function recognise(g: Game): Line[] {
   }
   return [];
 }
+
+const kindWord = (k: ThingKind): string => ({ hall: 'hall', statue: 'statue', stair: 'stair', door: 'door', flourish: 'feature', relic: 'thing' })[k];
 
 /** A way between two halls, the same in either direction. */
 const wayKey = (a: Spot, b: Spot): string => [spotKey(a), spotKey(b)].sort().join('>');
@@ -737,8 +818,13 @@ function recallLeg(g: Game, realNowMs: number): Line[] {
  * cannot simply read the House's names out until one is right.
  */
 export function nameHall(g: Game, said: string, realNowMs: number): Line[] {
-  const spot = resolveName(g.world, said, g.pos.level);
+  // a name you gave, if you still remember it, or one of the House's own
+  const nowW = worldNow(g, realNowMs);
+  const ownN = g.names.find((n) => n.kind === 'hall' && looseKey(n.name) === looseKey(said));
+  if (ownN && retention(ownN, nowW) < FORGOTTEN) return [text(g, 'You called a place that once, but you cannot now remember which.')];
+  const spot = ownN ? { x: ownN.hall.x, y: ownN.hall.y, level: ownN.hall.level } : resolveName(g.world, said, g.pos.level);
   if (!spot) return [text(g, 'You do not know of a hall by that name.')];
+  if (ownN) rehearse(ownN, nowW);
   const truth = here(g);
   const real = getHall(g.world, truth.x, truth.y, truth.level).name;
   const right = sameSpot(spot, truth);
@@ -757,6 +843,90 @@ export function nameHall(g: Game, said: string, realNowMs: number): Line[] {
   if (g.guessed === spotKey(truth)) return [text(g, 'You have already tried a name here, and it would not settle. Look about you, or go somewhere else, before you trust another guess.')];
   g.guessed = spotKey(truth);
   return [text(g, 'You say it, and it does not feel right. Perhaps it is, but nothing about the place agrees.')];
+}
+
+// --- naming things -------------------------------------------------------------------------------------------------------------
+
+interface Thing { id: string; kind: ThingKind; hall: Spot; label: string }
+const NOISE = new Set(['the', 'a', 'an', 'that', 'of', 'to', 'at']);
+
+/**
+ * What the visitor means by a phrase, among the things here: the hall ("this hall", "here"), the great stair, a door ("the north door"),
+ * a statue (by a word from its description, or "statue 2"), something left behind, one of the building's strange features ("the bridge"),
+ * or "it" for the thing last looked at.
+ */
+function resolveThing(g: Game, phrase: string, realNowMs: number): Thing | null {
+  const words = phrase.toLowerCase().replace(/[^a-z0-9\s'-]/g, ' ').split(/\s+/).filter((w) => w && !NOISE.has(w));
+  const t = words.join(' ');
+  if (!t) return null;
+  if (g.exitsListed.length === 0 && g.seenListed.length === 0) prepareHall(g, realNowMs);
+  const h = here(g);
+  const hall = getHall(g.world, h.x, h.y, h.level);
+  if (/^(this |the )?(hall|room|vestibule|place|house)$|^here$/.test(t)) return { id: `hall:${hall.id}`, kind: 'hall', hall: h, label: 'this place' };
+  if (/^(it|this one|that one)$/.test(t)) return g.lastThing && sameSpot(g.lastThing.hall, h) ? g.lastThing : null;
+  if (/^(this |the )?(great )?stair(s|case|way)?$/.test(t)) return hall.kind === 'vestibule' && hall.stairs.length > 0 ? { id: `stair:${hall.id}`, kind: 'stair', hall: h, label: 'the great stair' } : null;
+  const door = /^(north|east|south|west)(?:ern)? door$|^door (?:in |to |on )?(?:the )?(north|east|south|west)$/.exec(t);
+  if (door) {
+    const side = ({ north: 'N', east: 'E', south: 'S', west: 'W' } as Record<string, Side>)[(door[1] ?? door[2]) as string] as Side;
+    return g.exitsListed.some((e) => e.side === side) ? { id: `door:${hall.id}:${side}`, kind: 'door', hall: h, label: `the ${sideWord(side).replace(' wall', '')} door` } : null;
+  }
+  const num = /^statue (\d+)$/.exec(t);
+  const need = words.filter((w) => w.length >= 3 && !STOP.has(w));
+  if (num) { const sn = g.seenListed[Number(num[1]) - 1]; if (sn) return { id: sn.statue.id, kind: 'statue', hall: h, label: 'the statue' }; return null; }
+  if (need.length === 0) return null;
+  const sn = g.seenListed.find((s) => { const hay = `${s.statue.canonLabel ?? ''} ${s.statue.figure}`.toLowerCase(); return need.every((w) => hay.includes(w)); });
+  if (sn) return { id: sn.statue.id, kind: 'statue', hall: h, label: `the statue (${withArticle(sn.statue.canonLabel ?? sn.statue.figure)})` };
+  const r = g.relicsListed.find((x) => { const hay = `${x.label} ${x.thing}`.toLowerCase(); return need.every((w) => hay.includes(w)); });
+  if (r) return { id: r.id, kind: 'relic', hall: h, label: r.thing };
+  const f = flourishesFor(g.world, hall).find((x) => { const hay = `${x.kind.replace(/-/g, ' ')} ${x.pass}`.toLowerCase(); return need.every((w) => hay.includes(w)); });
+  if (f) return { id: f.id, kind: 'flourish', hall: h, label: f.pass };
+  return null;
+}
+
+/** Name something. "call this hall the Hall of Weeping", "call the minotaur \"Old Horns\"", "name the stair the Long Climb". */
+function callThing(g: Game, rest: string, realNowMs: number): Line[] {
+  const nowW = worldNow(g, realNowMs);
+  tidy(g.names, nowW);
+  const q = /^(.*?)\s+(?:as\s+|to be\s+)?["“](.+?)["”]\s*$/.exec(rest);
+  let thing: Thing | null = null;
+  let nameText = '';
+  if (q) { thing = resolveThing(g, q[1] as string, realNowMs); nameText = q[2] as string; }
+  else {
+    const tokens = rest.trim().split(/\s+/);
+    for (let k = 1; k < tokens.length && !thing; k++) {
+      const found = resolveThing(g, tokens.slice(0, k).join(' '), realNowMs);
+      if (found) { thing = found; nameText = tokens.slice(k).join(' ').replace(/^(as|to be|the name)\s+/i, ''); }
+    }
+  }
+  if (!thing) return [text(g, 'You cannot tell what you mean to name. Say what it is, and what you call it: "call this hall the Hall of Weeping", "call the minotaur Old Horns".')];
+  const r = giveName(g.names, thing, nameText, nowW);
+  if (!r.ok) {
+    if (r.why === 'empty') return [text(g, 'You have no name in mind for it.')];
+    if (r.why === 'long') return [text(g, 'That is too long to be a name you would keep in mind. A few words will do.')];
+    return [text(g, `You already call something else “${r.other?.name}”. A name has to be yours alone, or you will mix the two up.`)];
+  }
+  g.lastThing = thing;
+  const n = r.named.name;
+  const line = thing.kind === 'hall' ? `From now on this place is “${n}” to you.`
+    : thing.kind === 'stair' ? `You will think of the great stair as “${n}”.`
+    : thing.kind === 'door' ? `You will think of ${thing.label} as “${n}”.`
+    : `You will think of ${thing.label.replace(/^the statue \((.+)\)$/, 'the statue ($1)')} as “${n}”.`;
+  const strain = r.overloaded ? ' You have been naming so many things so quickly that you doubt you will keep hold of them all.' : '';
+  return [text(g, `${line}${strain}`)];
+}
+
+/** What you have named, and how well you still remember it. */
+function listNames(g: Game, realNowMs: number): Line[] {
+  const nowW = worldNow(g, realNowMs);
+  tidy(g.names, nowW);
+  const mem = remembered(g.names, nowW);
+  const lost = g.names.length - mem.length;
+  if (mem.length === 0) return [text(g, g.names.length ? 'You gave names to things once, and cannot now remember what they were.' : 'You have not named anything.')];
+  const lines = mem.map(({ n, r }) => {
+    const where = !g.belief && g.explored.has(exploredKey(n.hall.level, n.hall.x, n.hall.y)) && n.kind !== 'hall' ? `, in the ${getHall(g.world, n.hall.x, n.hall.y, n.hall.level).name}` : n.kind === 'hall' && !g.belief ? `: the ${getHall(g.world, n.hall.x, n.hall.y, n.hall.level).name}` : '';
+    return `“${n.name}” (${kindWord(n.kind)}${where}). ${howSure(r)}`;
+  });
+  return [text(g, `What you call things, as far as you remember:\n${lines.join('\n')}${lost > 0 ? `\nThere ${lost === 1 ? 'is one more' : `are ${lost} more`} you named once and can no longer call to mind.` : ''}`)];
 }
 
 /** Go back the way you came, from memory. It may not go as remembered. */
@@ -898,17 +1068,20 @@ function beginJourney(g: Game, route: Step[], destName: string, realNowMs: numbe
 const LEVEL_NAME = ['lower', 'middle', 'upper'] as const;
 
 /** A place by what the visitor called it: home, one of their marks, or a name in the House's own style. */
-function placeFor(g: Game, said: string): Spot | null {
+function placeFor(g: Game, said: string, realNowMs: number): Spot | null {
   const t = said.toLowerCase().trim().replace(/^(the|to|mark)\s+/, '');
   if (/^(home|start|the start|beginning|first vestibule|the first vestibule)$/.test(t)) return { x: 0, y: 0, level: 1 };
   for (const [label, m] of g.marks) if (label === t) return { x: m.x, y: m.y, level: m.level };
+  // a hall you have named, by the name you gave it, if you still remember it
+  const ownHall = g.names.find((n) => n.kind === 'hall' && looseKey(n.name) === looseKey(said));
+  if (ownHall) return retention(ownHall, worldNow(g, realNowMs)) >= FORGOTTEN ? { x: ownHall.hall.x, y: ownHall.hall.y, level: ownHall.hall.level } : null;
   const starts = [...g.marks].filter(([label]) => label.startsWith(t) || t.startsWith(label));
   if (starts.length === 1) { const m = (starts[0] as [string, { x: number; y: number; level: Level }])[1]; return { x: m.x, y: m.y, level: m.level }; }
   return resolveName(g.world, said, g.pos.level);
 }
 
 export function travelTo(g: Game, said: string, realNowMs: number): Line[] {
-  const spot = placeFor(g, said);
+  const spot = placeFor(g, said, realNowMs);
   if (!spot) return [text(g, `You do not know of a place called "${said}". Try a name as the House gives them, such as the Ninth Vestibule or the Eighty-Eighth Western Hall, or one of your marks.`)];
   if (g.opts.knownOnly) {
     if (sameSpot(spot, HOME) && !sameSpot(here(g), HOME) && g.trail.length > 0) return wayBack(g, realNowMs);
@@ -984,6 +1157,17 @@ const STOP = new Set(['the', 'and', 'with', 'statue', 'that', 'this']);
 function examine(g: Game, what: string, realNowMs: number): Line[] {
   const scene = sceneNow(g, realNowMs);
   const h = scene.hall;
+  // something you have named, by the name you gave it
+  const nowW = worldNow(g, realNowMs);
+  const own = remembered(g.names, nowW).find(({ n }) => looseKey(n.name) === looseKey(what) && sameSpot(n.hall, here(g)));
+  if (own) {
+    rehearse(own.n, nowW);
+    const sn = g.seenListed.find((s) => s.statue.id === own.n.id);
+    if (sn) { g.lastThing = { id: sn.statue.id, kind: 'statue', hall: here(g), label: 'the statue' }; return [text(g, statueDetail(h, sn))]; }
+    if (own.n.kind === 'hall') return look(g, realNowMs, true);
+    const fl = flourishesFor(g.world, h).find((f) => f.id === own.n.id);
+    if (fl) return [text(g, fl.text)];
+  }
   const num = /(\d+)/.exec(what);
   if (num) {
     const n = Number(num[1]);
@@ -997,7 +1181,7 @@ function examine(g: Game, what: string, realNowMs: number): Line[] {
   const rhit = g.relicsListed.find((r) => words.some((w) => w.length >= 3 && !STOP.has(w) && r.label.toLowerCase().includes(w)));
   if (rhit && !g.seenListed.some((sn) => words.some((w) => w.length >= 3 && !STOP.has(w) && (`${sn.statue.canonLabel ?? ''} ${sn.statue.figure}`).toLowerCase().includes(w)))) return [text(g, noticeRelic(g, rhit, h))];
   const hit = g.seenListed.find((sn) => words.some((w) => w.length >= 3 && !STOP.has(w) && (`${sn.statue.canonLabel ?? ''} ${sn.statue.figure}`).toLowerCase().includes(w)));
-  if (hit) return [text(g, statueDetail(h, hit))];
+  if (hit) { g.lastThing = { id: hit.statue.id, kind: 'statue', hall: here(g), label: 'the statue' }; for (const n of g.names) if (n.id === hit.statue.id) rehearse(n, nowW); return [text(g, statueDetail(h, hit))]; }
   if (words.some((w) => ['water', 'sea', 'tide', 'tides', 'lake'].includes(w))) return [text(g, waterSentence(h, scene) || 'There is no water here to speak of.')];
   if (words.some((w) => ['sky', 'moon', 'sun', 'light'].includes(w))) return [text(g, skyParagraph(scene))];
   if (words.some((w) => ['window', 'windows', 'courtyard'].includes(w))) {
@@ -1005,7 +1189,7 @@ function examine(g: Game, what: string, realNowMs: number): Line[] {
     return [text(g, n === 0 ? 'There are no windows here.' : `There are ${n} tall windows in all. Through them you see an empty paved courtyard with ${h.courtyardSides} sides, and the sky above it.`)];
   }
   if (words.some((w) => ['walls', 'wall', 'statues'].includes(w))) return [text(g, `The walls are ranked with statues in ${wallGrids(h)[0]?.tiers ?? 1} tiers, ${h.slotCount} places in all.`)];
-  return [text(g, 'You see nothing like that here. Try "examine" and a number from the list, or a word from its description.')];
+  return [text(g, 'You do not see anything like that here.')];
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -1015,6 +1199,7 @@ function examine(g: Game, what: string, realNowMs: number): Line[] {
 export const HELP = [
   'Looking:  look  ·  look closely (all of it)  ·  look again, or repeat (the same words again)  ·  listen  ·  time  ·  where  ·  list (numbered, for reference)',
   'Your journal:  journal (opens it)  ·  write the sea was loud tonight (adds a line)  ·  it is yours alone and stays on your device',
+  'Naming:  call this hall the Hall of Weeping  ·  call the minotaur Old Horns  ·  call the stair the Long Climb  ·  names (what you still remember you named). A name is a landmark: coming upon something you have named is the surest way to know where you are, if you still remember it. Names fade if you do not come back to them, and you cannot keep hold of many given at once.',
   'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
   'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
   'Far places:  travel to the Ninth Vestibule  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
@@ -1073,6 +1258,8 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'walk': return walkTo(g, cmd.wall, realNowMs);
     case 'travel': return travelTo(g, cmd.place, realNowMs);
     case 'name': return nameHall(g, cmd.place, realNowMs);
+    case 'call': return callThing(g, cmd.rest, realNowMs);
+    case 'names': return listNames(g, realNowMs);
     case 'wayback': return g.opts.knownOnly ? wayBack(g, realNowMs) : travelTo(g, 'first vestibule', realNowMs);
     case 'trek': return trek(g, cmd.side, cmd.n, realNowMs);
     case 'approach': return approach(g, cmd.n, realNowMs);
@@ -1084,7 +1271,12 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
       void h;
       return [text(g, `You will remember ${shownName(g) ? `the ${shownName(g)}` : 'this place'} as "${label}".`)];
     }
-    case 'unmark': return g.marks.delete(cmd.label.toLowerCase()) ? [text(g, `You forget the mark "${cmd.label}".`)] : [text(g, `You have no mark called "${cmd.label}".`)];
+    case 'unmark': {
+      const k = keyOf(cmd.label);
+      const at = g.names.findIndex((n) => n.key === k);
+      if (!g.marks.has(cmd.label.toLowerCase()) && at >= 0) { const gone = g.names.splice(at, 1)[0] as Named; return [text(g, `You let go of the name “${gone.name}”.`)]; }
+      return g.marks.delete(cmd.label.toLowerCase()) ? [text(g, `You forget the mark "${cmd.label}".`)] : [text(g, `You have no mark called "${cmd.label}".`)];
+    }
     case 'marks': {
       if (g.marks.size === 0) return [text(g, 'You have not marked anywhere yet.')];
       return [text(g, `Your marks (private to you):\n${[...g.marks].map(([l, m]) => `${l}: ${m.hall}${m.level !== 1 ? `, ${LEVEL_NAME[m.level]} level` : ''}`).join('\n')}`)];
@@ -1133,6 +1325,12 @@ export function diffScenes(prev: SceneState, next: SceneState, audio: AudioScene
   if (prev.here.rainHere === 0 && next.here.rainHere > 0) out.push('Rain begins to fall.');
   if (prev.here.rainHere > 0 && next.here.rainHere === 0) out.push('The rain stops.');
   if (!prev.weather.storm && next.weather.storm) out.push('A storm is rising out of the west.');
+  // in the dark hall the framed stars change as the night goes round
+  if (next.hall.tags.includes('dark-hall') && !next.light.moonInDoorway && next.light.sunPhase === 'night' && next.weather.cloud < 600 && next.weather.precip === 'none') {
+    const a = framedInDoorway(prev.clock.dayOfYear, prev.clock.minuteOfDay).join('|');
+    const b = framedInDoorway(next.clock.dayOfYear, next.clock.minuteOfDay).join('|');
+    if (a !== b && b) out.push(`The sky in the doorway has moved on: ${framedInDoorway(next.clock.dayOfYear, next.clock.minuteOfDay).join(' and ')} ${b.includes('|') ? 'now stand' : 'now stands'} in the frame.`);
+  }
   if (!prev.light.moonInDoorway && next.light.moonInDoorway) out.push('The full moon rises into the single doorway and floods the hall with pale light.');
   if (next.outside && prev.outside?.id !== next.outside.id) out.push(outsideSentence(next.outside, next.hall));
   if (prev.birds.mode !== 'murmuration' && next.birds.mode === 'murmuration') out.push('The birds rise all at once and fill the air with a smoke of wings.');

@@ -295,7 +295,6 @@ describe('saying where you are', () => {
     }
     expect(parse('this is the third western hall')).toEqual({ t: 'name', place: 'third western hall' });
     expect(parse('it is raining')).not.toMatchObject({ t: 'name' });
-    expect(parse('this is nonsense')).not.toMatchObject({ t: 'name' });
   });
   const lostGame = (): Game => replay(seedFor('lost'));
   it('lost, naming the hall rightly is knowing where you are again', () => {

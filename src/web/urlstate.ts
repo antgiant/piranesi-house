@@ -24,9 +24,11 @@ export function parseSeed(hash: string): string | null {
 }
 
 /** The fragment that says where you are: your hall, your level unless it is the middle one, the world unless it is the usual one. */
-export function withRoom(hash: string, world: World, spot: Spot, seed: string, defaultSeed: string): string {
+export function withRoom(hash: string, world: World, spot: Spot, seed: string, defaultSeed: string, as?: string | null): string {
   const q = new URLSearchParams(hash.replace(/^#/, ''));
   q.set('room', getHall(world, spot.x, spot.y, spot.level).name);
+  // what the place is called in the telling: a narrative name beside the plain one, for people to read. Only `room` finds the place.
+  if (as) q.set('as', as); else q.delete('as');
   if (spot.level === 1) q.delete('level'); else q.set('level', LEVELS[spot.level]);
   if (seed === defaultSeed) q.delete('seed'); else q.set('seed', seed);
   return `#${q.toString()}`;
@@ -36,6 +38,7 @@ export function withRoom(hash: string, world: World, spot: Spot, seed: string, d
 export function withoutRoom(hash: string): string {
   const q = new URLSearchParams(hash.replace(/^#/, ''));
   q.delete('room');
+  q.delete('as');
   q.delete('level');
   const s = q.toString();
   return s ? `#${s}` : '';

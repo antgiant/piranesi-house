@@ -57,3 +57,12 @@ npm run now -- "Ninth Vestibule" --join         # the moment of the next great j
 * Water depth is computed from Manhattan distance to vestibules, not the door graph.
 * Birds and light are coarse; they are the inputs for the audio layer in milestone 3.
 * Moonrise uses a simple rule of thumb, not astronomy.
+
+## The stars in the dark hall (`src/sim/stars.ts`)
+The 192nd Western Hall has one door, facing east, about four metres wide and eleven high, lined up with a window in the passage outside.
+On the night of the full moon, a while after moonrise (19:30 to 22:30), the moon stands centred in the doorway and the statues seem to have turned to
+face it (about one to two nights a month). On other clear nights the doorway is a tall pale frame of the night sky, and what stands in it is
+worked out from the hour and the day: the eastern sky from the horizon to about 35 degrees, at a latitude of about 45 degrees north, which is
+about four and a half to six hours of right ascension east of the meridian. The constellations have their ordinary names ("the Hunter",
+"the Winged Horse"; the book's character has names of their own for the sky, which are theirs and are not used). Waiting there, you are told when
+the frame moves on. By day, or under cloud, the hall is as dark as the book says.

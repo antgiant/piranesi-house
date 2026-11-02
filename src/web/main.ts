@@ -3,7 +3,7 @@
 
 import { audioFor } from '../audio/director';
 import { AudioEngine } from '../audio/engine';
-import { believedSpot, deleteEntry, editEntry, look, newGame, sceneNow, shownName, step, tick, walkStatus, writeEntry, type Game, type GameOptions, type Line } from '../game/game';
+import { believedSpot, deleteEntry, editEntry, look, newGame, sceneNow, shownEpithet, shownName, step, tick, walkStatus, writeEntry, type Game, type GameOptions, type Line } from '../game/game';
 import { BOOK_KMH, MARATHON_KMH, describeDuration, gait, paceFromKmh, stepsPerSecond } from '../game/walk';
 import { formatClock } from '../sim/time';
 import { mapView, type MapCell, type MapView } from '../game/mapdata';
@@ -123,7 +123,7 @@ function print(lines: Line[], scroll: 'start' | 'end' = 'start'): void {
         const b = document.createElement('button');
         b.type = 'button';
         b.textContent = k.label;
-        b.addEventListener('click', () => submit(k.command));
+        b.addEventListener('click', () => { if (k.command.startsWith('prefill:')) { input.value = k.command.slice(8); input.focus(); } else submit(k.command); });
         wrap.appendChild(b);
       }
       logEl.appendChild(wrap);
@@ -150,11 +150,11 @@ let lastRoomKey = '';
 function syncAddress(): void {
   if (!game) return;
   const believed = believedSpot(game);
-  const key = `${believed ? `${believed.level}:${believed.x},${believed.y}` : 'lost'}:${game.opts.seed}`;
+  const key = `${believed ? `${believed.level}:${believed.x},${believed.y}` : 'lost'}:${game.opts.seed}:${shownEpithet(game, Date.now()) ?? ''}`;
   if (key === lastRoomKey) return;
   lastRoomKey = key;
   // the address says what you believe, as the header does; if you are lost it names nothing
-  const hash = believed ? withRoom(location.hash, game.world, believed, game.opts.seed, DEFAULT_SEED) : (withoutRoom(location.hash) || '#');
+  const hash = believed ? withRoom(location.hash, game.world, believed, game.opts.seed, DEFAULT_SEED, shownEpithet(game, Date.now())) : (withoutRoom(location.hash) || '#');
   if (hash !== location.hash) window.history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
 }
 

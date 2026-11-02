@@ -3,6 +3,7 @@
 
 import type { Flourish } from '../world/flourishes';
 import { birdLines, seaLines, skyLines } from './nature';
+import { framedInDoorway } from '../sim/stars';
 import type { Rand } from './wander';
 import canonStatues from '../generated/canon-statues.json';
 import type { AudioScene, Portal } from '../audio/director';
@@ -140,7 +141,15 @@ function structureParagraph(h: Hall): string {
 export function lightSentence(h: Hall, s: SceneState, v: Pick = (xs) => xs[0] as never): string {
   const l = s.light;
   if (h.tags.includes('dark-hall')) {
-    return l.moonInDoorway ? 'The full moon stands centred in the single doorway and fills the hall with pale light; the statues seem to have just turned to look at it.' : 'There is no light at all here. The dark is complete.';
+    if (l.moonInDoorway) return 'The full moon stands centred in the single doorway and fills the hall with pale light; the statues seem to have just turned to look at it.';
+    // out of the dark, the doorway is a tall, narrow frame of sky: what stands in it depends on the hour and the season
+    if (s.light.sunPhase === 'night' && s.weather.cloud < 600 && s.weather.precip === 'none') {
+      const framed = framedInDoorway(s.clock.dayOfYear, s.clock.minuteOfDay);
+      const names = framed.length === 0 ? '' : framed.length === 1 ? (framed[0] as string) : `${framed.slice(0, -1).join(', ')} and ${framed[framed.length - 1]}`;
+      if (names) return `Everything is dark but the single doorway behind and before you, a tall pale frame of the night sky, and in it ${names} ${framed.length === 1 ? 'stands' : 'stand'}, low and bright.`;
+      return 'Everything is dark but the single doorway, a tall pale frame of the night sky, with a few stars scattered in it.';
+    }
+    return 'There is no light at all here. The dark is complete.';
   }
   const where = LEVEL_WORD[h.level];
   switch (l.tone) {
@@ -682,6 +691,8 @@ export interface GlanceMemo {
   /** The heading to give the hall, and what to call it in a sentence ("the Third Western Hall"): what you believe, which may not be true. */
   heading?: string;
   nameFor?: string;
+  /** Things you have named that are here, as lines to say (only when you know where you are). */
+  named?: { key: string; text: string }[];
 }
 
 const AGAIN_LEAD = ['Looking about you again, ', 'Another look round: ', 'You look about once more. ', 'Taking in more of it, '];
@@ -728,6 +739,7 @@ export function glanceHall(
   }
 
   const items: Item[] = [];
+  for (const nm of memo.named ?? []) if (fresh(nm.key)) items.push({ weight: 12, group: 'named', key: nm.key, text: nm.text });
   for (const f of flourishes) if (fresh(f.id)) items.push({ weight: 4, group: 'building', key: f.id, text: f.text });
   const canon = seen.filter((sn) => sn.statue.canonId);
   // one of each of the book's statues at a time (eight minotaurs are not all described in one breath)
@@ -768,7 +780,7 @@ export function glanceHall(
 
   // Each kind of thing has its own pull, however many ways there are of saying it: the sky or the sea when they are there,
   // the birds, a striking statue, the building's strangeness. Spread a group's pull over its items.
-  const PULL: Record<string, number> = { building: 10, statue: 8, sky: 11, sea: 11, birds: 12, water: 4, light: 3, weather: 3, theme: 1, scale: 3, feature: 9 };
+  const PULL: Record<string, number> = { named: 14, building: 10, statue: 8, sky: 11, sea: 11, birds: 12, water: 4, light: 3, weather: 3, theme: 1, scale: 3, feature: 9 };
   const size = new Map<string, number>();
   for (const i of items) size.set(i.group, (size.get(i.group) ?? 0) + 1);
   for (const i of items) i.weight = (PULL[i.group] ?? 2) / (size.get(i.group) as number);
@@ -794,7 +806,7 @@ export function glanceHall(
     pool = pool.filter((p) => p !== it && ((groups.get(p.group) ?? 0) < 2));
   }
   // in the order you would see them: the building first, then what moves in it
-  const order = ['building', 'theme', 'scale', 'statue', 'feature', 'sky', 'light', 'weather', 'water', 'sea', 'birds'];
+  const order = ['named', 'building', 'theme', 'scale', 'statue', 'feature', 'sky', 'light', 'weather', 'water', 'sea', 'birds'];
   chosen.sort((a2, b2) => order.indexOf(a2.group) - order.indexOf(b2.group));
   if (chosen.length) {
     const body = chosen.map((c) => c.text).join(' ');

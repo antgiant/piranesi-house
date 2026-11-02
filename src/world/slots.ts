@@ -130,6 +130,13 @@ export function hallStatues(world: World, hall: Hall): Statue[] {
   return out;
 }
 
+/** The ids of the book's own statues that stand in this hall. */
+export function canonIn(world: World, hall: Hall): string[] {
+  const plan = plansFor(world).get(hall.id);
+  if (!plan) return [];
+  return [...new Set([...plan.anchors.values()].map((a) => a.placement.id))];
+}
+
 /** Where a canon statue id stands in this world (first placement), or null if generic/unplaced. */
 export function canonLocations(world: World, id: string): { hallId: string; statueId: string }[] {
   const out: { hallId: string; statueId: string }[] = [];

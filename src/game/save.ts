@@ -40,6 +40,8 @@ export interface SaveData {
   passes: [string, number][];
   trail: TrailEntry[];
   trailOrigin: Spot;
+  /** Names given to things, with how firmly each was fixed and how long it lasts. */
+  names?: unknown[];
   /** What you believe about where you are, if you are not sure (see `Belief`). */
   belief?: { kind: 'wrong'; dx: number; dy: number; dl: number } | { kind: 'lost' } | null;
   recalls: number;
@@ -72,6 +74,7 @@ export function toSave(g: Game, now: number): SaveData {
     trail: g.trail.map((t) => ({ ...t })),
     trailOrigin: { ...g.trailOrigin },
     belief: g.belief,
+    names: g.names.map((n) => ({ ...n, hall: { ...n.hall } })),
     recalls: g.recalls,
     // only the latest of what has been said of each hall is worth keeping
     told: [...g.told].slice(-300).map(([k, v]) => [k, [...v.keys].slice(-40)]),
@@ -110,6 +113,16 @@ export function applySave(g: Game, raw: unknown): boolean {
   }
   g.trailOrigin = spot(raw.trailOrigin) ?? { x: 0, y: 0, level: 1 };
   g.recalls = isInt(raw.recalls, 0, 1e9) ? raw.recalls : 0;
+  g.names = [];
+  const KINDS = ['hall', 'statue', 'stair', 'door', 'flourish', 'relic'];
+  for (const e of list(raw.names).slice(0, 5000)) {
+    if (!isObj(e) || !isStr(e.id, 200) || !isStr(e.name, 60) || !isStr(e.key, 60) || typeof e.kind !== 'string' || !KINDS.includes(e.kind)) continue;
+    const h = spot(e.hall);
+    const num = (v: unknown, lo: number, hi: number): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null);
+    const strength = num(e.strength, 0, 1), stability = num(e.stability, 1, 1e12), last = num(e.last, 0, 1e18), born = num(e.born, 0, 1e18), rehearsed = num(e.rehearsed, 0, 1e18);
+    if (!h || strength === null || stability === null || last === null || born === null || rehearsed === null) continue;
+    g.names.push({ id: e.id, kind: e.kind as never, name: e.name, key: e.key, hall: h, strength, stability, last, born, rehearsed, uses: isInt(e.uses, 0, 1e9) ? e.uses : 0 });
+  }
   const b = raw.belief;
   g.belief = isObj(b) && b.kind === 'lost' ? { kind: 'lost' } : isObj(b) && b.kind === 'wrong' && isInt(b.dx, -2000, 2000) && isInt(b.dy, -2000, 2000) && isInt(b.dl, -2, 2) ? { kind: 'wrong', dx: b.dx, dy: b.dy, dl: b.dl } : null;
   g.told = new Map();

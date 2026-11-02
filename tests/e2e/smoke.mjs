@@ -600,6 +600,35 @@ try {
     await lp.close();
   }
 
+  // Naming things, the narrative names, and the stars in the dark hall.
+  {
+    const nm = await newPage({ viewport: { width: 900, height: 900 } });
+    nm.on('pageerror', (e) => errors.push(String(e)));
+    await nm.goto(URL);
+    await nm.click('#enter');
+    await nm.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    check((await nm.evaluate(() => decodeURIComponent(location.hash).replace(/\+/g, ' '))).includes('as=the Hall of the Minotaurs'), 'the address carries a narrative name beside the plain one');
+    await nm.fill('#input', 'look closely');
+    await nm.press('#input', 'Enter');
+    check((await nm.locator('#log').textContent()).includes('First Vestibule, the Hall of the Minotaurs'), 'and the heading gives it');
+    await nm.fill('#input', 'call this hall the Hall of Weeping');
+    await nm.press('#input', 'Enter');
+    check((await nm.locator('#log').textContent()).includes('“Hall of Weeping”'), 'a hall can be given a name of your own');
+    check((await nm.evaluate(() => decodeURIComponent(location.hash).replace(/\+/g, ' '))).includes('as=Hall of Weeping'), 'which the address then carries');
+    await nm.fill('#input', 'call the minotaur Old Horns');
+    await nm.press('#input', 'Enter');
+    await nm.fill('#input', 'names');
+    await nm.press('#input', 'Enter');
+    const logText = await nm.locator('#log').textContent();
+    check(logText.includes('Old Horns') && logText.includes('Hall of Weeping'), 'and so can a statue, and "names" says what you still remember');
+    await nm.locator('.links button', { hasText: 'name this place' }).last().click();
+    check((await nm.inputValue('#input')).startsWith('call this hall'), 'a button starts the naming for you');
+    // the dark hall at night shows what stands in the doorway
+    await nm.evaluate(() => window.__house.teleport(-192, 0, 1));
+    await nm.waitForTimeout(300);
+    await nm.close();
+  }
+
   // Every kind of bird call, and thunder, can be played without error, and each is counted.
   {
     const species = ['sparrow', 'gull', 'rook', 'albatross', 'flock', 'rustle', 'blackbird', 'swift', 'wader', 'dove', 'owl', 'starling', 'thunder'];

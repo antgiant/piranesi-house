@@ -8,6 +8,7 @@
 - More in the same spirit (decay, growth of weed and lichen, erosion, light through the seasons).
 
 ## Better sound
+- **Decision (owner): building on what others have done is welcome.** Learn from, and where licences allow use, the work of game audio and sound-design practice and of open sound libraries and tools: procedural and physically informed sound for games (wind, water, weather, creatures, footsteps, reverberant spaces), game-audio middleware ideas (layered loops, randomised one-shots, parameter-driven mixing, occlusion and propagation through openings), published synthesis techniques, and freely licensed recordings. Use code or sounds only where the licence permits (public domain, CC0, MIT and the like, or with credit as required) and record the source and licence of each; do not copy anything unlicensed or anything from the book.
 - Study real recordings of the animals simulated, and use what they show to build better synthesised versions, with attention to the different calls (song, alarm, contact, begging, flight) and what each means, used in the right situation and season.
 - Study real weather recordings (rain on different surfaces, thunder, snow hush) to improve ours.
 - A better water model, so it sounds heard *through doors and walls* or smelled in the air: occlusion by the number and kind of openings, low-pass and resonance by the space, distance, reverb tail, and a mix of surf, drip, slosh and trickle. Real recordings of water heard from another room are the reference.

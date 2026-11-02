@@ -16,13 +16,22 @@ export function silentWav(seconds = 1, rate = 8000): Uint8Array {
   return b;
 }
 
+/**
+ * iPhones and iPads. There, playing an audio element takes over the device's audio session and silences the browser's speech voice,
+ * so the keep-alive sound does the opposite of its job: it must not be used. (iPadOS reports itself as a Mac with a touch screen.)
+ */
+export function isIOS(ua: string, platform: string, touchPoints: number): boolean {
+  return /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && touchPoints > 1);
+}
+
 export class BackgroundKeeper {
   private el: HTMLAudioElement | null = null;
   private url = '';
 
   /** Start (must be called from a click or key press). */
   start(): void {
-    if (typeof Audio === 'undefined') return;
+    if (typeof Audio === 'undefined' || typeof navigator === 'undefined') return;
+    if (isIOS(navigator.userAgent, navigator.platform, navigator.maxTouchPoints ?? 0)) return;
     try {
       if (!this.el) {
         this.url = URL.createObjectURL(new Blob([silentWav().buffer as ArrayBuffer], { type: 'audio/wav' }));

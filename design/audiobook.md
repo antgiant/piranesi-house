@@ -15,6 +15,6 @@ The bar has one clear row for listening and a few tools.
   save what I have read, install, begin again), Help. On a phone it fills the screen with its Save and Cancel pinned at the foot.
 * **Background and lock screen.** While playing, a silent audio element is held open (`src/web/background.ts`) and the Media Session API is
   registered, so play, pause, previous and next work from the lock screen, a headset or a car, and the screen is kept awake. Whether the browser's
-  speech keeps going with the screen off is up to the device (iOS tends to stop it); the controls are offered either way.
+  speech keeps going with the screen off is up to the device (iOS tends to stop it); the controls are offered either way. **Not on iPhone or iPad:** there an audio element takes over the audio session and silences the speech voice, so the silent keep-alive is skipped on iOS (`isIOS`) and only the Media Session and the screen wake lock are used.
 
 Tests: `tests/playlist.test.ts`, and the "audiobook" block of the end-to-end test (Play/Pause, Back, Forward, mute, phone width, settings sheet).

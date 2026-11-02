@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Playlist, MAX_PASSAGES, RESTART_AFTER_MS } from '../src/web/playlist';
-import { silentWav } from '../src/web/background';
+import { silentWav, isIOS } from '../src/web/background';
 
 const make = (n: number): Playlist<number> => { const p = new Playlist<number>(); for (let i = 0; i < n; i++) p.record(`passage ${i}`, i); return p; };
 
@@ -63,5 +63,15 @@ describe('the silent keep-alive sound', () => {
     expect(String.fromCharCode(...w.slice(8, 12))).toBe('WAVE');
     expect(w.length).toBe(44 + 8000);
     expect(new Set(w.slice(44))).toEqual(new Set([128]));
+  });
+});
+
+describe('the keep-alive sound is not used on iPhones', () => {
+  it('knows iPhones, iPads (including ones posing as Macs) and not other devices', () => {
+    expect(isIOS('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', 'iPhone', 5)).toBe(true);
+    expect(isIOS('Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X)', 'iPad', 5)).toBe(true);
+    expect(isIOS('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'MacIntel', 5)).toBe(true);
+    expect(isIOS('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'MacIntel', 0)).toBe(false);
+    expect(isIOS('Mozilla/5.0 (Linux; Android 14)', 'Linux armv8l', 5)).toBe(false);
   });
 });

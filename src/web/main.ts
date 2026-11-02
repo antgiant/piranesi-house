@@ -624,6 +624,7 @@ function paintTitle(): void {
   if (resumable && s) note.textContent = journeyNote(s.halls, s.entries);
 }
 paintTitle();
+$('build').textContent = typeof __BUILD__ === 'string' ? __BUILD__ : 'dev';
 const openAbout = (): void => openDialog(aboutDlg);
 $('open-about').addEventListener('click', openAbout);
 $('s-about').addEventListener('click', openAbout);

@@ -29,11 +29,11 @@ try {
   await waitUp();
   const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   // The House has no map by default, as in the book; most tests use it, so they turn it on.
-  const mapOn = () => { try { if (!localStorage.getItem('the-house.settings.v1')) localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true })); } catch { /* ignore */ } };
+  const mapOn = () => { try { if (!localStorage.getItem('the-house.settings.v1')) localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true, narrate: 'off' })); } catch { /* ignore */ } };
   const newPage = async (opts) => { const p = await browser.newPage(opts); await p.addInitScript(mapOn); return p; };
   const page = await newPage({ viewport: { width: 900, height: 900 } });
   // the main tests use the map, which is off by default (as in the book)
-  await page.addInitScript(() => { try { if (!localStorage.getItem('the-house.settings.v1')) localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true })); } catch { /* ignore */ } });
+  await page.addInitScript(() => { try { if (!localStorage.getItem('the-house.settings.v1')) localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true, narrate: 'off' })); } catch { /* ignore */ } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -251,7 +251,7 @@ try {
     await n.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
     check((await n.evaluate(() => window.__spoken.filter((s) => s !== '<cancel>').length)) === 0, 'narration is off until chosen: nothing is spoken');
     await n.click('#open-settings');
-    await n.check('#s-narrate');
+    await n.selectOption('#s-narrate', 'always');
     await n.click('#s-save');
     await n.fill('#input', 'look closely');
     await n.press('#input', 'Enter');
@@ -260,15 +260,71 @@ try {
     check(said.includes('First Vestibule') && !said.includes('['), 'with narration on, the description is read aloud, in words with no list marks');
     const startPlace = await n.locator('#place').textContent();
     await n.click('#wander');
-    check((await n.locator('#wander').getAttribute('aria-pressed')) === 'true', 'wander starts');
+    check((await n.locator('#wander').getAttribute('data-playing')) === 'true', 'wander starts');
     await n.waitForFunction((p) => document.getElementById('place').textContent !== p, startPlace, { timeout: 15000 });
     check(true, 'wander moved to another hall by itself');
     check((await n.evaluate(() => window.__wake.held)) === 1, 'while wandering, the screen is kept awake');
     await n.fill('#input', 'x');
-    check((await n.locator('#wander').getAttribute('aria-pressed')) === 'false', 'typing anything stops wandering');
+    check((await n.locator('#wander').getAttribute('data-playing')) === 'false', 'typing anything stops wandering');
     await n.waitForFunction(() => window.__wake.held === 0, null, { timeout: 8000 });
     check(true, 'when wandering stops and nothing is being read, the screen lock is let go');
     await n.close();
+  }
+
+  // The audiobook: Play / Pause, Back and Forward, the mute button, and the phone layout.
+  {
+    const au = await browser.newPage({ viewport: { width: 390, height: 800 } });
+    await au.addInitScript(() => {
+      try { if (!localStorage.getItem('the-house.settings.v1')) localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true, narrate: 'play' })); } catch { /* ignore */ }
+      window.__spoken = [];
+      window.SpeechSynthesisUtterance = function (t) { this.text = t; };
+      Object.defineProperty(window, 'speechSynthesis', { value: {
+        speaking: false, getVoices: () => [], addEventListener() {}, cancel() { window.__spoken.push('<cancel>'); },
+        speak(u) { window.__spoken.push(u.text); setTimeout(() => u.onend && u.onend(), 10); },
+      } });
+    });
+    au.on('pageerror', (e) => errors.push(String(e)));
+    await au.goto(URL);
+    await au.click('#enter');
+    await au.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    const spokenCount = () => au.evaluate(() => window.__spoken.filter((s) => s !== '<cancel>').length);
+    check((await spokenCount()) === 0, '[audiobook] reading aloud is only while playing: nothing is spoken before Play');
+    check(await au.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '[audiobook] on a phone the page does not scroll sideways');
+    check(await au.evaluate(() => { const r = document.getElementById('wander').getBoundingClientRect(); return r.width >= 40 && r.height >= 40; }), '[audiobook] the Play button is a comfortable size to tap');
+    const start = await au.locator('#place').textContent();
+    await au.click('#wander');
+    check((await au.locator('#wander').getAttribute('data-playing')) === 'true', '[audiobook] Play starts, and the button becomes Pause');
+    check(/Pause/.test((await au.locator('#wander').getAttribute('aria-label')) ?? ''), '[audiobook] and says so to a screen reader');
+    await au.waitForFunction((p) => document.getElementById('place').textContent !== p && window.__spoken.length > 3, start, { timeout: 20000 });
+    check(true, '[audiobook] it reads and walks on by itself');
+    await au.click('#prev');
+    check(await au.evaluate(() => document.querySelectorAll('#log p.reading').length === 1), '[audiobook] Back marks the passage being heard again in the log');
+    const replayed = await au.evaluate(() => window.__spoken.filter((s) => s !== '<cancel>').slice(-1)[0]);
+    check(typeof replayed === 'string' && replayed.length > 10, `[audiobook] and reads it again (${String(replayed).slice(0, 40)})`);
+    await au.click('#next');
+    await au.waitForTimeout(600);
+    await au.click('#wander');
+    check((await au.locator('#wander').getAttribute('data-playing')) === 'false', '[audiobook] Pause stops');
+    const held = await au.locator('#place').textContent();
+    await au.waitForTimeout(2500);
+    check((await au.locator('#place').textContent()) === held, '[audiobook] and the House stays where it is while paused');
+    // the mute button silences the reading as well as the sound
+    await au.click('#mute');
+    check((await au.locator('#mute').getAttribute('aria-pressed')) === 'true', '[audiobook] the mute button shows it is muted');
+    const before = await spokenCount();
+    await au.click('#wander');
+    await au.waitForFunction((p) => document.getElementById('place').textContent !== p, held, { timeout: 30000 });
+    check((await spokenCount()) === before, '[audiobook] muted, nothing is read aloud, though the wander goes on');
+    await au.click('#wander');
+    await au.click('#mute');
+    // settings are grouped and fill a phone's screen
+    await au.click('#open-settings');
+    check(await au.evaluate(() => { const r = document.getElementById('settings').getBoundingClientRect(); return r.width >= window.innerWidth - 2 && r.height >= window.innerHeight - 2; }), '[audiobook] settings fill a phone screen');
+    check((await au.locator('#settings section.group').count()) >= 5, '[audiobook] and are in labelled groups');
+    check(await au.locator('#share').isVisible(), '[audiobook] Share lives in Settings');
+    check(!(await au.locator('#bar #share').count()), '[audiobook] and not in the bar');
+    await au.click('#s-cancel');
+    await au.close();
   }
 
   // The address bar names the room, and a copied address leads back to it.
@@ -329,10 +385,12 @@ try {
     check(await rc.evaluate(() => document.documentElement.hasAttribute('data-plain')), 'and are kept after a reload, even before entering');
     await rc.click('#enter');
     await rc.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await rc.click('#open-settings');
     await rc.click('#share');
     await rc.waitForFunction(() => window.__shared !== null);
     const shared = await rc.evaluate(() => window.__shared);
-    check(shared.url.includes('room=First+Vestibule'), `Share offers the link to the room (${shared.url.slice(-40)})`);
+    check(shared.url.includes('room=First+Vestibule'), `Share (in Settings) offers the link to the room (${shared.url.slice(-40)})`);
+    await rc.click('#s-cancel');
     await rc.close();
   }
 
@@ -364,7 +422,7 @@ try {
     await pg.fill('#input', '');
     await pg.locator('body').click({ position: { x: 5, y: 5 } });
     await pg.keyboard.press('w');
-    check((await pg.locator('#wander').getAttribute('aria-pressed')) === 'true', 'the key w starts wandering');
+    check((await pg.locator('#wander').getAttribute('data-playing')) === 'true', 'the key w starts wandering');
     await pg.keyboard.press('w');
     // screen reader
     check((await pg.locator('#log').getAttribute('aria-live')) === 'polite', 'new text is announced to a screen reader by default');
@@ -400,7 +458,7 @@ try {
     await pg.click('#enter');
     await pg.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
     await pg.click('#open-settings');
-    await pg.check('#s-narrate');
+    await pg.selectOption('#s-narrate', 'always');
     await pg.click('#s-save');
     check((await pg.locator('#log').getAttribute('aria-live')) === 'off', 'while the House is read aloud, the screen reader is not also told (they would talk over each other)');
     await ctx.close();
@@ -583,7 +641,9 @@ try {
     await lp.waitForFunction(() => document.getElementById('place').textContent === 'Somewhere you do not know', null, { timeout: 5000 });
     check(true, 'lost, the header says it does not know');
     check(!(await lp.evaluate(() => location.hash)).includes('room='), 'and the address bar names no room');
+    await lp.click('#open-settings');
     await lp.click('#share');
+    await lp.click('#s-cancel');
     check((await lp.locator('#log').textContent()).includes('cannot share a place you cannot name'), 'and there is no sharing a place you cannot name');
     // naming the hall rightly puts you right; a wrong name does not
     await lp.fill('#input', 'this is the fifth south-eastern hall');
@@ -731,7 +791,7 @@ try {
     await nw.fill('#input', 'stop');
     await nw.press('#input', 'Enter');
     await nw.click('#open-settings');
-    await nw.check('#s-narrate');
+    await nw.selectOption('#s-narrate', 'always');
     await nw.click('#s-save');
     await nw.fill('#input', 'go west');
     await nw.press('#input', 'Enter');

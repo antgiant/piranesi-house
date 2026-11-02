@@ -18,6 +18,8 @@ import { eraseJournal, eraseSave, readJournal, readLegacy, readSave, readSetting
 import { ScreenWake } from './wakelock';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
+import { Playlist } from './playlist';
+import { BackgroundKeeper, bindMediaSession, describeSession } from './background';
 
 interface Settings {
   volume: number;
@@ -41,14 +43,18 @@ interface Settings {
   announce: boolean;
   /** Single-key shortcuts when not typing. */
   shortcuts: boolean;
-  narrate: boolean;
+  /** When to read aloud: never, only while playing (the audiobook), or whenever something new is described. */
+  narrate: 'off' | 'play' | 'always';
+  /** What the mute button silences. */
+  muteAmbient: boolean;
+  muteNarration: boolean;
   voiceURI: string;
   narrateRate: number;
   seed: string;
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: false, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -61,7 +67,15 @@ const KEY = 'the-house.settings.v1';
 function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
+    if (raw) {
+      const s = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings> & { narrate?: unknown }) } as Settings;
+      // before the audiobook, reading aloud was on or off
+      const n = (JSON.parse(raw) as { narrate?: unknown }).narrate;
+      if (n === true) s.narrate = 'always';
+      else if (n === false) s.narrate = 'play';
+      else if (n !== 'off' && n !== 'play' && n !== 'always') s.narrate = DEFAULTS.narrate;
+      return s;
+    }
   } catch { /* storage can be blocked; carry on with defaults */ }
   return { ...DEFAULTS };
 }
@@ -83,6 +97,8 @@ narrator.onActivity = () => engine.resume();
 const screenWake = new ScreenWake();
 let settings = loadSettings();
 let game: Game | null = null;
+/** Wandering (the Play button is down). */
+let wandering = false;
 const history: string[] = [];
 let hist = -1;
 
@@ -108,6 +124,8 @@ function gameOptions(): Partial<GameOptions> {
 /** Show lines. By default the log scrolls to the start of the new text, so you read a description from its first line. */
 function print(lines: Line[], scroll: 'start' | 'end' = 'start'): void {
   const mark = logEl.lastElementChild;
+  let firstEl: HTMLElement | null = null;
+  const spoken: string[] = [];
   for (const l of lines) {
     if (l.kind !== 'system') narrator.speak(l.text);
     lastPrintMs = Date.now();
@@ -116,6 +134,7 @@ function print(lines: Line[], scroll: 'start' | 'end' = 'start'): void {
     p.className = l.kind;
     p.textContent = l.text;
     logEl.appendChild(p);
+    if (l.kind !== 'system') { firstEl ??= p; spoken.push(l.text); }
     if (l.links?.length) {
       const wrap = document.createElement('div');
       wrap.className = 'links';
@@ -129,6 +148,10 @@ function print(lines: Line[], scroll: 'start' | 'end' = 'start'): void {
       logEl.appendChild(wrap);
     }
   }
+  if (firstEl) {
+    playlist.record(spoken.join(' '), firstEl);
+    passageStartMs = Date.now();
+  }
   const first = (mark?.nextElementSibling ?? logEl.firstElementChild) as HTMLElement | null;
   if (scroll === 'start' && first) logEl.scrollTop = first.offsetTop - logEl.offsetTop - 8;
   else logEl.scrollTop = logEl.scrollHeight;
@@ -136,6 +159,9 @@ function print(lines: Line[], scroll: 'start' | 'end' = 'start'): void {
 
 let lastPrintMs = 0;
 let lastPrintChars = 0;
+/** Every passage read so far, for the Back and Forward buttons. */
+const playlist = new Playlist<HTMLElement>();
+let passageStartMs = 0;
 
 function echo(cmd: string): HTMLElement {
   const p = document.createElement('p');
@@ -176,6 +202,7 @@ window.addEventListener('hashchange', () => {
   refresh();
 });
 
+let lastSessionTitle = '';
 function refresh(): void {
   if (!game) return;
   const now = Date.now();
@@ -185,6 +212,7 @@ function refresh(): void {
   if (!$('map-panel').hidden) map.draw();
   // the name given is what you believe, which, if you have gone astray, is not what is true
   $('place').textContent = shownName(game) ?? 'Somewhere you do not know';
+  if ($('place').textContent !== lastSessionTitle) { lastSessionTitle = $('place').textContent ?? ''; describeSession(lastSessionTitle, wandering); }
   syncAddress();
   const ws = walkStatus(game, now);
   $('clock').textContent = ws ? `${formatClock(s.clock)} · walking: ${describeDuration(ws.remainingWorldS)} to go` : formatClock(s.clock);
@@ -312,7 +340,7 @@ async function enter(): Promise<void> {
   $('bar').hidden = false;
   $('cmd').hidden = false;
   engine.setVolume(settings.volume / 100);
-  engine.setMuted(settings.muted);
+  applyMute();
   startGame(true);
   try { await engine.start(); } catch { print([{ kind: 'system', text: 'Sound could not be started in this browser. The House is still here to read.' }]); }
   if (!introSeen()) showIntro();
@@ -462,10 +490,18 @@ document.querySelectorAll<HTMLButtonElement>('.seg button').forEach((b) => b.add
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !mapEl.hidden) toggleMap(false); });
 window.addEventListener('resize', () => { if (!mapEl.hidden) map.draw(); });
 
+/** The mute button: silences the House's sounds and the reading aloud together (Settings says which of the two it silences). */
+function applyMute(): void {
+  engine.setMuted(settings.muted && settings.muteAmbient);
+  narrator.muted = settings.muted && settings.muteNarration;
+  if (narrator.muted) narrator.cancel();
+}
 function paintMute(): void {
   const b = $<HTMLButtonElement>('mute');
-  b.textContent = settings.muted ? 'Sound off' : 'Sound on';
   b.setAttribute('aria-pressed', String(settings.muted));
+  const label = settings.muted ? 'Unmute the sound' : 'Mute the sound';
+  b.setAttribute('aria-label', label);
+  b.title = label;
 }
 
 // --- wiring -----------------------------------------------------------------------------------------------------
@@ -475,7 +511,7 @@ input.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowUp' && history.length) { hist = Math.min(history.length - 1, hist + 1); input.value = history[hist] as string; e.preventDefault(); }
   if (e.key === 'ArrowDown') { hist = Math.max(-1, hist - 1); input.value = hist >= 0 ? (history[hist] as string) : ''; e.preventDefault(); }
 });
-$('mute').addEventListener('click', () => { settings.muted = !settings.muted; saveSettings(settings); engine.setMuted(settings.muted); paintMute(); });
+$('mute').addEventListener('click', () => { settings.muted = !settings.muted; saveSettings(settings); applyMute(); paintMute(); });
 
 const dlg = $<HTMLDialogElement>('settings');
 const aboutDlg = $<HTMLDialogElement>('about');
@@ -598,7 +634,9 @@ function fillSettings(): void {
   $<HTMLInputElement>('s-diary').checked = settings.diary;
   $<HTMLInputElement>('s-relics').checked = settings.relics;
   $<HTMLInputElement>('s-outside').checked = settings.outside;
-  $<HTMLInputElement>('s-narrate').checked = settings.narrate;
+  $<HTMLSelectElement>('s-narrate').value = settings.narrate;
+  $<HTMLInputElement>('s-mute-ambient').checked = settings.muteAmbient;
+  $<HTMLInputElement>('s-mute-narration').checked = settings.muteNarration;
   $<HTMLSelectElement>('s-size').value = String(settings.textScale);
   $<HTMLInputElement>('s-plain').checked = settings.plainFont;
   $<HTMLInputElement>('s-contrast').checked = settings.contrast;
@@ -634,7 +672,9 @@ $('s-save').addEventListener('click', (e) => {
     diary: $<HTMLInputElement>('s-diary').checked,
     relics: $<HTMLInputElement>('s-relics').checked,
     outside: $<HTMLInputElement>('s-outside').checked,
-    narrate: $<HTMLInputElement>('s-narrate').checked,
+    narrate: ($<HTMLSelectElement>('s-narrate').value as Settings['narrate']),
+    muteAmbient: $<HTMLInputElement>('s-mute-ambient').checked,
+    muteNarration: $<HTMLInputElement>('s-mute-narration').checked,
     textScale: Number($<HTMLSelectElement>('s-size').value) || 1,
     plainFont: $<HTMLInputElement>('s-plain').checked,
     contrast: $<HTMLInputElement>('s-contrast').checked,
@@ -655,6 +695,8 @@ $('s-save').addEventListener('click', (e) => {
   settings = next;
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
+  applyMute();
+  paintMute();
   applyNarration();
   applyReading();
   if (game && hashParams().get('pace') !== 'instant') game.opts.walkPace = paceFromKmh(settings.speedKmh);
@@ -709,6 +751,8 @@ document.addEventListener('keydown', (e) => {
     case 'm': if (settings.map) toggleMap(); break;
     case 'j': toggleJournal(); break;
     case 'w': setWandering(!wandering); break;
+    case ',': skipBack(); break;
+    case '.': skipForward(); break;
     case 'r': submit('repeat'); break;
     case 's': $('mute').click(); break;
     case '?': submit('help'); break;
@@ -789,47 +833,109 @@ $('share').addEventListener('click', async () => {
 });
 
 function applyNarration(): void {
-  narrator.enabled = settings.narrate && narrator.supported;
+  narrator.enabled = (settings.narrate === 'always' || (settings.narrate === 'play' && wandering)) && narrator.supported;
   syncWalkNarration();
   narrator.rate = settings.narrateRate;
   applyReading();
   narrator.voiceURI = settings.voiceURI;
-  if (!settings.narrate) narrator.cancel();
+  if (!narrator.enabled) narrator.cancel();
 }
 applyNarration();
 if (narrator.supported) window.speechSynthesis.addEventListener('voiceschanged', fillVoices);
 if (!narrator.supported) {
-  $<HTMLInputElement>('s-narrate').disabled = true;
+  $<HTMLSelectElement>('s-narrate').disabled = true;
   $('s-narrate-note').textContent = 'Your browser has no speech voices to offer, so narration is unavailable.';
 }
 $<HTMLInputElement>('s-rate').addEventListener('input', (e) => { $('s-rate-out').textContent = `${Number((e.target as HTMLInputElement).value).toFixed(1)}×`; });
 
 // Wander: the visitor lets the House carry them. It describes, listens, looks at a statue, and moves on, for ever,
 // until any key is typed or the button is pressed again. It waits for the reading to finish (or a reading-time pause).
-let wandering = false;
+/** Paused in the middle of a reading: pressing Play begins that passage again, as an audiobook does. */
+let rereadOnPlay = false;
+const keeper = new BackgroundKeeper();
 /** Narrated walking (no times, walks described as they go) whenever the House is being read aloud or is wandering on its own. */
 function syncWalkNarration(): void {
   if (game) game.opts.walkNarration = narrator.enabled || wandering;
 }
-function setWandering(on: boolean): void {
-  wandering = on && game !== null;
-  syncWalkNarration();
+function paintPlay(): void {
   const b = $('wander');
-  b.setAttribute('aria-pressed', String(wandering));
-  b.textContent = wandering ? 'Wandering…' : 'Wander';
-  if (wandering) print([{ kind: 'system', text: 'You let your feet choose. Type anything, or press Wander again, to stop.' }], 'end');
-  else narrator.cancel();
+  b.dataset.playing = String(wandering);
+  const label = wandering ? 'Pause: stop wandering and reading here' : 'Play: let the House carry you, reading as you go';
+  b.setAttribute('aria-label', label);
+  b.title = label;
+  b.querySelector('.lbl')!.textContent = wandering ? 'Pause' : 'Play';
+  describeSession($('place').textContent ?? 'Piranesi’s House', wandering);
+}
+function setWandering(on: boolean): void {
+  const was = wandering;
+  if (!on && was) rereadOnPlay = narrator.busy;
+  wandering = on && game !== null;
+  if (wandering) {
+    keeper.start();
+    if (!was) {
+      rereadOnPlay = rereadOnPlay && playlist.current() !== null;
+      print([{ kind: 'system', text: 'You let your feet choose. Press Pause, or type anything, to stop.' }], 'end');
+    }
+  } else keeper.stop();
+  applyNarration();
+  syncWalkNarration();
+  paintPlay();
+  if (!wandering) narrator.cancel();
+  else if (rereadOnPlay) { rereadOnPlay = false; replay(playlist.current(), false); }
+  else if (!was && game) lastPrintMs = Date.now() - 1e9; // nothing to wait for: step on at once
+}
+
+/** Read an earlier passage again, and show where it is in the log. */
+function replay(p: { text: string; tag: HTMLElement } | null, scroll = true): void {
+  if (!p) return;
+  logEl.querySelectorAll('.reading').forEach((e) => e.classList.remove('reading'));
+  p.tag.classList.add('reading');
+  if (scroll) logEl.scrollTop = p.tag.offsetTop - logEl.offsetTop - 8;
+  passageStartMs = Date.now();
+  lastPrintMs = Date.now();
+  lastPrintChars = p.text.length;
+  narrator.cancel();
+  narrator.speak(p.text);
+}
+function skipBack(): void {
+  replay(playlist.back(Date.now() - passageStartMs));
+}
+function skipForward(): void {
+  const next = playlist.forward();
+  if (next) { replay(next); return; }
+  // at the live end there is nothing already read to go on to: cut the reading short and let the House move on
+  logEl.querySelectorAll('.reading').forEach((e) => e.classList.remove('reading'));
+  narrator.cancel();
+  narrator.lastBusyMs = 0;
+  lastPrintMs = Date.now() - 1e9;
+  if (game && !game.walk) submit(chooseWander(game, Math.random), true);
 }
 $('wander').addEventListener('click', () => setWandering(!wandering));
+$('prev').addEventListener('click', skipBack);
+$('next').addEventListener('click', skipForward);
+bindMediaSession({ play: () => setWandering(true), pause: () => setWandering(false), previous: skipBack, next: skipForward });
 input.addEventListener('input', () => { if (wandering) setWandering(false); });
 // Keep the screen awake while wandering or while something is being read aloud.
 setInterval(() => screenWake.want(wandering || narrator.busy), 1000);
+/** Has the current passage been heard out (or, with no voice, given time enough to read)? */
+function readingDone(): boolean {
+  if (narrator.active) return !narrator.busy && Date.now() - narrator.lastBusyMs >= 1800;
+  return Date.now() - lastPrintMs >= dwellMs(lastPrintChars);
+}
 setInterval(() => {
-  if (!wandering || !game || game.walk) return;
+  if (!game) return;
+  // A replayed passage has ended: on to the next, and when the live end is reached, back to the House as it is.
+  if (playlist.replaying) {
+    if (readingDone()) {
+      const next = playlist.finished();
+      if (next) replay(next);
+      else logEl.querySelectorAll('.reading').forEach((e) => e.classList.remove('reading'));
+    }
+    return;
+  }
+  if (!wandering || game.walk) return;
   // With narration on, never move until the reading has finished, then leave a breath. Otherwise a reading-time pause.
-  if (narrator.enabled) {
-    if (narrator.busy || Date.now() - narrator.lastBusyMs < 1800) return;
-  } else if (Date.now() - lastPrintMs < dwellMs(lastPrintChars)) return;
+  if (!readingDone()) return;
   submit(chooseWander(game, Math.random), true);
 }, 500);
 
@@ -858,6 +964,7 @@ setInterval(() => {
 }, 1000);
 
 paintMute();
+paintPlay();
 setInterval(() => {
   if (!game) return;
   const wasWalking = game.walk !== null;

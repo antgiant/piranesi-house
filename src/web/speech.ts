@@ -40,6 +40,8 @@ export function bestVoice<T extends { name: string; lang: string }>(voices: T[])
 
 export class Narrator {
   enabled = false;
+  /** Silenced by the mute button: nothing is spoken, and nothing counts as being read. */
+  muted = false;
   /** Slightly slower than ordinary speech: a peaceful pace. */
   rate = 0.9;
   pitch = 0.92;
@@ -58,15 +60,17 @@ export class Narrator {
   voices(): SpeechSynthesisVoice[] {
     return this.supported ? window.speechSynthesis.getVoices() : [];
   }
+  /** Reading aloud now: switched on, and not muted. */
+  get active(): boolean { return this.enabled && !this.muted && this.supported; }
   /** True while anything is being read or waiting to be. */
   get busy(): boolean {
-    if (!this.enabled || !this.supported) return false;
+    if (!this.active) return false;
     const reading = (this.pending > 0 || window.speechSynthesis.speaking) && Date.now() < this.giveUpAtMs;
     if (reading) this.lastBusyMs = Date.now();
     return reading;
   }
   speak(text: string): void {
-    if (!this.enabled || !this.supported) return;
+    if (!this.active) return;
     const voice = this.voices().find((v) => v.voiceURI === this.voiceURI) ?? bestVoice(this.voices());
     // Sentence by sentence: some browsers stop in the middle of one long utterance.
     // About 100 ms a character at the slowest speed, plus slack: after this we stop trusting the browser's 'ended' events.

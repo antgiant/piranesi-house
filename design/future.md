@@ -15,7 +15,7 @@
 - Is a realistic physical simulation of wind and sound possible? Partly: wind as filtered noise driven by gusts with a turbulence spectrum, tuned resonators for apertures (Helmholtz and pipe modes), and room impulse responses. A full fluid simulation is not practical in the browser.
 - Practical notes: samples must be public domain (CC0) or properly licensed with credit, and small (budget is 190 KB gzipped, we are at 144 KB): analyse recordings offline to tune synthesis parameters, or ship a few short loops. Nothing downloaded from the book. Record the source and licence of every recording.
 
-## Interface redone
+## Interface redone (DONE: see audiobook.md)
 - Wander becomes a play button which starts wandering and turns into a pause button.
 - Sound becomes a mute button that controls ambience and narration together (independent controls in settings).
 - Share moves into settings.

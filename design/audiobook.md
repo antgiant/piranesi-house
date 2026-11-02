@@ -25,3 +25,7 @@ On iOS, when the speech voice starts it takes over the audio session: the House'
 engine now **yields while speech is going** (`yieldToSpeech`, driven by the narrator's `onSpeaking` / `onSilent`) and resumes half a second after the
 last sentence ends (or after a second with no speech, if a browser never reports the end). Also: Play takes the first step inside the tap, because iOS
 only lets a page begin speaking from a tap; and no silent audio element and no Media Session on iOS.
+
+Narration works on iPhone in the foreground. The ambience dropped out while the voice spoke, because iOS gives speech the whole audio session. To let the
+two mix, the engine now asks for the "ambient" audio session type (`navigator.audioSession.type`, iOS 16.4 and later) when it starts; where that is
+not offered, the engine still yields to the voice as before. With "ambient", iOS also follows the silent switch for the House's sounds.

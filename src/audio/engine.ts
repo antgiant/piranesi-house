@@ -131,6 +131,9 @@ export class AudioEngine {
       if (this.ctx.state === 'suspended') await this.ctx.resume();
       return;
     }
+    // iOS 16.4+ (Audio Session API): "ambient" lets the House's sounds mix with other audio, including the speech voice, instead
+    // of the voice interrupting them. Where this is not supported, the engine simply yields to the voice (see yieldToSpeech).
+    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = 'ambient'; } catch { /* unsupported */ }
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AC();
     this.ctx = ctx;

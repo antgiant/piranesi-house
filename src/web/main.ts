@@ -879,6 +879,7 @@ function setWandering(on: boolean): void {
     }
   } else keeper.stop();
   applyNarration();
+  if (wandering) narrator.unlock();
   syncWalkNarration();
   paintPlay();
   if (!wandering) narrator.cancel();

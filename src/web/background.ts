@@ -54,6 +54,9 @@ export interface Transport {
 
 /** Register the lock-screen / headset controls. Safe where the Media Session API does not exist. */
 export function bindMediaSession(t: Transport): void {
+  // On iOS, registering as a media session makes the system treat the page as a player: it then sends "pause" the moment the
+  // speech voice takes the audio session, which stopped the reading after half a syllable. So not there.
+  if (typeof navigator !== 'undefined' && isIOS(navigator.userAgent, navigator.platform, navigator.maxTouchPoints ?? 0)) return;
   const ms = (typeof navigator !== 'undefined' ? navigator.mediaSession : undefined) as MediaSession | undefined;
   if (!ms) return;
   const set = (a: MediaSessionAction, f: () => void): void => { try { ms.setActionHandler(a, f); } catch { /* an action this browser lacks */ } };
@@ -66,6 +69,7 @@ export function bindMediaSession(t: Transport): void {
 }
 
 export function describeSession(title: string, playing: boolean): void {
+  if (typeof navigator !== 'undefined' && isIOS(navigator.userAgent, navigator.platform, navigator.maxTouchPoints ?? 0)) return;
   const ms = (typeof navigator !== 'undefined' ? navigator.mediaSession : undefined) as MediaSession | undefined;
   if (!ms) return;
   try {

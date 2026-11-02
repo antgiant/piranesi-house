@@ -89,6 +89,16 @@ export class Narrator {
       window.speechSynthesis.speak(u);
     }
   }
+  /**
+   * Some browsers (iOS Safari) only let a page speak after it has spoken once from a tap or key press. Call this from the Play
+   * button so that readings begun later, by the wander's timer, are allowed. It makes no sound.
+   */
+  unlock(): void {
+    if (!this.active) return;
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+  }
   cancel(): void {
     if (!this.supported) return;
     this.pending = 0;

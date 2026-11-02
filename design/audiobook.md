@@ -18,3 +18,10 @@ The bar has one clear row for listening and a few tools.
   speech keeps going with the screen off is up to the device (iOS tends to stop it); the controls are offered either way. **Not on iPhone or iPad:** there an audio element takes over the audio session and silences the speech voice, so the silent keep-alive is skipped on iOS (`isIOS`) and only the Media Session and the screen wake lock are used.
 
 Tests: `tests/playlist.test.ts`, and the "audiobook" block of the end-to-end test (Play/Pause, Back, Forward, mute, phone width, settings sheet).
+
+## Speech and the sound engine on iPhone
+On iOS, when the speech voice starts it takes over the audio session: the House's sounds drop out for a moment and Web Audio goes to an
+"interrupted" state. Our engine used to call `resume()` at once, which took the session back and cut the voice off after half a syllable. So the
+engine now **yields while speech is going** (`yieldToSpeech`, driven by the narrator's `onSpeaking` / `onSilent`) and resumes half a second after the
+last sentence ends (or after a second with no speech, if a browser never reports the end). Also: Play takes the first step inside the tap, because iOS
+only lets a page begin speaking from a tap; and no silent audio element and no Media Session on iOS.

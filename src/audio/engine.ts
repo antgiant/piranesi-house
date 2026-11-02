@@ -105,7 +105,22 @@ export class AudioEngine {
   }
   private downCount = 0;
 
+  /**
+   * While the browser's speech voice is talking the sound engine must not try to take the audio back: on iPhones, speech takes
+   * over the audio session (the House's sounds drop out for a moment), and resuming the engine at once cuts the voice off after a
+   * syllable. So while speech is going the engine stays out of the way, and takes up again a moment after it ends.
+   */
+  yielding = false;
+  private yieldTimer: ReturnType<typeof setTimeout> | null = null;
+  yieldToSpeech(on: boolean): void {
+    if (this.yieldTimer) { clearTimeout(this.yieldTimer); this.yieldTimer = null; }
+    if (on) { this.yielding = true; return; }
+    if (!this.yielding) return;
+    this.yieldTimer = setTimeout(() => { this.yielding = false; this.yieldTimer = null; this.resume(); }, 500);
+  }
+
   resume(): void {
+    if (this.yielding) return;
     const c = this.ctx;
     if (c && c.state !== 'running' && c.state !== 'closed') void c.resume().catch(() => undefined);
   }

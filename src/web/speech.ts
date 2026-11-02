@@ -46,8 +46,9 @@ export class Narrator {
   rate = 0.9;
   pitch = 0.92;
   voiceURI = '';
-  /** Called as each sentence starts and ends: the page uses it to make sure the sound is still running. */
-  onActivity: (() => void) | null = null;
+  /** Called when speech begins, and when everything queued has been spoken (or was cancelled). */
+  onSpeaking: (() => void) | null = null;
+  onSilent: (() => void) | null = null;
   private pending = 0;
   /** When it was last reading (or about to), in ms; used to leave a breath after the end of a reading. */
   lastBusyMs = 0;
@@ -82,27 +83,18 @@ export class Narrator {
       u.pitch = this.pitch;
       if (voice) { u.voice = voice; u.lang = voice.lang; }
       this.pending++;
-      const done = (): void => { this.pending = Math.max(0, this.pending - 1); this.onActivity?.(); };
-      u.onstart = () => this.onActivity?.();
+      const done = (): void => { this.pending = Math.max(0, this.pending - 1); if (this.pending === 0) this.onSilent?.(); };
+      u.onstart = () => this.onSpeaking?.();
       u.onend = done;
       u.onerror = done;
       window.speechSynthesis.speak(u);
     }
-  }
-  /**
-   * Some browsers (iOS Safari) only let a page speak after it has spoken once from a tap or key press. Call this from the Play
-   * button so that readings begun later, by the wander's timer, are allowed. It makes no sound.
-   */
-  unlock(): void {
-    if (!this.active) return;
-    const u = new SpeechSynthesisUtterance(' ');
-    u.volume = 0;
-    window.speechSynthesis.speak(u);
   }
   cancel(): void {
     if (!this.supported) return;
     this.pending = 0;
     this.giveUpAtMs = 0;
     window.speechSynthesis.cancel();
+    this.onSilent?.();
   }
 }

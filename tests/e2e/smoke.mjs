@@ -263,7 +263,8 @@ try {
     check((await n.locator('#wander').getAttribute('data-playing')) === 'true', 'wander starts');
     await n.waitForFunction((p) => document.getElementById('place').textContent !== p, startPlace, { timeout: 15000 });
     check(true, 'wander moved to another hall by itself');
-    check((await n.evaluate(() => window.__wake.held)) === 1, 'while wandering, the screen is kept awake');
+    await n.waitForFunction(() => window.__wake.held === 1, null, { timeout: 4000 });
+    check(true, 'while wandering, the screen is kept awake');
     await n.fill('#input', 'x');
     check((await n.locator('#wander').getAttribute('data-playing')) === 'false', 'typing anything stops wandering');
     await n.waitForFunction(() => window.__wake.held === 0, null, { timeout: 8000 });

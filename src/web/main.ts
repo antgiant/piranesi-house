@@ -93,7 +93,8 @@ const logEl = $<HTMLElement>('log');
 const input = $<HTMLInputElement>('input');
 const engine = new AudioEngine();
 const narrator = new Narrator();
-narrator.onActivity = () => engine.resume();
+narrator.onSpeaking = () => engine.yieldToSpeech(true);
+narrator.onSilent = () => engine.yieldToSpeech(false);
 const screenWake = new ScreenWake();
 let settings = loadSettings();
 let game: Game | null = null;
@@ -879,12 +880,15 @@ function setWandering(on: boolean): void {
     }
   } else keeper.stop();
   applyNarration();
-  if (wandering) narrator.unlock();
   syncWalkNarration();
   paintPlay();
   if (!wandering) narrator.cancel();
   else if (rereadOnPlay) { rereadOnPlay = false; replay(playlist.current(), false); }
-  else if (!was && game) lastPrintMs = Date.now() - 1e9; // nothing to wait for: step on at once
+  else if (!was && game) {
+    // Nothing to wait for: take the first step now, inside the tap, because some browsers (iOS) only let a page start speaking from one.
+    lastPrintMs = Date.now() - 1e9;
+    if (!game.walk && !playlist.replaying) submit(chooseWander(game, Math.random), true);
+  }
 }
 
 /** Read an earlier passage again, and show where it is in the log. */
@@ -919,6 +923,8 @@ bindMediaSession({ play: () => setWandering(true), pause: () => setWandering(fal
 input.addEventListener('input', () => { if (wandering) setWandering(false); });
 // Keep the screen awake while wandering or while something is being read aloud.
 setInterval(() => screenWake.want(wandering || narrator.busy), 1000);
+// If a browser never reports the end of the speech, take the sound back anyway.
+setInterval(() => { if (engine.yielding && !narrator.busy) engine.yieldToSpeech(false); }, 1000);
 /** Has the current passage been heard out (or, with no voice, given time enough to read)? */
 function readingDone(): boolean {
   if (narrator.active) return !narrator.busy && Date.now() - narrator.lastBusyMs >= 1800;

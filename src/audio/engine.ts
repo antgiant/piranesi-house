@@ -105,6 +105,16 @@ export class AudioEngine {
   }
   private downCount = 0;
 
+  /** iOS 16.4+ Audio Session API: how the page's sound shares the phone with the speech voice and other apps. */
+  sessionType: 'ambient' | 'playback' | 'auto' = 'ambient';
+  /** Is the Audio Session API there (iOS 16.4 and later)? */
+  static get hasAudioSession(): boolean { return typeof navigator !== 'undefined' && !!(navigator as unknown as { audioSession?: unknown }).audioSession; }
+  setSessionType(t: 'ambient' | 'playback' | 'auto'): void { this.sessionType = t; this.applySessionType(); }
+  /** "ambient" mixes with the speech voice and other sound; "playback" ignores the silent switch and may keep playing in the background; "auto" leaves it to the browser. */
+  private applySessionType(): void {
+    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = this.sessionType; } catch { /* unsupported */ }
+  }
+
   /**
    * While the browser's speech voice is talking the sound engine must not try to take the audio back: on iPhones, speech takes
    * over the audio session (the House's sounds drop out for a moment), and resuming the engine at once cuts the voice off after a
@@ -131,9 +141,7 @@ export class AudioEngine {
       if (this.ctx.state === 'suspended') await this.ctx.resume();
       return;
     }
-    // iOS 16.4+ (Audio Session API): "ambient" lets the House's sounds mix with other audio, including the speech voice, instead
-    // of the voice interrupting them. Where this is not supported, the engine simply yields to the voice (see yieldToSpeech).
-    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = 'ambient'; } catch { /* unsupported */ }
+    this.applySessionType();
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AC();
     this.ctx = ctx;

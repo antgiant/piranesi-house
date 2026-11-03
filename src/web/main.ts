@@ -48,13 +48,15 @@ interface Settings {
   /** What the mute button silences. */
   muteAmbient: boolean;
   muteNarration: boolean;
+  /** iPhone/iPad only: how the House's sound shares the phone with the reading voice. */
+  audioSession: 'ambient' | 'playback' | 'auto';
   voiceURI: string;
   narrateRate: number;
   seed: string;
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, audioSession: 'ambient', voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -96,6 +98,7 @@ const narrator = new Narrator();
 narrator.onSpeaking = () => engine.yieldToSpeech(true);
 narrator.onSilent = () => engine.yieldToSpeech(false);
 const screenWake = new ScreenWake();
+$('row-audio-session').hidden = !AudioEngine.hasAudioSession;
 let settings = loadSettings();
 let game: Game | null = null;
 /** Wandering (the Play button is down). */
@@ -341,6 +344,7 @@ async function enter(): Promise<void> {
   $('bar').hidden = false;
   $('cmd').hidden = false;
   engine.setVolume(settings.volume / 100);
+  engine.setSessionType(settings.audioSession);
   applyMute();
   startGame(true);
   try { await engine.start(); } catch { print([{ kind: 'system', text: 'Sound could not be started in this browser. The House is still here to read.' }]); }
@@ -639,6 +643,7 @@ function fillSettings(): void {
   $<HTMLSelectElement>('s-narrate').value = settings.narrate;
   $<HTMLInputElement>('s-mute-ambient').checked = settings.muteAmbient;
   $<HTMLInputElement>('s-mute-narration').checked = settings.muteNarration;
+  $<HTMLSelectElement>('s-audio-session').value = settings.audioSession;
   $<HTMLSelectElement>('s-size').value = String(settings.textScale);
   $<HTMLInputElement>('s-plain').checked = settings.plainFont;
   $<HTMLInputElement>('s-contrast').checked = settings.contrast;
@@ -677,6 +682,7 @@ $('s-save').addEventListener('click', (e) => {
     narrate: ($<HTMLSelectElement>('s-narrate').value as Settings['narrate']),
     muteAmbient: $<HTMLInputElement>('s-mute-ambient').checked,
     muteNarration: $<HTMLInputElement>('s-mute-narration').checked,
+    audioSession: ($<HTMLSelectElement>('s-audio-session').value as Settings['audioSession']),
     textScale: Number($<HTMLSelectElement>('s-size').value) || 1,
     plainFont: $<HTMLInputElement>('s-plain').checked,
     contrast: $<HTMLInputElement>('s-contrast').checked,
@@ -697,6 +703,7 @@ $('s-save').addEventListener('click', (e) => {
   settings = next;
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
+  engine.setSessionType(settings.audioSession);
   applyMute();
   paintMute();
   applyNarration();

@@ -171,6 +171,12 @@
             <label class="check"><input id="s-mute-ambient" type="checkbox" /> <span>the House’s sounds</span></label>
             <label class="check"><input id="s-mute-narration" type="checkbox" /> <span>the reading aloud</span></label>
           </fieldset>
+          <div id="row-audio-session">
+            <label class="row"><span>iPhone sound mode</span>
+              <select id="s-audio-session"><option value="ambient">Mix with the voice (default)</option><option value="playback">Keep playing (ignores the silent switch)</option><option value="auto">Let the phone decide</option></select>
+            </label>
+            <p class="small">For experimenting if the House’s sounds drop out while the voice reads. Takes effect when you save.</p>
+          </div>
           <label class="row check"><input id="s-mutter" type="checkbox" /> <span>Hear yourself murmuring now and then</span></label>
           <label class="row check"><input id="s-mutter-captions" type="checkbox" /> <span>Write the murmuring in the log</span></label>
         </section>

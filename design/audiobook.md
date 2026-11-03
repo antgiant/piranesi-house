@@ -29,3 +29,8 @@ only lets a page begin speaking from a tap; and no silent audio element and no M
 Narration works on iPhone in the foreground. The ambience dropped out while the voice spoke, because iOS gives speech the whole audio session. To let the
 two mix, the engine now asks for the "ambient" audio session type (`navigator.audioSession.type`, iOS 16.4 and later) when it starts; where that is
 not offered, the engine still yields to the voice as before. With "ambient", iOS also follows the silent switch for the House's sounds.
+
+**An experiment you can run from Settings (iPhone and iPad, iOS 16.4+ only):** "iPhone sound mode": *Mix with the voice* (`ambient`, the default),
+*Keep playing* (`playback`: ignores the silent switch and is the type iOS wants for audio that carries on in the background) and *Let the phone decide*
+(`auto`). Advice offered was to use `playback` for background play; that has not been confirmed on a device, and iOS may still suspend speech itself when
+the screen locks, so it is a switch to try rather than a change of default.

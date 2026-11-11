@@ -3,7 +3,7 @@
 // Randomness here (bird timing, drips) is cosmetic and deliberately not part of the deterministic world.
 
 import { babblePlan, type BabbleEvent } from './babble';
-import type { AudioScene, Portal, Surface } from './director';
+import type { AudioScene, Bed, Portal, Surface } from './director';
 
 export type Species = 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
 
@@ -34,6 +34,21 @@ interface PortalVoice {
   nextBoom: number;
   nextBird: number;
   nextDrip: number;
+}
+
+/** The sea and falling water from one neighbouring hall, heard through the wall or opening. */
+interface BedVoice {
+  key: string;
+  bus: GainNode;
+  pan: StereoPannerNode;
+  lp: BiquadFilterNode;
+  /** Pulsed by the waves so the sea behind the wall swells and falls. */
+  wave: GainNode;
+  seaG: GainNode;
+  fallsG: GainNode;
+  srcs: AudioBufferSourceNode[];
+  falls: number;
+  nextBubble: number;
 }
 
 export class AudioEngine {
@@ -71,7 +86,17 @@ export class AudioEngine {
   private fallsGain!: GainNode;
   private rainGain!: GainNode;
   private windGain!: GainNode;
-  private windFilter!: BiquadFilterNode;
+  /** The wind: three bands of noise, each gusting on its own. */
+  private gusts: { g: GainNode; flt: BiquadFilterNode; base: number; w: number }[] = [];
+  private nextGust = 0;
+  /** The surf: noise whose brightness and loudness rise to a crest and wash back, once every swell. */
+  private surfEnv!: GainNode;
+  private surfFilter!: BiquadFilterNode;
+  private nextWave = 0;
+  private nextLap = 0;
+  private nextBubbles = 0;
+  /** Sea and falling water heard through the doorways and walls. */
+  private beds: BedVoice[] = [];
   private whistleGain!: GainNode;
   private whistleOsc: OscillatorNode[] = [];
   private outBus!: GainNode;
@@ -262,6 +287,14 @@ export class AudioEngine {
     lfo.connect(this.seaLfo).connect(swell.gain);
     lfo.start();
 
+    // the surf: a swell comes in, brightens and crests with a hiss, and washes back (see wave())
+    this.surfFilter = ctx.createBiquadFilter();
+    this.surfFilter.type = 'lowpass';
+    this.surfFilter.frequency.value = 300;
+    this.surfEnv = ctx.createGain();
+    this.surfEnv.gain.value = 0.05;
+    this.loop(this.noise).connect(this.surfFilter).connect(this.surfEnv).connect(this.seaGain);
+
     // a deep rumble for tides (felt more than heard)
     const rumbleFilter = ctx.createBiquadFilter();
     rumbleFilter.type = 'lowpass';
@@ -287,20 +320,21 @@ export class AudioEngine {
     this.rainGain.gain.value = 0;
     this.loop(this.noise).connect(rainFilter).connect(this.rainGain).connect(this.bus);
 
-    // wind and the whistling statues
-    this.windFilter = ctx.createBiquadFilter();
-    this.windFilter.type = 'bandpass';
-    this.windFilter.frequency.value = 500;
-    this.windFilter.Q.value = 1.2;
+    // wind and the whistling statues. Air does not blow at one steady pitch: a low body, a middle rush and a high hiss, each swelling and
+    // dying on its own schedule (see gust()), so it comes in gusts and lulls.
     this.windGain = ctx.createGain();
     this.windGain.gain.value = 0;
-    this.loop(this.noise).connect(this.windFilter).connect(this.windGain).connect(this.bus);
-    const wlfo = ctx.createOscillator();
-    wlfo.frequency.value = 0.13;
-    const wdepth = ctx.createGain();
-    wdepth.gain.value = 260;
-    wlfo.connect(wdepth).connect(this.windFilter.frequency);
-    wlfo.start();
+    this.windGain.connect(this.bus);
+    for (const [type, base, q, w, src] of [['lowpass', 170, 0.7, 0.55, this.brown], ['bandpass', 520, 0.9, 1, this.noise], ['bandpass', 1500, 0.8, 0.4, this.noise]] as const) {
+      const flt = ctx.createBiquadFilter();
+      flt.type = type;
+      flt.frequency.value = base;
+      flt.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.value = 0.3 * w;
+      this.loop(src).connect(flt).connect(g).connect(this.windGain);
+      this.gusts.push({ g, flt, base, w });
+    }
     this.whistleGain = ctx.createGain();
     this.whistleGain.gain.value = 0;
     for (const f of [640, 953]) {
@@ -434,6 +468,57 @@ export class AudioEngine {
     o.stop(t + 0.5);
   }
 
+  /** Sea and falling water from next door: a muffled, steady presence behind the wall, shaped by the opening it comes through. */
+  private syncBeds(list: Bed[]): void {
+    const ctx = this.ctx as AudioContext;
+    const keep: BedVoice[] = [];
+    for (const b of list) {
+      let v = this.beds.find((x) => x.key === b.key);
+      if (!v) {
+        const bus = ctx.createGain();
+        const pan = ctx.createStereoPanner();
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        // through a doorway the low parts of water carry and the rest does not: a bump in the low mids, nothing bright
+        const body = ctx.createBiquadFilter();
+        body.type = 'peaking';
+        body.frequency.value = 200;
+        body.gain.value = 5;
+        bus.connect(body).connect(lp).connect(pan).connect(this.bus);
+        const wave = ctx.createGain();
+        wave.gain.value = 0.5;
+        const seaG = ctx.createGain();
+        seaG.gain.value = 0;
+        const sf = ctx.createBiquadFilter();
+        sf.type = 'lowpass';
+        sf.frequency.value = 450;
+        const fallsG = ctx.createGain();
+        fallsG.gain.value = 0;
+        const ff = ctx.createBiquadFilter();
+        ff.type = 'bandpass';
+        ff.frequency.value = 900;
+        ff.Q.value = 0.5;
+        const srcs = [this.loop(this.brown), this.loop(this.noise)];
+        srcs[0]!.connect(sf).connect(wave).connect(seaG).connect(bus);
+        srcs[1]!.connect(ff).connect(fallsG).connect(bus);
+        v = { key: b.key, bus, pan, lp, wave, seaG, fallsG, srcs, falls: 0, nextBubble: 0 };
+      }
+      const now = ctx.currentTime;
+      v.falls = b.falls;
+      v.pan.pan.setTargetAtTime(b.pan, now, 0.3);
+      v.lp.frequency.setTargetAtTime(b.lowpassHz * 0.5, now, 0.3);
+      v.seaG.gain.setTargetAtTime(b.sea * 0.6, now, 1);
+      v.fallsG.gain.setTargetAtTime(b.falls * 0.2, now, 1);
+      keep.push(v);
+    }
+    for (const v of this.beds) if (!keep.includes(v)) {
+      v.seaG.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
+      v.fallsG.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
+      setTimeout(() => { for (const s of v.srcs) { try { s.stop(); } catch { /* already stopped */ } } v.bus.disconnect(); v.pan.disconnect(); }, 2500);
+    }
+    this.beds = keep;
+  }
+
   private syncPortals(list: Portal[]): void {
     const ctx = this.ctx as AudioContext;
     const keep: PortalVoice[] = [];
@@ -471,6 +556,7 @@ export class AudioEngine {
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
     ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));
     this.syncPortals(a.portals);
+    this.syncBeds(a.beds);
     this.applyOutside(a);
     ease(this.fallsGain.gain, a.falls.gain * 0.22);
     ease(this.rainGain.gain, a.rain.gain * 0.3);
@@ -493,6 +579,7 @@ export class AudioEngine {
       this.drip(t + 0.02, a.hush ? 0.14 : 0.1);
       this.nextDrip = t + rand(0.4, 1.4) / Math.max(0.05, dripRate);
     }
+    this.waterEvents(t, a);
     // tide strikes
     if (a.tide.kind !== 'none' && a.tide.kind !== 'submerged' && t >= this.nextBoom) {
       this.boom(t + 0.02, a.tide.kind === 'approach' ? 0.18 * a.tide.gain * 2 : 0.5 * a.tide.gain);
@@ -534,6 +621,72 @@ export class AudioEngine {
       this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness);
       this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6);
     }
+  }
+
+  /** A little gust of wind: the three bands drift to new levels, at their own rates. */
+  private gust(t: number, a: AudioScene): void {
+    const shared = Math.pow(Math.random(), 2);
+    for (const b of this.gusts) {
+      const level = b.w * (0.18 + 0.82 * (0.55 * shared + 0.45 * Math.pow(Math.random(), 2)));
+      b.g.gain.setTargetAtTime(level, t, rand(0.5, 1.5));
+      if (b.base > 300) b.flt.frequency.setTargetAtTime(b.base * rand(0.7, 1.45), t, rand(0.8, 2));
+    }
+    // gustier in a strong wind
+    this.nextGust = t + rand(0.7, 2.6) / (0.6 + a.wind.gain * 2);
+  }
+
+  /** One wave: in, to a crest with a hiss, and back out. The same wave is heard, softer and later, through the doorways. */
+  private wave(t: number, a: AudioScene): void {
+    const D = a.sea.swellSec * rand(0.75, 1.3);
+    const rise = D * 0.38;
+    const crest = rand(0.45, 0.85);
+    this.surfEnv.gain.cancelScheduledValues(t);
+    this.surfEnv.gain.setValueAtTime(0.04, t);
+    this.surfEnv.gain.linearRampToValueAtTime(crest, t + rise);
+    this.surfEnv.gain.setTargetAtTime(0.05, t + rise, D * 0.22);
+    this.surfFilter.frequency.cancelScheduledValues(t);
+    this.surfFilter.frequency.setValueAtTime(260, t);
+    this.surfFilter.frequency.exponentialRampToValueAtTime(Math.min(4000, Math.max(500, a.sea.lowpassHz * 1.4)), t + rise);
+    this.surfFilter.frequency.setTargetAtTime(300, t + rise, D * 0.25);
+    this.burst(t + rise * 0.9, D * 0.35, 'highpass', 3200, 0.7, 0.05 * a.sea.gain * crest, 0, rise * 0.3);
+    let i = 0;
+    for (const b of this.beds) {
+      const at = t + 0.3 * (++i);
+      b.wave.gain.cancelScheduledValues(at);
+      b.wave.gain.setValueAtTime(0.25, at);
+      b.wave.gain.linearRampToValueAtTime(0.4 + crest * 0.8, at + rise);
+      b.wave.gain.setTargetAtTime(0.25, at + rise, D * 0.22);
+    }
+    this.nextWave = t + D * rand(0.8, 1.1);
+  }
+
+  /** The water: waves and laps for the sea, bubbles for falling water, and gusts for the wind. */
+  private waterEvents(t: number, a: AudioScene): void {
+    if (a.sea.gain > 0.03 && t >= this.nextWave) this.wave(t + 0.05, a);
+    // the lap and slosh of water against stone, with a few bubbles
+    if (a.sea.gain > 0.03 && t >= this.nextLap) {
+      this.burst(t + 0.02, rand(0.3, 0.8), 'bandpass', rand(200, 650), 1.2, 0.06 * a.sea.gain, rand(-0.7, 0.7), rand(0.05, 0.2));
+      for (let i = 0; i < 1 + Math.floor(Math.random() * 3); i++) this.bubble(t + 0.05 + rand(0, 0.5), 0.02 * a.sea.gain + 0.005, undefined, rand(-0.7, 0.7));
+      this.nextLap = t + rand(1.2, 4);
+    }
+    // falling and running water is a thick scatter of bubbles (each water-drop's ring is a tiny air bubble, which rises in pitch as it
+    // shrinks): a few a second for a trickle, a dozen for a fall
+    if (a.falls.gain > 0.02 && t >= this.nextBubbles) {
+      const n = Math.min(7, Math.round(a.falls.gain * 45 * 0.2 + Math.random()));
+      for (let i = 0; i < n; i++) this.bubble(t + rand(0, 0.2), 0.012 + Math.random() * 0.03, undefined, rand(-0.6, 0.6));
+      this.nextBubbles = t + 0.2;
+    }
+    for (const b of this.beds) if (b.falls > 0.03 && t >= b.nextBubble) {
+      this.bubble(t + rand(0, 0.15), 0.01 + Math.random() * 0.02 * b.falls * 3, b.bus);
+      b.nextBubble = t + 0.12;
+    }
+    if (a.wind.gain > 0.01 && t >= this.nextGust) this.gust(t, a);
+  }
+
+  /** The ring of one air bubble in water: a short sine that rises in pitch as it decays. */
+  private bubble(t: number, peak: number, out?: AudioNode, pan = 0): void {
+    const f0 = rand(450, 3200);
+    this.tone(t, f0, f0 * rand(1.2, 1.8), rand(0.035, 0.09), 'sine', peak, out ? 0 : pan, 0.002, out);
   }
 
   /** Thunder: a crack that only the nearest storms have, then a long low rumble that rolls and dies away. */

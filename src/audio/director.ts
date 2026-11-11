@@ -41,6 +41,21 @@ export interface Portal {
   loudness: number;
 }
 
+/**
+ * Water heard through a doorway or a wall: not events but a steady, muffled presence of the sea or of falling water in the next hall,
+ * which pulses with the swell. Only the sound engine uses it (the narrator speaks of `portals`).
+ */
+export interface Bed {
+  key: string;
+  side: Side;
+  pan: number;
+  lowpassHz: number;
+  /** The sea next door beyond what is heard here, 0..1. */
+  sea: number;
+  /** Falling water next door, 0..1. */
+  falls: number;
+}
+
 export interface AudioOpts {
   /** The way you face (the way you last walked); doors are placed to your left, right, ahead or behind. */
   facing?: Side | null;
@@ -70,6 +85,8 @@ export interface AudioScene {
   thunder: number;
   /** What drifts in through the doorways from the neighbouring halls, loudest first. */
   portals: Portal[];
+  /** The steady wash of sea and falling water from the neighbouring halls (for the engine only). */
+  beds: Bed[];
   /** A rare hint of a world outside, happening now in this hall. */
   outside: { kind: OutsideKind; gain: number; id: string; bearing: Bearing } | null;
 }
@@ -80,7 +97,8 @@ const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.m
 const DOOR_ATTEN = 0.45;
 const MAX_PORTALS = 10;
 
-function portalsFor(world: World, s: SceneState, facing: Side | null): Portal[] {
+function portalsFor(world: World, s: SceneState, facing: Side | null, ownSea: number): { portals: Portal[]; beds: Bed[] } {
+  const beds: Bed[] = [];
   const h = s.hall;
   const heard = new Map<string, AudioScene>();
   const out: Portal[] = [];
@@ -99,7 +117,17 @@ function portalsFor(world: World, s: SceneState, facing: Side | null): Portal[] 
       a = audioFor(world, sceneAtWorldTime(world, e.to.x, e.to.y, h.level, s.t, { forecast: false }), { portals: false, facing });
       heard.set(key, a);
     }
-    if (a.hush || a.dark) continue;
+    if (a.hush) continue;
+    {
+      // the sea (or a waterfall) in the next hall, heard through the opening or the wall
+      const sea = a.sea.gain > ownSea + 0.05 ? (a.sea.gain - ownSea * 0.5) * DOOR_ATTEN : 0;
+      const fl = a.falls.gain * DOOR_ATTEN;
+      if (sea > 0.03 || fl > 0.03) {
+        const bb = bearing(e.side, facing);
+        beds.push({ key: `${e.side}:${e.to.x},${e.to.y}`, side: e.side, pan: bb === 'left' ? -0.85 : bb === 'right' ? 0.85 : bb === 'ahead' ? (midPos - 500) / 1500 : 0, lowpassHz: bb === 'behind' ? 1100 : bb === 'ahead' ? 2400 : 1800, sea, falls: fl });
+      }
+    }
+    if (a.dark) continue;
     const tideKind = a.tide.kind === 'booming' || a.tide.kind === 'submerged' ? 'booming' : a.tide.kind === 'approach' ? 'approach' : 'none';
     const tideGain = tideKind === 'none' ? 0 : a.tide.gain * DOOR_ATTEN * (tideKind === 'booming' ? 1 : 0.8);
     const birdLoud = a.birds.perMinute > 0 ? a.birds.loudness * DOOR_ATTEN : 0;
@@ -117,7 +145,7 @@ function portalsFor(world: World, s: SceneState, facing: Side | null): Portal[] 
       falls, rain, loudness,
     });
   }
-  return out.sort((x, y) => y.loudness - x.loudness).slice(0, MAX_PORTALS);
+  return { portals: out.sort((x, y) => y.loudness - x.loudness).slice(0, MAX_PORTALS), beds: beds.sort((x, y) => y.sea + y.falls - x.sea - x.falls).slice(0, 4) };
 }
 
 function getName(world: World, x: number, y: number, level: 0 | 1 | 2): string {
@@ -189,6 +217,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const muffle = clamp((cloudy / 1000) * 0.35 + (tideKind === 'submerged' ? 0.9 : 0) + snowing * 0.25, 0, 0.95);
   const surface: Surface = depth >= 4 ? 'shallow' : depth > 0 ? 'wet' : h.regions.derelict >= 60 ? 'rubble' : 'marble';
 
+  const through = opts.portals === false ? { portals: [] as Portal[], beds: [] as Bed[] } : portalsFor(world, s, opts.facing ?? null, seaGain);
   return {
     reverb,
     sea: { gain: seaGain, lowpassHz: seaLow, swellSec: h.level === 0 ? 7 : 11 },
@@ -203,7 +232,8 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     dark,
     surface,
     space,
-    portals: opts.portals === false ? [] : portalsFor(world, s, opts.facing ?? null),
+    portals: through.portals,
+    beds: through.beds,
     outside: s.outside ? { kind: s.outside.event.kind, gain: s.outside.gain, id: s.outside.id, bearing: bearing(s.outside.event.wall, opts.facing ?? null) } : null,
   };
 }

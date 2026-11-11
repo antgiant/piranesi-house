@@ -340,6 +340,8 @@ async function enter(): Promise<void> {
   engine.setVolume(settings.volume / 100);
   applyMute();
   startGame(true);
+  // ask the browser not to clear the saved journey when it is short of space (it may say no, or ask nothing of you)
+  try { void navigator.storage?.persist?.().catch(() => undefined); } catch { /* not offered */ }
   try { await engine.start(); } catch { print([{ kind: 'system', text: 'Sound could not be started in this browser. The House is still here to read.' }]); }
   if (!introSeen()) showIntro();
   if (engine.started && !engine.running) {

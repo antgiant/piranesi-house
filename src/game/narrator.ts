@@ -2,8 +2,8 @@
 // Every claim comes from data (never invented on the spot), so the text, the sound and the later views cannot disagree.
 
 import type { Flourish } from '../world/flourishes';
-import { birdLines, seaLines, skyLines } from './nature';
-import { framedInDoorway } from '../sim/stars';
+import { birdLines, plantLines, seaLines, skyLines } from './nature';
+import { framedInDoorway, skyAbove } from '../sim/stars';
 import type { Rand } from './wander';
 import canonStatues from '../generated/canon-statues.json';
 import type { AudioScene, Portal } from '../audio/director';
@@ -138,7 +138,21 @@ function structureParagraph(h: Hall): string {
   return bits.join(' ');
 }
 
+/** Under the broken roofs of the upper halls, on a clear night, the sky itself: what stands overhead and what is climbing in the east. */
+function skyLine(h: Hall, s: SceneState): string {
+  if (h.level !== 2 || s.light.sunPhase !== 'night' || s.weather.cloud >= 600 || s.weather.precip !== 'none') return '';
+  const { overhead, rising } = skyAbove(s.clock.dayOfYear, s.clock.minuteOfDay);
+  if (overhead && rising) return ` Through the broken roof ${overhead} stands high overhead, and ${rising} is climbing in the east.`;
+  if (overhead) return ` Through the broken roof ${overhead} stands high overhead.`;
+  if (rising) return ` Through the broken roof ${rising} is climbing in the east.`;
+  return '';
+}
+
 export function lightSentence(h: Hall, s: SceneState, v: Pick = (xs) => xs[0] as never): string {
+  return lightCore(h, s, v) + skyLine(h, s);
+}
+
+function lightCore(h: Hall, s: SceneState, v: Pick): string {
   const l = s.light;
   if (h.tags.includes('dark-hall')) {
     if (l.moonInDoorway) return 'The full moon stands centred in the single doorway and fills the hall with pale light; the statues seem to have just turned to look at it.';
@@ -209,14 +223,14 @@ export function birdSentence(s: SceneState): string {
     case 'none': return '';
     case 'silent': return b.species.length ? 'Birds sit in every niche, utterly silent, waiting.' : '';
     case 'roosting': return b.species.length ? `Birds are roosting; ${b.species[0]} shift and rustle in the dark.` : '';
-    case 'foraging': return b.species.length ? `${cap(b.species.join(' and '))} flit between the statues.` : '';
+    case 'foraging': return b.species.length ? `${cap(b.species.join(' and '))} flit between the statues.${b.season.chicks ? ' Somewhere a brood of fledglings begs shrilly.' : ''}` : '';
     case 'sheltering': return 'Birds have crowded in out of the rain, and chatter from every ledge.';
     case 'murmuration': return 'The air is thick with birds, a smoke of wings swirling and tightening and spreading through the vestibule.';
-    case 'nesting': return 'Gulls nest on shoulders, plinths and heads, and rise screaming if you move.';
+    case 'nesting': return b.season.fledglings ? 'Young gulls, brown and clumsy, crowd the shoulders and plinths, and the old ones rise screaming if you move.' : b.season.chicks ? 'Gulls nest on shoulders, plinths and heads, with grey downy chicks beneath them, and rise screaming if you move.' : 'Gulls nest on shoulders, plinths and heads, and rise screaming if you move.';
     case 'chick': return 'A pair of enormous white albatrosses tends a growing chick on a tall nest of weed.';
     case 'noisy': return 'Rooks wheel and call from the high statues.';
     case 'soaring': return `${cap(b.species.join(' and '))} ride the air above the broken roof.`;
-    case 'shore': return 'Gulls and small waders pick along the weed at the foot of the walls.';
+    case 'shore': return b.season.waders ? 'Gulls and small waders pick along the weed at the foot of the walls.' : 'Gulls pick along the weed at the foot of the walls.';
   }
 }
 
@@ -402,15 +416,15 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
   else if (a.wind.gain > 0.25) bits.push(v(['Wind moans through the vestibule.', 'The wind moves through the great room with a low moan.']));
   const b = a.birds;
   if (b.perMinute > 0) {
-    if (b.mode === 'nesting') bits.push('Gulls scream and clatter.');
+    if (b.mode === 'nesting') bits.push(b.season.chicks ? 'Gulls scream and clatter, and beneath it runs the thin, endless peeping of chicks.' : b.season.fledglings ? 'Gulls scream and clatter, and young ones answer with cracked, wavering cries.' : 'Gulls scream and clatter.');
     else if (b.mode === 'murmuration') bits.push('A rush and rustle of thousands of wings.');
     else if (b.mode === 'chick') bits.push('A strange clacking and whirring: the albatrosses.');
     else if (b.mode === 'noisy') bits.push('Rooks caw.');
     else if (b.mode === 'sheltering') bits.push('Birds chatter on every ledge.');
     else if (b.mode === 'roosting') bits.push('Soft rustles of roosting birds.');
-    else if (b.mode === 'soaring') bits.push(v(['Gulls cry high overhead.', 'The thin screams of swifts come and go above the roof.']));
-    else if (b.mode === 'shore') bits.push('Gulls call over the wet stones, and a small bird pipes.');
-    else bits.push(v(['Small birds twitter and flutter.', 'A blackbird sings somewhere among the statues.', 'There is a flutter and twitter of small birds.']));
+    else if (b.mode === 'soaring') bits.push(b.season.swifts ? v(['Gulls cry high overhead.', 'The thin screams of swifts come and go above the roof.']) : 'Gulls cry high overhead.');
+    else if (b.mode === 'shore') bits.push(b.season.waders ? 'Gulls call over the wet stones, and a small bird pipes.' : 'Gulls call over the wet stones.');
+    else bits.push(v(b.season.songbirds ? ['Small birds twitter and flutter.', 'A blackbird sings somewhere among the statues.', 'There is a flutter and twitter of small birds.'] : ['Small birds twitter and flutter.', 'There is a flutter and twitter of small birds.', 'A blackbird scolds, once, from somewhere among the statues.']));
   } else if (b.mode === 'silent' && s.hall.level === 1 && !a.hush) bits.push('There are no birdsong or wingbeats.');
   bits.push(...portalSentences(a));
   if (s.outside) bits.push(outsideSentence(s.outside, s.hall));
@@ -482,6 +496,10 @@ export function relicsProse(relics: Relic[], rand: Rand): string {
       `Someone once made a bed ${bag.where}; all that is left of it is ${bag.thing}.`,
     ])}${aside}`);
   }
+  // what the tide has left or shifted is not "long ago": the water did it, and will again
+  const tidal = others.filter((r) => r.kind === 'flotsam' || r.where.includes('the water left it'));
+  others = others.filter((r) => !tidal.includes(r));
+  for (const r of tidal) out.push(pickBy(rand, [`${capFirst(r.where)}, lies ${wordy(r.thing)}.`, `${capFirst(wordy(r.thing))} lies ${r.where}.`]));
   // the rest, by where they lie
   const byPlace = new Map<string, Relic[]>();
   for (const r of others) {
@@ -765,6 +783,7 @@ export function glanceHall(
   add('sky', skyLines(h, s, rand));
   add('sea', seaLines(h, s, rand));
   add('birds', birdLines(h, s, rand));
+  add('plants', plantLines(h, s, rand));
   const water = waterSentence(h, s);
   if (water && fresh(`water:${water.slice(0, 30)}`)) items.push({ weight: 1, group: 'water', key: `water:${water.slice(0, 30)}`, text: water });
   const light = lightSentence(h, s, v);
@@ -780,7 +799,7 @@ export function glanceHall(
 
   // Each kind of thing has its own pull, however many ways there are of saying it: the sky or the sea when they are there,
   // the birds, a striking statue, the building's strangeness. Spread a group's pull over its items.
-  const PULL: Record<string, number> = { named: 14, building: 10, statue: 8, sky: 11, sea: 11, birds: 12, water: 4, light: 3, weather: 3, theme: 1, scale: 3, feature: 9 };
+  const PULL: Record<string, number> = { named: 14, building: 10, statue: 8, sky: 11, sea: 11, birds: 12, plants: 4, water: 4, light: 3, weather: 3, theme: 1, scale: 3, feature: 9 };
   const size = new Map<string, number>();
   for (const i of items) size.set(i.group, (size.get(i.group) ?? 0) + 1);
   for (const i of items) i.weight = (PULL[i.group] ?? 2) / (size.get(i.group) as number);

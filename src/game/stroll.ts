@@ -11,7 +11,7 @@ import { Rng, hashInts } from '../world/rng';
 import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
 import { birdSentence, lightSentence, sideWord, soundParagraph, waterSentence, weatherSentences } from './narrator';
-import { birdLines, seaLines, skyLines } from './nature';
+import { birdLines, plantLines, seaLines, skyLines } from './nature';
 import { statueScaleLine } from './narrator';
 import type { Game } from './game';
 
@@ -72,6 +72,7 @@ function candidates(g: Game, h: Hall, s: SceneState, side: Side | null, r: Rng, 
   const birds = new Set<string>();
   for (let i = 0; i < 4; i++) for (const l of birdLines(h, s, rnd)) birds.add(l);
   out.push(...birds);
+  out.push(...plantLines(h, s, rnd).slice(0, 1));
   return out;
 }
 

@@ -3,6 +3,7 @@
 
 import { sceneAtWorldTime, type SceneState } from '../sim/scene';
 import type { BirdMode } from '../sim/light';
+import type { BirdSeason } from '../sim/seasons';
 import { exits as hallExits, type Side } from '../world/layout';
 import type { OutsideKind } from '../sim/outside';
 import { getHall } from '../world/hall';
@@ -34,7 +35,7 @@ export interface Portal {
   /** A doorway muffles; a door behind you muffles more. */
   lowpassHz: number;
   tide: { kind: 'none' | 'approach' | 'booming'; gain: number };
-  birds: { mode: BirdMode; perMinute: number; loudness: number };
+  birds: { mode: BirdMode; perMinute: number; loudness: number; season?: BirdSeason };
   falls: number;
   rain: number;
   /** The loudest component, 0..1, for sorting and thresholds. */
@@ -71,7 +72,7 @@ export interface AudioScene {
   falls: { gain: number };
   rain: { gain: number };
   wind: { gain: number; whistle: number };
-  birds: { mode: BirdMode; perMinute: number; loudness: number; species: string[] };
+  birds: { mode: BirdMode; perMinute: number; loudness: number; species: string[]; season: BirdSeason };
   /** 0..1: how much high frequency is taken away (cloud, water over the head). */
   muffle: number;
   /** The Drowned Halls are unusually silent. */
@@ -141,7 +142,7 @@ function portalsFor(world: World, s: SceneState, facing: Side | null, ownSea: nu
       side: e.side, pos: midPos, toName: getName(world, e.to.x, e.to.y, h.level), bearing: b, pan,
       lowpassHz: b === 'behind' ? 1100 : b === 'ahead' ? 2400 : 1800,
       tide: { kind: tideKind, gain: tideGain },
-      birds: { mode: a.birds.mode, perMinute: birdLoud > 0 ? a.birds.perMinute : 0, loudness: birdLoud },
+      birds: { mode: a.birds.mode, perMinute: birdLoud > 0 ? a.birds.perMinute : 0, loudness: birdLoud, season: a.birds.season },
       falls, rain, loudness,
     });
   }
@@ -212,7 +213,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
 
   // --- birds ---
   const b = s.birds;
-  const birds = { mode: b.mode, perMinute: b.mode === 'silent' || b.mode === 'none' ? 0 : Math.round((b.loudness / 1000) * 24), loudness: b.loudness / 1000, species: b.species };
+  const birds = { mode: b.mode, perMinute: b.mode === 'silent' || b.mode === 'none' ? 0 : Math.round((b.loudness / 1000) * 24), loudness: b.loudness / 1000, species: b.species, season: b.season };
 
   const muffle = clamp((cloudy / 1000) * 0.35 + (tideKind === 'submerged' ? 0.9 : 0) + snowing * 0.25, 0, 0.95);
   const surface: Surface = depth >= 4 ? 'shallow' : depth > 0 ? 'wet' : h.regions.derelict >= 60 ? 'rubble' : 'marble';

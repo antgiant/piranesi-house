@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type Line } from '../src/game/game';
-import { CONSTELLATIONS, framedInDoorway, siderealHours } from '../src/sim/stars';
+import { CONSTELLATIONS, framedInDoorway, siderealHours, skyAbove } from '../src/sim/stars';
 import { moonInDoorway } from '../src/sim/time';
 import { createWorld } from '../src/world/world';
 import { getHall } from '../src/world/hall';
@@ -35,5 +35,29 @@ describe('the stars in the single doorway', () => {
     expect(moon).toBeGreaterThan(5);
     expect(stars).toBeGreaterThan(20);
     expect(dark).toBeGreaterThan(20); // by day and under cloud the hall is as dark as the book says
+  });
+});
+
+describe('the sky above the open roofs', () => {
+  it('changes through the night and with the season, and always names a real figure', () => {
+    const seen = new Set<string>();
+    for (const day of [10, 100, 170, 250, 330]) for (let h = 20; h < 30; h++) { const s = skyAbove(day, (h % 24) * 60); for (const n of [s.overhead, s.rising]) if (n) { seen.add(n); expect(CONSTELLATIONS.some((c) => c.name === n)).toBe(true); } }
+    expect(seen.size).toBeGreaterThanOrEqual(10);
+    expect(skyAbove(170, 22 * 60)).not.toEqual(skyAbove(330, 22 * 60));
+    expect(skyAbove(170, 22 * 60)).not.toEqual(skyAbove(170, 3 * 60));
+  });
+  it('is described in the upper halls on a clear night, and not by day, under cloud, or below', () => {
+    const w2 = createWorld('the-house');
+    const up = getHall(w2, 3, 3, 2);
+    let said = 0;
+    for (let t = 0; t < 60 * 24 * 3_600_000; t += 37 * 60_000) {
+      const sc = sceneAtWorldTime(w2, 3, 3, 2, t, { forecast: false });
+      const txt = lightSentence(up, sc);
+      const night = sc.light.sunPhase === 'night' && sc.weather.cloud < 600 && sc.weather.precip === 'none';
+      if (/Through the broken roof/.test(txt)) { said++; expect(night).toBe(true); } else if (night) expect(skyAbove(sc.clock.dayOfYear, sc.clock.minuteOfDay).overhead === null && skyAbove(sc.clock.dayOfYear, sc.clock.minuteOfDay).rising === null).toBe(true);
+    }
+    expect(said).toBeGreaterThan(10);
+    const low = getHall(w2, 3, 3, 1);
+    for (let t = 0; t < 10 * 24 * 3_600_000; t += 3_600_000) expect(lightSentence(low, sceneAtWorldTime(w2, 3, 3, 1, t, { forecast: false }))).not.toMatch(/Through the broken roof/);
   });
 });

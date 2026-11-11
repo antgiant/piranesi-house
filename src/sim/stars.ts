@@ -43,3 +43,14 @@ export function framedInDoorway(dayOfYear: number, minuteOfDay: number): string[
     .slice(0, 3)
     .map((x) => x.c.name);
 }
+
+/**
+ * The sky above the open roofs on a clear night: what stands high overhead (the figures crossing the meridian, which at this latitude
+ * are the ones with declinations from the equator up to about seventy north), and what is climbing in the east. At most one of each.
+ */
+export function skyAbove(dayOfYear: number, minuteOfDay: number): { overhead: string | null; rising: string | null } {
+  const lst = siderealHours(dayOfYear, minuteOfDay);
+  const high = CONSTELLATIONS.filter((c) => c.dec >= 5 && raGap(c.ra, lst) <= 2.2).sort((a, b) => raGap(a.ra, lst) - raGap(b.ra, lst))[0];
+  const east = CONSTELLATIONS.filter((c) => c.dec > -15 && raGap(c.ra, (lst + 4.5) % 24) <= 1.5 && c !== high).sort((a, b) => raGap(a.ra, (lst + 4.5) % 24) - raGap(b.ra, (lst + 4.5) % 24))[0];
+  return { overhead: high?.name ?? null, rising: east?.name ?? null };
+}

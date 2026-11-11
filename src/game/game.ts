@@ -9,7 +9,7 @@ import { OPPOSITE, SIDES, exits as hallExits, type Exit, type Level, type Side }
 import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
 import { createWorld, type World } from '../world/world';
-import { relicsIn, type Relic } from '../world/relics';
+import { relicsIn, TIDAL_DAY_MS, type Relic } from '../world/relics';
 import { flourishesFor } from '../world/flourishes';
 import { framedInDoorway } from '../sim/stars';
 import { strollBeats } from './stroll';
@@ -324,7 +324,7 @@ function prepareHall(g: Game, realNowMs: number): { scene: SceneState; audio: Au
   const audio = audioFor(g.world, scene, { facing: g.facing });
   g.exitsListed = listExits(g, g.pos.level);
   g.seenListed = visibleStatues(g, scene.hall);
-  g.relicsListed = g.walk ? [] : relicsIn(g.world, scene.hall, scene.clock.month, g.opts.relicDensity);
+  g.relicsListed = g.walk ? [] : relicsIn(g.world, scene.hall, scene.clock.month, g.opts.relicDensity, Math.floor(scene.t / TIDAL_DAY_MS));
   g.prev = scene;
   return { scene, audio };
 }

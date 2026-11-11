@@ -113,7 +113,7 @@ export function birdLines(h: Hall, s: SceneState, rand: Rand): string[] {
     case 'foraging':
       out.push(pick(rand, [
         'A sparrow drops onto the shoulder of a statue, looks you over with one eye, and is gone.',
-        'A blackbird sings from a high plinth, a short bright phrase, repeated, as if to see whether the hall would answer.',
+        b.season.songbirds ? 'A blackbird sings from a high plinth, a short bright phrase, repeated, as if to see whether the hall would answer.' : 'A blackbird scolds from a high plinth, a dry rattling cry, and flies low across the hall.',
         'A small flock sweeps along the wall and lands, all at once, on the same statue.',
         'A bird no bigger than a fist is walking along an outstretched arm like a rope-walker.',
         'Two sparrows quarrel in a statue\'s hair, and the stone face looks on with great patience.',
@@ -126,14 +126,14 @@ export function birdLines(h: Hall, s: SceneState, rand: Rand): string[] {
       }
       out.push(pick(rand, [
         'Gulls ride the wind above the broken roof, tilting, never once moving their wings.',
-        'Swifts scream through the gaps in the roof in tight fast parties, and are away over the edge before you can follow them.',
+        b.season.swifts ? 'Swifts scream through the gaps in the roof in tight fast parties, and are away over the edge before you can follow them.' : 'A gull tips over the roof edge and slides away down the wind, calling.',
         'A single gull stands on a roof-beam, white against the sky, and looks down at the hall as if it owned it.',
       ]));
       break;
     case 'shore':
       out.push(pick(rand, [
         'A gull pulls weed from the foot of a wall, looking for something, and flaps up to the ledge with it.',
-        'A little wader runs along the edge of the pool in short fits, stops, probes, and runs on.',
+        b.season.waders ? 'A little wader runs along the edge of the pool in short fits, stops, probes, and runs on.' : 'Two gulls quarrel over something in the weed, and one flies off with it.',
       ]));
       break;
     case 'roosting':
@@ -143,7 +143,7 @@ export function birdLines(h: Hall, s: SceneState, rand: Rand): string[] {
       out.push('Birds are crowded onto every dry ledge, sparrows and blackbirds and rooks, complaining about the rain.');
       break;
     case 'nesting':
-      out.push('A gull on her nest rises with a scream at your passing and settles again, glaring.');
+      out.push(b.season.chicks ? pick(rand, ['A grey, downy gull chick peers over the rim of a nest at you, and lets out a long thin cry.', 'An adult gull lands with a fish and every chick in the nest begins to shriek at once.']) : b.season.fledglings ? pick(rand, ['A young gull, mottled brown, stands at the edge of a plinth and flaps hard at nothing, working up to jump.', 'A fledgling drops from a nest to a lower shoulder, lands badly, and screams at everyone about it.']) : 'A gull on her nest rises with a scream at your passing and settles again, glaring.');
       break;
     case 'noisy':
       out.push('The rooks quarrel in the high statues, and one comes down and walks, bow-legged, across the floor, to see what you are.');
@@ -156,6 +156,30 @@ export function birdLines(h: Hall, s: SceneState, rand: Rand): string[] {
       break;
     default:
       break;
+  }
+  return out;
+}
+
+/**
+ * Growing things, by the season: weed and green in the cracks, the lichen, the weed on the lower walls. Winter is mostly bare and frosted.
+ * Only where there is light and a little damp for it: not the Drowned Halls, and not the dark.
+ */
+export function plantLines(h: Hall, s: SceneState, rand: Rand): string[] {
+  if (h.regions.drowned || h.tags.includes('dark-hall')) return [];
+  const season = s.clock.season;
+  const out: string[] = [];
+  if (h.level === 0) {
+    if (season === 'spring') out.push('The weed on the lower walls has put out new growth, bright green at the tips, and the statues wear it like fresh hair.');
+    if (season === 'summer') out.push('Fine green weed streams from every ledge, thick and soft, and a pale lacy growth hangs between the plinths.');
+    if (season === 'autumn') out.push(pick(rand, ['The weed on the walls has gone brown and ragged, and long torn pieces of it lie stranded at the foot of every plinth.', 'After the autumn blows, the weed hangs in tatters from the statues\' hands.']));
+    if (season === 'winter') out.push('The weed is thin and dark, and what is left of it lies in black heaps at the foot of the walls.');
+    return out;
+  }
+  if (h.level === 1 || h.level === 2) {
+    if (season === 'spring') out.push(pick(rand, ['Pale new green has come up in the cracks of the pavement, a hair of grass here, a small crumpled leaf there.', 'Fresh moss glows on the north side of the plinths, brighter than anything else in the hall.']));
+    if (season === 'summer') out.push(pick(rand, ['Wiry grass and small yellow flowers stand in the cracks of the pavement, leaning toward the nearest window.', 'Lichen has dried to a crisp grey-gold on the sunward faces of the statues, and bees, somehow, work the flowers in the cracks.']));
+    if (season === 'autumn') out.push(pick(rand, ['The grass in the pavement cracks has gone to seed and straw, and the moss on the plinths is dark and heavy with damp.', 'A few pale mushrooms have come up overnight in the corner where the damp is worst.']));
+    if (season === 'winter') out.push(pick(rand, ['Nothing grows now: the cracks in the pavement are bare, and the moss on the plinths is black and still.', 'The old lichen is the only colour left on the statues, grey-green and patient.']));
   }
   return out;
 }

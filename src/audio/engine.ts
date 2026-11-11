@@ -4,22 +4,33 @@
 
 import { babblePlan, type BabbleEvent } from './babble';
 import type { AudioScene, Bed, Portal, Surface } from './director';
+import type { BirdSeason } from '../sim/seasons';
 
-export type Species = 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
+export type Species = 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
 
-export function speciesFor(mode: AudioScene['birds']['mode']): Species[] {
+export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<BirdSeason, 'swifts' | 'waders' | 'songbirds' | 'owls' | 'chicks' | 'fledglings'>): Species[] {
+  let list: Species[];
   switch (mode) {
-    case 'nesting': return ['gull'];
-    case 'noisy': return ['rook'];
-    case 'chick': return ['albatross', 'albatross', 'rustle'];
-    case 'murmuration': return ['flock', 'starling', 'starling'];
-    case 'roosting': return ['rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'owl'];
-    case 'sheltering': return ['sparrow', 'sparrow', 'blackbird', 'rook', 'dove'];
-    case 'foraging': return ['sparrow', 'sparrow', 'blackbird', 'blackbird', 'dove', 'rustle'];
-    case 'soaring': return ['gull', 'swift', 'swift', 'swift'];
-    case 'shore': return ['gull', 'wader', 'wader', 'rustle'];
+    case 'nesting': list = ['gull']; break;
+    case 'noisy': list = ['rook']; break;
+    case 'chick': list = ['albatross', 'albatross', 'rustle']; break;
+    case 'murmuration': list = ['flock', 'starling', 'starling']; break;
+    case 'roosting': list = ['rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'owl']; break;
+    case 'sheltering': list = ['sparrow', 'sparrow', 'blackbird', 'rook', 'dove']; break;
+    case 'foraging': list = ['sparrow', 'sparrow', 'blackbird', 'blackbird', 'dove', 'rustle']; break;
+    case 'soaring': list = ['gull', 'swift', 'swift', 'swift']; break;
+    case 'shore': list = ['gull', 'wader', 'wader', 'rustle']; break;
     default: return [];
   }
+  if (!season) return list;
+  // The year in the voices. Out of season a bird is not here (the swifts, the waders), does not sing (the blackbird gives way to the
+  // sparrow), or is quiet (the owl); and in the nesting months the chicks beg.
+  list = list.filter((s) => !(s === 'swift' && !season.swifts) && !(s === 'wader' && !season.waders) && !(s === 'blackbird' && !season.songbirds) && !(s === 'owl' && !season.owls));
+  if (mode === 'nesting' && season.chicks) list = ['gull', 'chick', 'chick'];
+  else if (mode === 'nesting' && season.fledglings) list = ['gull', 'chick', 'gull', 'chick'];
+  if ((mode === 'foraging' || mode === 'sheltering') && season.chicks) list = [...list, 'chick'];
+  if (list.length === 0) list = mode === 'soaring' || mode === 'shore' ? ['gull'] : ['rustle'];
+  return list;
 }
 
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
@@ -600,7 +611,7 @@ export class AudioEngine {
         v.nextBoom = t + rand(6, 11);
       }
       if (p.birds.perMinute > 0 && t >= v.nextBird) {
-        const ks = speciesFor(p.birds.mode);
+        const ks = speciesFor(p.birds.mode, p.birds.season);
         if (ks.length) { this.bird(ks[Math.floor(Math.random() * ks.length)] as Species, t + 0.02, p.birds.loudness * 1.6, v.bus); this.portalEvents++; }
         v.nextBird = t + (60 / p.birds.perMinute) * rand(0.5, 1.6);
       }
@@ -616,7 +627,7 @@ export class AudioEngine {
       this.nextThunder = t + rand(7, 24) / Math.max(0.2, a.thunder);
     }
     // birds
-    const kinds = speciesFor(a.birds.mode);
+    const kinds = speciesFor(a.birds.mode, a.birds.season);
     if (a.birds.perMinute > 0 && kinds.length > 0 && t >= this.nextBird) {
       this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness);
       this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6);
@@ -773,6 +784,13 @@ export class AudioEngine {
     const pan = out ? 0 : rand(-0.9, 0.9);
     const v = 0.05 + loud * 0.08;
     switch (sp) {
+      case 'chick': {
+        // a hungry chick: a run of thin, high, quavering peeps, each a little lower, that goes on and on
+        const n = 5 + Math.floor(Math.random() * 6);
+        const f = rand(3600, 4800);
+        for (let i = 0; i < n; i++) this.tone(t + i * rand(0.11, 0.17), f * rand(0.97, 1.04), f * rand(0.82, 0.92), rand(0.05, 0.08), 'sine', v * 0.8, pan, 0.006, out);
+        break;
+      }
       case 'sparrow': {
         const n = 2 + Math.floor(Math.random() * 4);
         for (let i = 0; i < n; i++) this.tone(t + i * rand(0.07, 0.13), rand(3200, 5200), rand(2600, 6000), rand(0.04, 0.08), 'sine', v, pan, 0.005, out);

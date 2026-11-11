@@ -5,9 +5,10 @@
 import type { Hall } from './hall';
 import { OPPOSITE, type Side } from './layout';
 import { Rng, hashInts } from './rng';
+import { nearbyVestibules } from './tidegeo';
 import type { World } from './world';
 
-export type RelicKind = 'litter' | 'old-sleeping-bag' | 'crumpled-note' | 'torn-scraps' | 'door-mark' | 'small-stray';
+export type RelicKind = 'flotsam' | 'litter' | 'old-sleeping-bag' | 'crumpled-note' | 'torn-scraps' | 'door-mark' | 'small-stray';
 
 export interface Relic {
   /** Stable for a given world: the same relic has the same id for everyone. */
@@ -107,7 +108,68 @@ function markFor(style: 'arrow' | 'tally' | 'circle', dir: Side, k: number, last
  * The relics lying in one hall. `month` (1..12) matters only for the gull nests, whose scraps can be reached when the gulls
  * are not nesting. `density` scales how many there are; 0 turns them off.
  */
-export function relicsIn(world: World, hall: Hall, month: number, density = 1): Relic[] {
+export function relicsIn(world: World, hall: Hall, month: number, density = 1, tideEpoch?: number): Relic[] {
+  if (density <= 0 || hall.level !== 1 || hall.regions.drowned || hall.tags.includes('dark-hall')) return [];
+  const out = relicsLying(world, hall, month, density);
+  return tideEpoch === undefined ? out : washed(world, hall, out, tideEpoch, density);
+}
+
+/** One tide cycle (a lunar "tidal day"), the unit by which the water comes and goes. */
+export const TIDAL_DAY_MS = 44_700_000;
+
+/** How likely the water is to reach, and so move things, in a hall this many rooms from the nearest vestibule (percent per tide cycle). */
+function reachPercent(world: World, hall: Hall): number {
+  let rooms = 9;
+  for (const v of nearbyVestibules(world, hall.x, hall.y)) rooms = Math.min(rooms, v.rooms);
+  return rooms <= 1 ? 70 : rooms === 2 ? 40 : rooms === 3 ? 15 : 0;
+}
+
+const FLOTSAM: readonly { label: string; detail: string }[] = [
+  { label: 'a ragged ribbon of dark weed', detail: 'Wet weed, slick with the sea and not yet dry, laid in a ribbon where the water stopped. It smells of salt and cold.' },
+  { label: 'a bleached length of driftwood', detail: 'A pale branch worn smooth by a long time in the water, with no bark left on it. It is lighter than it looks.' },
+  { label: 'a scatter of small grey shells', detail: 'Little ridged shells in a drift, most of them empty, a few cracked. The water carried them in and left them.' },
+  { label: 'a pale cuttlebone', detail: 'A chalky oval, light as foam, with a faint ridged pattern. It crumbles a little if you press it.' },
+  { label: 'a tangle of old rope, stiff with salt', detail: 'A knot of grey rope gone hard with salt. It was cut, not broken, a long time ago.' },
+];
+
+const MOVABLE = /:(litter|note|stray)$/;
+
+/**
+ * What the tide does to the loose things lying in a hall it reaches. Each cycle the water may lift an article and set it down against
+ * another wall, or carry it off altogether; and it leaves its own flotsam along the foot of a wall for a cycle or two. A pure function
+ * of the tide cycle, so everyone sees the same shore at the same time.
+ */
+function washed(world: World, hall: Hall, lying: Relic[], epoch: number, density: number): Relic[] {
+  const p = reachPercent(world, hall);
+  if (p === 0) return lying;
+  const out: Relic[] = [];
+  for (const r of lying) {
+    if (!MOVABLE.test(r.id)) { out.push(r); continue; }
+    const idh = hashInts(world.seed, 0x7d1e, hall.x, hall.y);
+    let last = -1;
+    for (let e = epoch; e > epoch - 40; e--) if (hashInts(idh, e) % 100 < p) { last = e; break; }
+    if (last < 0) { out.push(r); continue; }
+    const hh = hashInts(idh, last, 7) >>> 0;
+    if (hh % 100 < 15) continue; // carried off
+    const wall = SIDES[(hh >>> 3) % 4] as Side;
+    const where = `against the ${SIDE_WORD[wall]} wall, where the water left it`;
+    out.push({ ...r, wall, pos: 100 + ((hh >>> 7) % 800), where, label: `${r.thing}, lying ${where}` });
+  }
+  if (density > 0) {
+    for (const back of [0, 1]) {
+      const e = epoch - back;
+      const h = hashInts(world.seed, 0xf107, hall.x, hall.y, e) >>> 0;
+      if (h % 100 >= (back === 0 ? 55 : 25) * p / 70) continue;
+      const f = pick(FLOTSAM, h >>> 4);
+      const wall = SIDES[(h >>> 9) % 4] as Side;
+      const where = `along the foot of the ${SIDE_WORD[wall]} wall, left by the tide`;
+      out.push({ id: `r:${hall.x},${hall.y}:flot:${e}`, kind: 'flotsam', label: `${f.label}, ${where}`, thing: f.label, where, detail: f.detail, wall, pos: 100 + ((h >>> 12) % 800) });
+    }
+  }
+  return out;
+}
+
+function relicsLying(world: World, hall: Hall, month: number, density: number): Relic[] {
   if (density <= 0 || hall.level !== 1 || hall.regions.drowned || hall.tags.includes('dark-hall')) return [];
   const out: Relic[] = [];
   const base = `r:${hall.x},${hall.y}`;

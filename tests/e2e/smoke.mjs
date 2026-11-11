@@ -309,6 +309,13 @@ try {
     const held = await au.locator('#place').textContent();
     await au.waitForTimeout(2500);
     check((await au.locator('#place').textContent()) === held, '[audiobook] and the House stays where it is while paused');
+    // the page going to the background pauses, since nothing in the background could be controlled
+    await au.click('#wander');
+    check((await au.locator('#wander').getAttribute('data-playing')) === 'true', '[audiobook] playing again');
+    await au.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+    check((await au.locator('#wander').getAttribute('data-playing')) === 'false', '[audiobook] when the page goes to the background, it pauses');
+    check(await au.evaluate(() => window.__spoken.slice(-1)[0] === '<cancel>'), '[audiobook] and the reading is stopped');
+    await au.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
     // the mute button silences the reading as well as the sound
     await au.click('#mute');
     check((await au.locator('#mute').getAttribute('aria-pressed')) === 'true', '[audiobook] the mute button shows it is muted');

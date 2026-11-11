@@ -105,14 +105,9 @@ export class AudioEngine {
   }
   private downCount = 0;
 
-  /** iOS 16.4+ Audio Session API: how the page's sound shares the phone with the speech voice and other apps. */
-  sessionType: 'ambient' | 'playback' | 'auto' = 'ambient';
-  /** Is the Audio Session API there (iOS 16.4 and later)? */
-  static get hasAudioSession(): boolean { return typeof navigator !== 'undefined' && !!(navigator as unknown as { audioSession?: unknown }).audioSession; }
-  setSessionType(t: 'ambient' | 'playback' | 'auto'): void { this.sessionType = t; this.applySessionType(); }
-  /** "ambient" mixes with the speech voice and other sound; "playback" ignores the silent switch and may keep playing in the background; "auto" leaves it to the browser. */
+  /** iOS 16.4+ Audio Session API: "ambient" lets the House's sounds mix with other audio instead of being interrupted by it. */
   private applySessionType(): void {
-    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = this.sessionType; } catch { /* unsupported */ }
+    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = 'ambient'; } catch { /* unsupported */ }
   }
 
   /**

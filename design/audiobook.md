@@ -13,9 +13,10 @@ The bar has one clear row for listening and a few tools.
   a wander paces itself by reading time, as it does with no voice.
 * **Settings** holds the rest, in labelled groups: Sound and reading aloud, Reading, Getting about, The House, Your journey (Share, carry,
   save what I have read, install, begin again), Help. On a phone it fills the screen with its Save and Cancel pinned at the foot.
-* **Background and lock screen.** While playing, a silent audio element is held open (`src/web/background.ts`) and the Media Session API is
-  registered, so play, pause, previous and next work from the lock screen, a headset or a car, and the screen is kept awake. Whether the browser's
-  speech keeps going with the screen off is up to the device (iOS tends to stop it); the controls are offered either way. **Not on iPhone or iPad:** there an audio element takes over the audio session and silences the speech voice, so the silent keep-alive is skipped on iOS (`isIOS`) and only the Media Session and the screen wake lock are used.
+* **Foreground only, screen kept awake.** The House is heard with the page in front. While playing (or reading aloud) the screen is kept awake with the
+  Screen Wake Lock, so the phone does not lock. When the page goes to the background (another app, a locked screen) it **pauses**: browsers, iPhones above
+  all, keep speech running in the background with no way to control it, and nothing is to be spoken that cannot be paused. There is no silent keep-alive
+  audio and no Media Session (both were tried on iPhone: the first silenced the voice, and the second paused it).
 
 Tests: `tests/playlist.test.ts`, and the "audiobook" block of the end-to-end test (Play/Pause, Back, Forward, mute, phone width, settings sheet).
 
@@ -29,8 +30,3 @@ only lets a page begin speaking from a tap; and no silent audio element and no M
 Narration works on iPhone in the foreground. The ambience dropped out while the voice spoke, because iOS gives speech the whole audio session. To let the
 two mix, the engine now asks for the "ambient" audio session type (`navigator.audioSession.type`, iOS 16.4 and later) when it starts; where that is
 not offered, the engine still yields to the voice as before. With "ambient", iOS also follows the silent switch for the House's sounds.
-
-**An experiment you can run from Settings (iPhone and iPad, iOS 16.4+ only):** "iPhone sound mode": *Mix with the voice* (`ambient`, the default),
-*Keep playing* (`playback`: ignores the silent switch and is the type iOS wants for audio that carries on in the background) and *Let the phone decide*
-(`auto`). Advice offered was to use `playback` for background play; that has not been confirmed on a device, and iOS may still suspend speech itself when
-the screen locks, so it is a switch to try rather than a change of default.

@@ -19,7 +19,6 @@ import { ScreenWake } from './wakelock';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
 import { Playlist } from './playlist';
-import { BackgroundKeeper, bindMediaSession, describeSession } from './background';
 
 interface Settings {
   volume: number;
@@ -48,15 +47,13 @@ interface Settings {
   /** What the mute button silences. */
   muteAmbient: boolean;
   muteNarration: boolean;
-  /** iPhone/iPad only: how the House's sound shares the phone with the reading voice. */
-  audioSession: 'ambient' | 'playback' | 'auto';
   voiceURI: string;
   narrateRate: number;
   seed: string;
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, audioSession: 'ambient', voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -98,7 +95,6 @@ const narrator = new Narrator();
 narrator.onSpeaking = () => engine.yieldToSpeech(true);
 narrator.onSilent = () => engine.yieldToSpeech(false);
 const screenWake = new ScreenWake();
-$('row-audio-session').hidden = !AudioEngine.hasAudioSession;
 let settings = loadSettings();
 let game: Game | null = null;
 /** Wandering (the Play button is down). */
@@ -206,7 +202,6 @@ window.addEventListener('hashchange', () => {
   refresh();
 });
 
-let lastSessionTitle = '';
 function refresh(): void {
   if (!game) return;
   const now = Date.now();
@@ -216,7 +211,6 @@ function refresh(): void {
   if (!$('map-panel').hidden) map.draw();
   // the name given is what you believe, which, if you have gone astray, is not what is true
   $('place').textContent = shownName(game) ?? 'Somewhere you do not know';
-  if ($('place').textContent !== lastSessionTitle) { lastSessionTitle = $('place').textContent ?? ''; describeSession(lastSessionTitle, wandering); }
   syncAddress();
   const ws = walkStatus(game, now);
   $('clock').textContent = ws ? `${formatClock(s.clock)} · walking: ${describeDuration(ws.remainingWorldS)} to go` : formatClock(s.clock);
@@ -344,7 +338,6 @@ async function enter(): Promise<void> {
   $('bar').hidden = false;
   $('cmd').hidden = false;
   engine.setVolume(settings.volume / 100);
-  engine.setSessionType(settings.audioSession);
   applyMute();
   startGame(true);
   try { await engine.start(); } catch { print([{ kind: 'system', text: 'Sound could not be started in this browser. The House is still here to read.' }]); }
@@ -643,7 +636,6 @@ function fillSettings(): void {
   $<HTMLSelectElement>('s-narrate').value = settings.narrate;
   $<HTMLInputElement>('s-mute-ambient').checked = settings.muteAmbient;
   $<HTMLInputElement>('s-mute-narration').checked = settings.muteNarration;
-  $<HTMLSelectElement>('s-audio-session').value = settings.audioSession;
   $<HTMLSelectElement>('s-size').value = String(settings.textScale);
   $<HTMLInputElement>('s-plain').checked = settings.plainFont;
   $<HTMLInputElement>('s-contrast').checked = settings.contrast;
@@ -682,7 +674,6 @@ $('s-save').addEventListener('click', (e) => {
     narrate: ($<HTMLSelectElement>('s-narrate').value as Settings['narrate']),
     muteAmbient: $<HTMLInputElement>('s-mute-ambient').checked,
     muteNarration: $<HTMLInputElement>('s-mute-narration').checked,
-    audioSession: ($<HTMLSelectElement>('s-audio-session').value as Settings['audioSession']),
     textScale: Number($<HTMLSelectElement>('s-size').value) || 1,
     plainFont: $<HTMLInputElement>('s-plain').checked,
     contrast: $<HTMLInputElement>('s-contrast').checked,
@@ -703,7 +694,6 @@ $('s-save').addEventListener('click', (e) => {
   settings = next;
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
-  engine.setSessionType(settings.audioSession);
   applyMute();
   paintMute();
   applyNarration();
@@ -861,7 +851,6 @@ $<HTMLInputElement>('s-rate').addEventListener('input', (e) => { $('s-rate-out')
 // until any key is typed or the button is pressed again. It waits for the reading to finish (or a reading-time pause).
 /** Paused in the middle of a reading: pressing Play begins that passage again, as an audiobook does. */
 let rereadOnPlay = false;
-const keeper = new BackgroundKeeper();
 /** Narrated walking (no times, walks described as they go) whenever the House is being read aloud or is wandering on its own. */
 function syncWalkNarration(): void {
   if (game) game.opts.walkNarration = narrator.enabled || wandering;
@@ -873,19 +862,17 @@ function paintPlay(): void {
   b.setAttribute('aria-label', label);
   b.title = label;
   b.querySelector('.lbl')!.textContent = wandering ? 'Pause' : 'Play';
-  describeSession($('place').textContent ?? 'Piranesi’s House', wandering);
 }
 function setWandering(on: boolean): void {
   const was = wandering;
   if (!on && was) rereadOnPlay = narrator.busy;
   wandering = on && game !== null;
   if (wandering) {
-    keeper.start();
     if (!was) {
       rereadOnPlay = rereadOnPlay && playlist.current() !== null;
       print([{ kind: 'system', text: 'You let your feet choose. Press Pause, or type anything, to stop.' }], 'end');
     }
-  } else keeper.stop();
+  }
   applyNarration();
   syncWalkNarration();
   paintPlay();
@@ -926,7 +913,14 @@ function skipForward(): void {
 $('wander').addEventListener('click', () => setWandering(!wandering));
 $('prev').addEventListener('click', skipBack);
 $('next').addEventListener('click', skipForward);
-bindMediaSession({ play: () => setWandering(true), pause: () => setWandering(false), previous: skipBack, next: skipForward });
+// The House is heard with the page in front, and the screen kept awake while it plays (the wake lock below). A page that has gone
+// to the background cannot be controlled (browsers, iPhones above all, let speech run on with no way to stop it), so going to the
+// background pauses: nothing is spoken that cannot be paused.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'hidden') return;
+  if (wandering) setWandering(false);
+  narrator.cancel();
+});
 input.addEventListener('input', () => { if (wandering) setWandering(false); });
 // Keep the screen awake while wandering or while something is being read aloud.
 setInterval(() => screenWake.want(wandering || narrator.busy), 1000);

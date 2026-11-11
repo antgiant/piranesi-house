@@ -6,9 +6,9 @@ import { babblePlan, type BabbleEvent } from './babble';
 import type { AudioScene, Bed, Portal, Surface } from './director';
 import type { BirdSeason } from '../sim/seasons';
 
-export type Species = 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
+export type Species = 'goose' | 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
 
-export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<BirdSeason, 'swifts' | 'waders' | 'songbirds' | 'owls' | 'chicks' | 'fledglings'>): Species[] {
+export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<BirdSeason, 'swifts' | 'waders' | 'songbirds' | 'owls' | 'chicks' | 'fledglings'> & { geese?: boolean }): Species[] {
   let list: Species[];
   switch (mode) {
     case 'nesting': list = ['gull']; break;
@@ -20,12 +20,14 @@ export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<Bird
     case 'foraging': list = ['sparrow', 'sparrow', 'blackbird', 'blackbird', 'dove', 'rustle']; break;
     case 'soaring': list = ['gull', 'swift', 'swift', 'swift']; break;
     case 'shore': list = ['gull', 'wader', 'wader', 'rustle']; break;
+    case 'passing': return ['goose'];
     default: return [];
   }
   if (!season) return list;
   // The year in the voices. Out of season a bird is not here (the swifts, the waders), does not sing (the blackbird gives way to the
   // sparrow), or is quiet (the owl); and in the nesting months the chicks beg.
   list = list.filter((s) => !(s === 'swift' && !season.swifts) && !(s === 'wader' && !season.waders) && !(s === 'blackbird' && !season.songbirds) && !(s === 'owl' && !season.owls));
+  if (mode === 'soaring' && season.geese) list = [...list, 'goose', 'goose'];
   if (mode === 'nesting' && season.chicks) list = ['gull', 'chick', 'chick'];
   else if (mode === 'nesting' && season.fledglings) list = ['gull', 'chick', 'gull', 'chick'];
   if ((mode === 'foraging' || mode === 'sheltering') && season.chicks) list = [...list, 'chick'];
@@ -784,6 +786,17 @@ export class AudioEngine {
     const pan = out ? 0 : rand(-0.9, 0.9);
     const v = 0.05 + loud * 0.08;
     switch (sp) {
+      case 'goose': {
+        // a skein calling to itself high up: a run of low, nasal honks from several throats, each a little different
+        const n = 4 + Math.floor(Math.random() * 6);
+        for (let i = 0; i < n; i++) {
+          const f = rand(330, 480);
+          const at = t + i * rand(0.2, 0.45);
+          this.tone(at, f, f * rand(0.78, 0.9), rand(0.14, 0.24), 'triangle', v * 0.9, pan, 0.03, out);
+          this.tone(at + rand(0, 0.06), f * 1.5, f * 1.2, 0.12, 'sawtooth', v * 0.25, pan, 0.03, out);
+        }
+        break;
+      }
       case 'chick': {
         // a hungry chick: a run of thin, high, quavering peeps, each a little lower, that goes on and on
         const n = 5 + Math.floor(Math.random() * 6);

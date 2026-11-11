@@ -53,7 +53,7 @@ describe('the sky above the open roofs', () => {
     for (let t = 0; t < 60 * 24 * 3_600_000; t += 37 * 60_000) {
       const sc = sceneAtWorldTime(w2, 3, 3, 2, t, { forecast: false });
       const txt = lightSentence(up, sc);
-      const night = sc.light.sunPhase === 'night' && sc.weather.cloud < 600 && sc.weather.precip === 'none';
+      const night = sc.light.sunPhase === 'night' && sc.weather.cloud < 600 && sc.weather.precip === 'none' && sc.here.fogHere < 300;
       if (/Through the broken roof/.test(txt)) { said++; expect(night).toBe(true); } else if (night) expect(skyAbove(sc.clock.dayOfYear, sc.clock.minuteOfDay).overhead === null && skyAbove(sc.clock.dayOfYear, sc.clock.minuteOfDay).rising === null).toBe(true);
     }
     expect(said).toBeGreaterThan(10);

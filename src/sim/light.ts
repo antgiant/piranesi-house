@@ -24,7 +24,7 @@ export function lightAt(world: World, hall: Hall, t: number, w: Weather, lw: Loc
     return { level: inDoor ? 60 : 0, tone: inDoor ? 'moon' : 'dark', sunPhase: day.phase, moonInDoorway: inDoor };
   }
   // Windows: the sea-grey lower halls are dimmer; cloud dims the upper ones most.
-  const cloudDim = hall.level === 2 ? w.cloud * 5 / 10 : lw.cloudHere > 0 ? lw.cloudHere * 6 / 10 : w.cloud * 3 / 10;
+  const cloudDim = Math.min(950, (hall.level === 2 ? w.cloud * 5 / 10 : lw.cloudHere > 0 ? lw.cloudHere * 6 / 10 : w.cloud * 3 / 10) + lw.fogHere * 0.4);
   const sky = Math.floor((day.level * (1000 - cloudDim)) / 1000);
   const windowed = hall.level === 0 ? Math.floor((sky * 6) / 10) : sky;
   // Stars always shine; a bright moon adds to them.
@@ -39,7 +39,7 @@ export function lightAt(world: World, hall: Hall, t: number, w: Weather, lw: Loc
   return { level, tone, sunPhase: day.phase, moonInDoorway: false };
 }
 
-export type BirdMode = 'none' | 'roosting' | 'foraging' | 'sheltering' | 'silent' | 'murmuration' | 'nesting' | 'chick' | 'noisy' | 'soaring' | 'shore';
+export type BirdMode = 'none' | 'roosting' | 'foraging' | 'sheltering' | 'silent' | 'murmuration' | 'nesting' | 'chick' | 'noisy' | 'soaring' | 'shore' | 'passing';
 
 export interface BirdScene {
   mode: BirdMode;
@@ -57,10 +57,11 @@ export function birdsAt(hall: Hall, t: number, w: Weather, lw: LocalWeather, lig
   const night0 = light.sunPhase === 'night';
   // The upper halls are half open to the sky: birds ride the wind above them by day, and go quiet in storms and cloud.
   if (hall.level === 2) {
-    if (w.storm || (w.precip !== 'none' && w.rain > 500)) return { mode: 'silent', loudness: 40, species: [], season };
-    if (night0) return none;
+    if (w.storm || (w.precip !== 'none' && w.rain > 500) || lw.fogHere >= 600) return { mode: 'silent', loudness: 40, species: [], season };
+    // geese on the move call through the night as well as the day
+    if (night0) return season.geese && w.cloud < 700 && lw.fogHere < 400 ? { mode: 'passing', loudness: 110, species: ['geese calling unseen overhead'], season } : none;
     // inside the cloud they are heard more than seen
-    return { mode: 'soaring', loudness: lw.cloudHere >= 500 ? 130 : 300, species: w.windSpeed > 500 || !season.swifts ? ['gulls riding the wind'] : ['swifts', 'gulls'], season };
+    return { mode: 'soaring', loudness: lw.cloudHere >= 500 ? 130 : 300, species: (w.windSpeed > 500 || !season.swifts ? ['gulls riding the wind'] : ['swifts', 'gulls']).concat(season.geese ? ['a skein of geese'] : []), season };
   }
   // The lower halls, when the sea has drawn back from them, are picked over by shore birds.
   if (hall.level === 0) {
@@ -73,7 +74,7 @@ export function birdsAt(hall: Hall, t: number, w: Weather, lw: LocalWeather, lig
   if (hall.tags.includes('murmuration') && (c.month >= 9 || c.month <= 2) && c.minuteOfDay >= sunset - 60 && c.minuteOfDay <= sunset + 30 && w.cloud < 700 && lw.rainHere < 200) {
     return { mode: 'murmuration', loudness: 500, species: ['starlings', 'sparrows'], season };
   }
-  if (w.storm || lw.cloudHere >= 500 || (hall.tags.includes('bird-shelter') && w.cloud >= 700)) {
+  if (w.storm || lw.cloudHere >= 500 || lw.fogHere >= 600 || (hall.tags.includes('bird-shelter') && w.cloud >= 700)) {
     return { mode: 'silent', loudness: 60, species: hall.tags.includes('bird-shelter') ? ['gathered flocks of every kind'] : [], season };
   }
   if (lw.rainHere >= 300) return { mode: 'sheltering', loudness: 500, species: ['sparrows', 'blackbirds', 'rooks'], season };

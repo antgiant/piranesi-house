@@ -16,7 +16,7 @@ const hallNamed = (world: typeof w, name: string, level: Level = 1) => {
   return getHall(world, c.x, c.y, level);
 };
 const at = (y: number, mo: number, d: number, h = 12, mi = 0) => Date.UTC(y, mo - 1, d, h, mi) - REAL_ZERO_MS;
-const CALM: Weather = { cloud: 300, rain: 0, windDir: 'N', windSpeed: 100, storm: false, tempTenths: 100, precip: 'none', lightning: false, frost: false };
+const CALM: Weather = { cloud: 300, rain: 0, windDir: 'N', windSpeed: 100, storm: false, tempTenths: 100, precip: 'none', lightning: false, frost: false, fog: 0 };
 
 describe('calendar, sun and moon', () => {
   it('starts on the first of January, a 365-day year', () => {

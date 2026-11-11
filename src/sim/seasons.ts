@@ -17,6 +17,8 @@ export interface BirdSeason {
   fledglings: boolean;
   /** Gulls have come back to the colony and are paired up and incubating: March to May. */
   nesting: boolean;
+  /** Geese passing over on migration: north in March and April, south from late September to mid November. */
+  geese: boolean;
 }
 
 export function birdSeason(dayOfYear: number): BirdSeason {
@@ -29,6 +31,7 @@ export function birdSeason(dayOfYear: number): BirdSeason {
     chicks: d >= 152 && d <= 212,
     fledglings: d >= 213 && d <= 243,
     nesting: d >= 60 && d <= 243,
+    geese: (d >= 60 && d <= 110) || (d >= 270 && d <= 320),
   };
 }
 

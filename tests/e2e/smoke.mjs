@@ -699,7 +699,7 @@ try {
 
   // Every kind of bird call, and thunder, can be played without error, and each is counted.
   {
-    const species = ['sparrow', 'gull', 'rook', 'albatross', 'flock', 'rustle', 'blackbird', 'swift', 'wader', 'dove', 'owl', 'starling', 'thunder'];
+    const species = ['sparrow', 'gull', 'rook', 'albatross', 'flock', 'rustle', 'blackbird', 'swift', 'wader', 'dove', 'owl', 'starling', 'chick', 'goose', 'thunder'];
     const before = await page.evaluate(() => window.__house.engine.stats().calls);
     for (const s of species) await page.evaluate((k) => window.__house.engine.demo(k), s);
     const after = await page.evaluate(() => window.__house.engine.stats().calls);

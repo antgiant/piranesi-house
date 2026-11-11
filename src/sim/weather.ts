@@ -22,6 +22,8 @@ export interface Weather {
   lightning: boolean;
   /** Winter cold: statues wear snow, arms hold icicles. */
   frost: boolean;
+  /** Fog, 0..1000: radiation fog on calm, cool mornings (above all in autumn), burned off by mid morning. */
+  fog: number;
 }
 
 const smooth = (x: number): number => Math.floor((x * x * (3000 - 2 * x)) / 1_000_000);
@@ -77,7 +79,16 @@ export function weatherAt(world: World, t: number): Weather {
   const lightningChance = c.season === 'summer' ? 30 : c.season === 'winter' ? 3 : 12;
   const lightning = rain >= 500 && cloud >= 800 && windSpeed >= 500 && hashInts(world.seed, 0x11a9, minute) % 1000 < lightningChance;
   const frost = c.season === 'winter' && tempTenths <= 20;
-  return { cloud, rain, windDir, windSpeed, storm, tempTenths, precip, lightning, frost };
+  // Fog forms on calm, damp mornings, thickest about dawn, thickest in autumn, and is gone by late morning. Rain and wind clear it.
+  const fogNoise = noise(world, 5, t, 10 * MS.hour);
+  const hourFactor = clamp(1000 - Math.max(0, Math.abs(c.minuteOfDay - 360) - 120) * 3);
+  const seasonFactor = c.season === 'autumn' ? 1000 : c.season === 'winter' ? 800 : c.season === 'spring' ? 500 : 250;
+  const calm = clamp(1000 - windSpeed * 3);
+  const fogBase = clamp(Math.floor(((fogNoise - 420) * 5) / 3));
+  const fogRaw = rain > 0 || hourFactor < 250 || windSpeed > 330 ? 0 : clamp(Math.floor((fogBase * Math.floor((hourFactor * 2 + seasonFactor * 2 + calm) / 5)) / 1000));
+  const fogSeason = Math.floor((fogRaw * (500 + Math.floor(seasonFactor / 2))) / 1000);
+  const fog = fogSeason < 150 ? 0 : fogSeason;
+  return { cloud, rain, windDir, windSpeed, storm, tempTenths, precip, lightning, frost, fog };
 }
 
 /**
@@ -110,6 +121,8 @@ export interface LocalWeather {
   rainHere: number;
   /** Fresh water running down the walls here. */
   streams: boolean;
+  /** Fog filling this hall, 0..1000. */
+  fogHere: number;
 }
 
 export function localWeather(hall: Hall, w: Weather): LocalWeather {
@@ -124,5 +137,7 @@ export function localWeather(hall: Hall, w: Weather): LocalWeather {
     else if (hall.falls) rainHere = Math.floor(w.rain / 4);
   }
   const streams = !dark && (hall.falls !== null || rainHere > 100);
-  return { cloudHere, rainHere, streams };
+  // fog fills the open halls: the upper level, the vestibules (open to the courtyards) and the halls the cloud comes into
+  const fogHere = dark || hall.level === 0 || hall.regions.drowned ? 0 : hall.level === 2 ? w.fog : hall.kind === 'vestibule' ? Math.floor((w.fog * 8) / 10) : hall.regions.cloud ? Math.floor((w.fog * 7) / 10) : 0;
+  return { cloudHere, rainHere, streams, fogHere };
 }

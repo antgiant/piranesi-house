@@ -186,3 +186,87 @@ describe('growing things and creatures by season', () => {
     }
   });
 });
+
+import { growthOn, heightWord, plantState, floraFor } from '../src/sim/plants';
+import { weatherAt as wxAt, localWeather as lwAt } from '../src/sim/weather';
+import { weatherSentences } from '../src/game/narrator';
+
+describe('plants that grow over weeks', () => {
+  it('goes through the stages in order across the year, growing taller and then dying back', () => {
+    const order = ['bare', 'shoots', 'growing', 'flowering', 'seeding', 'dying', 'bare'];
+    const seen: string[] = [];
+    let peak = 0;
+    for (let d = 1; d <= 365; d++) { const g = growthOn(d); if (seen[seen.length - 1] !== g.stage) seen.push(g.stage); peak = Math.max(peak, g.growth); }
+    expect(seen).toEqual(order);
+    expect(peak).toBe(1000);
+    expect(growthOn(100).growth).toBeLessThan(growthOn(140).growth);
+    expect(growthOn(140).growth).toBeLessThan(growthOn(200).growth);
+    expect(growthOn(300).growth).toBeLessThan(growthOn(240).growth);
+  });
+  it('lets a hall change from week to week: shoots in March, taller in May, in flower in July', () => {
+    const h = getHall(w, 2, 3, 1);
+    const a = plantState(h, 80), b = plantState(h, 130), c = plantState(h, 190);
+    expect(b.growth).toBeGreaterThan(a.growth);
+    expect(c.growth).toBeGreaterThan(b.growth);
+    const lines = new Set<string>();
+    for (const d of [20, 80, 130, 190, 250, 300]) { const sc = sceneAtWorldTime(w, 2, 3, 1, day(d, 12), { forecast: false }); lines.add(plantLines(sc.hall, sc, rnd0).join('|')); }
+    expect(lines.size).toBeGreaterThanOrEqual(5);
+  });
+  it('differs a little from hall to hall in timing and in kind, and puts ferns by falling water', () => {
+    const kinds = new Set<string>(), offsets = new Set<number>();
+    for (let x = -8; x <= 8; x++) for (let y = -8; y <= 8; y++) { const h = getHall(w, x, y, 1); kinds.add(floraFor(h)); offsets.add(plantState(h, 120).growth); if (h.falls) expect(floraFor(h)).toBe('fern'); }
+    expect(kinds.size).toBe(4);
+    expect(offsets.size).toBeGreaterThan(5);
+    expect(heightWord(100)).toMatch(/fingernail/);
+    expect(heightWord(900)).toMatch(/thigh/);
+  });
+});
+const rnd0 = (): number => 0.3;
+
+describe('fog', () => {
+  it('forms on calm mornings, mostly in autumn, rarely in summer, and not in the rain or the wind', () => {
+    const by: Record<string, number> = { winter: 0, spring: 0, summer: 0, autumn: 0 };
+    let dense = 0, afternoon = 0;
+    for (let d = 0; d < 365 * 3; d++) for (let h = 0; h < 24; h++) {
+      const t = d * MS.day + h * MS.hour;
+      const x = wxAt(w, t);
+      if (x.fog > 0) { by[clock(t).season]!++; if (h >= 13 && h <= 20) afternoon++; expect(x.rain).toBe(0); expect(x.windSpeed).toBeLessThanOrEqual(330); }
+      if (x.fog >= 600) dense++;
+      expect(x.fog).toBeGreaterThanOrEqual(0);
+      expect(x.fog).toBeLessThanOrEqual(1000);
+    }
+    expect(by.autumn!).toBeGreaterThan(by.summer!);
+    expect(dense).toBeGreaterThan(20);
+    expect(afternoon).toBe(0);
+  });
+  it('fills the open halls and not the lower ones or the dark, and is said in words', () => {
+    const foggy = (() => { for (let t = 0; t < 5 * 365 * MS.day; t += MS.hour) if (wxAt(w, t).fog >= 700) return t; return -1; })();
+    expect(foggy).toBeGreaterThanOrEqual(0);
+    const x = wxAt(w, foggy);
+    const up = getHall(w, 3, 3, 2), low = getHall(w, 3, 3, 0), dark = getHall(w, -192, 0, 1);
+    expect(lwAt(up, x).fogHere).toBe(x.fog);
+    expect(lwAt(low, x).fogHere).toBe(0);
+    expect(lwAt(dark, x).fogHere).toBe(0);
+    const sc = sceneAtWorldTime(w, 3, 3, 2, foggy, { forecast: false });
+    expect(weatherSentences(up, sc).join(' ')).toMatch(/Fog fills the hall/);
+    expect(sc.light.level).toBeLessThan(sceneAtWorldTime(w, 3, 3, 2, foggy, { forecast: false }).light.level + 1);
+  });
+});
+
+describe('geese on passage', () => {
+  it('pass over in spring and autumn only, and are heard through the night', () => {
+    expect(birdSeason(80).geese).toBe(true);
+    expect(birdSeason(180).geese).toBe(false);
+    expect(birdSeason(290).geese).toBe(true);
+    expect(birdSeason(350).geese).toBe(false);
+    expect(speciesFor('soaring', birdSeason(290))).toContain('goose');
+    expect(speciesFor('soaring', birdSeason(180))).not.toContain('goose');
+    expect(speciesFor('passing')).toEqual(['goose']);
+    let spoken = 0;
+    for (let t = 290 * MS.day; t < 300 * MS.day; t += 37 * MS.min) {
+      const sc = sceneAtWorldTime(w, 3, 3, 2, t, { forecast: false });
+      if (sc.birds.mode === 'passing') { spoken++; expect(birdSentence(sc)).toMatch(/geese/); expect(sc.light.sunPhase).toBe('night'); }
+    }
+    expect(spoken).toBeGreaterThan(5);
+  });
+});

@@ -59,6 +59,14 @@ Forty-Third Vestibule (albatrosses) · Eighty-Eighth Western Hall (the gull colo
 - [ ] A roosting hall at night in January may have an owl; in July not.
 - [ ] Plants: a glance in spring, summer, autumn and winter says different things about green, weed, moss, flowers and bareness.
 
+## 8b. Fog, plants, planets, moon, geese
+- [ ] Fog: use `#at=2026-10-14T06:00:00Z` and look at several mornings (try a few dates in October, or `#scale=3600` through the nights): some mornings have "A thin mist hangs..." and a few "Fog fills the hall, white and still...". It is in upper halls and vestibules, not the lower halls. By early afternoon it is gone. The light is dimmer and the birds are quiet when it is dense.
+- [ ] Plants over weeks: stand in the same middle-level hall (not by the sea) on 1 March, 15 April, 1 June, 15 July, 1 October, 1 December: bare, shoots, taller, flowering, seed, straw/bare. Check a neighbouring hall: it should be a bit earlier or later, or a different kind (ferns by a waterfall, grass, moss, thistles).
+- [ ] Planets: in an upper hall on a clear night or at dusk or dawn, you may be told Venus, Jupiter, Mars or Saturn is low in the west or the east. Venus only ever shows near sunset or sunrise.
+- [ ] Moon: "The waxing gibbous moon stands high in the south, among the Lion." Rising in the east early in its time up, in the west late. By day a pale moon is mentioned when it is up and not too thin or too full.
+- [ ] Geese: late September to mid November and March to mid April: a skein goes over upper halls by day, and geese call unseen at night. Listen for the honk (ears).
+- [ ] The chick and goose calls sound like what they are (ears).
+
 ## 9. Weather
 - [ ] Over a year (`#scale=3600` and watch): rainier in autumn and winter, thunder in summer, snow and frost only in the cold, warmer afternoons than nights (the temperature is not shown, but frost and snow follow it).
 

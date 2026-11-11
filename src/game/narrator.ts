@@ -4,6 +4,7 @@
 import type { Flourish } from '../world/flourishes';
 import { birdLines, plantLines, seaLines, skyLines } from './nature';
 import { framedInDoorway, skyAbove } from '../sim/stars';
+import { compassWord, heightPhrase, moonSky, planetsVisible } from '../sim/planets';
 import type { Rand } from './wander';
 import canonStatues from '../generated/canon-statues.json';
 import type { AudioScene, Portal } from '../audio/director';
@@ -138,14 +139,30 @@ function structureParagraph(h: Hall): string {
   return bits.join(' ');
 }
 
-/** Under the broken roofs of the upper halls, on a clear night, the sky itself: what stands overhead and what is climbing in the east. */
+/**
+ * Under the broken roofs of the upper halls, on a clear night, the sky itself: what stands overhead and what is climbing in the east, the
+ * planets that are up, and the moon, where it stands and which figure it is in; by day, a pale moon if one is up.
+ */
 function skyLine(h: Hall, s: SceneState): string {
-  if (h.level !== 2 || s.light.sunPhase !== 'night' || s.weather.cloud >= 600 || s.weather.precip !== 'none') return '';
-  const { overhead, rising } = skyAbove(s.clock.dayOfYear, s.clock.minuteOfDay);
-  if (overhead && rising) return ` Through the broken roof ${overhead} stands high overhead, and ${rising} is climbing in the east.`;
-  if (overhead) return ` Through the broken roof ${overhead} stands high overhead.`;
-  if (rising) return ` Through the broken roof ${rising} is climbing in the east.`;
-  return '';
+  if (h.level !== 2 || s.weather.cloud >= 600 || s.weather.precip !== 'none' || s.here.fogHere >= 300) return '';
+  const phase = s.light.sunPhase;
+  const out: string[] = [];
+  if (phase === 'night') {
+    const { overhead, rising } = skyAbove(s.clock.dayOfYear, s.clock.minuteOfDay);
+    if (overhead && rising) out.push(`Through the broken roof ${overhead} stands high overhead, and ${rising} is climbing in the east.`);
+    else if (overhead) out.push(`Through the broken roof ${overhead} stands high overhead.`);
+    else if (rising) out.push(`Through the broken roof ${rising} is climbing in the east.`);
+  }
+  if (phase !== 'day') {
+    const ps = planetsVisible(s.t, s.clock.dayOfYear, s.clock.minuteOfDay).slice(0, 2);
+    for (const p of ps) out.push(`${p.name}, ${p.look}, hangs ${heightPhrase(p.alt)} in the ${compassWord(p.az)}.`);
+  }
+  const m = moonSky(s.moon, s.t, s.clock.minuteOfDay);
+  if (m) {
+    if (phase !== 'day') out.push(`The ${s.moon.phase} moon stands ${m.where}, among ${m.in}.`);
+    else if (m.paleByDay) out.push(`A pale ${s.moon.phase} moon hangs ${m.where} in the daylight.`);
+  }
+  return out.length ? ` ${out.join(' ')}` : '';
 }
 
 export function lightSentence(h: Hall, s: SceneState, v: Pick = (xs) => xs[0] as never): string {
@@ -160,7 +177,10 @@ function lightCore(h: Hall, s: SceneState, v: Pick): string {
     if (s.light.sunPhase === 'night' && s.weather.cloud < 600 && s.weather.precip === 'none') {
       const framed = framedInDoorway(s.clock.dayOfYear, s.clock.minuteOfDay);
       const names = framed.length === 0 ? '' : framed.length === 1 ? (framed[0] as string) : `${framed.slice(0, -1).join(', ')} and ${framed[framed.length - 1]}`;
-      if (names) return `Everything is dark but the single doorway behind and before you, a tall pale frame of the night sky, and in it ${names} ${framed.length === 1 ? 'stands' : 'stand'}, low and bright.`;
+      // a planet low in the east shows in the frame too
+      const wanderer = planetsVisible(s.t, s.clock.dayOfYear, s.clock.minuteOfDay).find((p) => p.az > 60 && p.az < 120 && p.alt < 40);
+      const planet = wanderer ? ` ${wanderer.name}, ${wanderer.look}, is among them.` : '';
+      if (names) return `Everything is dark but the single doorway behind and before you, a tall pale frame of the night sky, and in it ${names} ${framed.length === 1 ? 'stands' : 'stand'}, low and bright.${planet}`;
       return 'Everything is dark but the single doorway, a tall pale frame of the night sky, with a few stars scattered in it.';
     }
     return 'There is no light at all here. The dark is complete.';
@@ -210,6 +230,8 @@ export function weatherSentences(h: Hall, s: SceneState): string[] {
   if (h.tags.includes('dark-hall')) return out;
   if (s.here.cloudHere >= 500) out.push('Cold grey cloud fills the hall; statues loom out of it one at a time and vanish.');
   else if (s.here.cloudHere >= 300) out.push('A thin cloud has drifted in, damp and chill, blurring the far walls.');
+  if (s.here.fogHere >= 600) out.push('Fog fills the hall, white and still, and the statues stand in it to the waist; the far wall is gone, and every sound is close and soft.');
+  else if (s.here.fogHere >= 250) out.push('A thin mist hangs in the air, beading on stone and statue, and the far end of the hall is soft and pale.');
   if (s.here.rainHere >= 600) out.push('Rain falls hard and steadily, and streams run down the walls and the stair.');
   else if (s.here.rainHere >= 200) out.push('A light rain drips down through the dim air.');
   if (s.weather.lightning && (h.level === 2 || h.kind === 'vestibule')) out.push('Lightning flickers along the windows, lighting every statue white.');
@@ -229,7 +251,8 @@ export function birdSentence(s: SceneState): string {
     case 'nesting': return b.season.fledglings ? 'Young gulls, brown and clumsy, crowd the shoulders and plinths, and the old ones rise screaming if you move.' : b.season.chicks ? 'Gulls nest on shoulders, plinths and heads, with grey downy chicks beneath them, and rise screaming if you move.' : 'Gulls nest on shoulders, plinths and heads, and rise screaming if you move.';
     case 'chick': return 'A pair of enormous white albatrosses tends a growing chick on a tall nest of weed.';
     case 'noisy': return 'Rooks wheel and call from the high statues.';
-    case 'soaring': return `${cap(b.species.join(' and '))} ride the air above the broken roof.`;
+    case 'passing': return 'Somewhere high over the roof, unseen, geese are calling to one another in the dark.';
+    case 'soaring': return b.season.geese ? `${cap(b.species.filter((x) => !x.includes('geese')).join(' and '))} ride the air above the broken roof, and a skein of geese goes over in a long ragged line.` : `${cap(b.species.join(' and '))} ride the air above the broken roof.`;
     case 'shore': return b.season.waders ? 'Gulls and small waders pick along the weed at the foot of the walls.' : 'Gulls pick along the weed at the foot of the walls.';
   }
 }
@@ -422,7 +445,8 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
     else if (b.mode === 'noisy') bits.push('Rooks caw.');
     else if (b.mode === 'sheltering') bits.push('Birds chatter on every ledge.');
     else if (b.mode === 'roosting') bits.push('Soft rustles of roosting birds.');
-    else if (b.mode === 'soaring') bits.push(b.season.swifts ? v(['Gulls cry high overhead.', 'The thin screams of swifts come and go above the roof.']) : 'Gulls cry high overhead.');
+    else if (b.mode === 'soaring') bits.push((b.season.swifts ? v(['Gulls cry high overhead.', 'The thin screams of swifts come and go above the roof.']) : 'Gulls cry high overhead.') + (b.season.geese ? ' Now and then a skein of geese honks its way across.' : ''));
+    else if (b.mode === 'passing') bits.push('Far overhead, geese call to one another as they pass.');
     else if (b.mode === 'shore') bits.push(b.season.waders ? 'Gulls call over the wet stones, and a small bird pipes.' : 'Gulls call over the wet stones.');
     else bits.push(v(b.season.songbirds ? ['Small birds twitter and flutter.', 'A blackbird sings somewhere among the statues.', 'There is a flutter and twitter of small birds.'] : ['Small birds twitter and flutter.', 'There is a flutter and twitter of small birds.', 'A blackbird scolds, once, from somewhere among the statues.']));
   } else if (b.mode === 'silent' && s.hall.level === 1 && !a.hush) bits.push('There are no birdsong or wingbeats.');

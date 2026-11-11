@@ -7,6 +7,7 @@ import type { SceneState } from '../sim/scene';
 import { sunTimes } from '../sim/time';
 import type { Hall } from '../world/hall';
 import { hashInts } from '../world/rng';
+import { heightWord, plantState, type Flora, type Stage } from '../sim/plants';
 import type { Rand } from './wander';
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -30,6 +31,7 @@ export function skyLines(h: Hall, s: SceneState, rand: Rand): string[] {
   const dayFrac = Math.max(0, Math.min(1, (mins - sunrise) / Math.max(1, sunset - sunrise)));
   const wind = windWord(s);
 
+  if (s.here.fogHere >= 400) out.push(pick(rand, ['The gap in the roof holds only white: the sky has come down into the hall as fog.', 'Fog stands in the openings like milk in a bowl, and the highest statues have vanished into it.']));
   const inCloud = s.here.cloudHere >= 500;
   if (inCloud) {
     out.push('Cloud has come in through the openings and stands in the hall in slow grey walls, so that the far statues come and go.');
@@ -48,7 +50,7 @@ export function skyLines(h: Hall, s: SceneState, rand: Rand): string[] {
   } else if (phase === 'night') {
     if (w.cloud < 500) {
       out.push(pick(rand, ['Stars crowd the gap in the roof, more than you could count, and the great statues are only shapes against them.', 'The sky above the open roof is black and full of stars, very close.']));
-      if (s.moon.up) out.push(`The moon, ${s.moon.phase}, stands over the broken roof and lays a pale light on the ${h.xExtent > h.yExtent ? 'east-west' : 'north-south'} length of the hall.`);
+      if (s.moon.up) out.push(`The ${s.moon.phase} moon lays a pale light along the ${h.xExtent > h.yExtent ? 'east-west' : 'north-south'} length of the hall.`);
     } else {
       out.push('The sky is a dark roof of cloud, lit faintly from above where the moon is.');
     }
@@ -124,6 +126,7 @@ export function birdLines(h: Hall, s: SceneState, rand: Rand): string[] {
         out.push(pick(rand, ['Out of the cloud come the cries of gulls, near and then far, though there is nothing to see.', 'Something large passes through the cloud overhead, a dark shape and a rush of wings, and is gone.']));
         break;
       }
+      if (b.season.geese) out.push(pick(rand, ['A skein of geese goes over, high up, in a long wavering line, calling, and the whole hall seems to look up.', 'Geese cross the gap in the roof in a broad ragged V, and their low honking comes down the hall long after they are gone.']));
       out.push(pick(rand, [
         'Gulls ride the wind above the broken roof, tilting, never once moving their wings.',
         b.season.swifts ? 'Swifts scream through the gaps in the roof in tight fast parties, and are away over the edge before you can follow them.' : 'A gull tips over the roof edge and slides away down the wind, calling.',
@@ -135,6 +138,9 @@ export function birdLines(h: Hall, s: SceneState, rand: Rand): string[] {
         'A gull pulls weed from the foot of a wall, looking for something, and flaps up to the ledge with it.',
         b.season.waders ? 'A little wader runs along the edge of the pool in short fits, stops, probes, and runs on.' : 'Two gulls quarrel over something in the weed, and one flies off with it.',
       ]));
+      break;
+    case 'passing':
+      out.push('High over the roof, in the dark, geese are calling to one another as they pass.');
       break;
     case 'roosting':
       out.push('Birds sit along the ledges with their heads tucked in, and shift and mutter in their sleep.');
@@ -176,10 +182,44 @@ export function plantLines(h: Hall, s: SceneState, rand: Rand): string[] {
     return out;
   }
   if (h.level === 1 || h.level === 2) {
-    if (season === 'spring') out.push(pick(rand, ['Pale new green has come up in the cracks of the pavement, a hair of grass here, a small crumpled leaf there.', 'Fresh moss glows on the north side of the plinths, brighter than anything else in the hall.']));
-    if (season === 'summer') out.push(pick(rand, ['Wiry grass and small yellow flowers stand in the cracks of the pavement, leaning toward the nearest window.', 'Lichen has dried to a crisp grey-gold on the sunward faces of the statues, and bees, somehow, work the flowers in the cracks.']));
-    if (season === 'autumn') out.push(pick(rand, ['The grass in the pavement cracks has gone to seed and straw, and the moss on the plinths is dark and heavy with damp.', 'A few pale mushrooms have come up overnight in the corner where the damp is worst.']));
-    if (season === 'winter') out.push(pick(rand, ['Nothing grows now: the cracks in the pavement are bare, and the moss on the plinths is black and still.', 'The old lichen is the only colour left on the statues, grey-green and patient.']));
+    const p = plantState(h, s.clock.dayOfYear);
+    const hw = heightWord(p.growth);
+    const L: Record<Flora, Partial<Record<Stage, string[]>>> = {
+      meadow: {
+        bare: ['The cracks in the pavement are bare, with here and there a dry grey stalk left from the year before.'],
+        shoots: [`A pale green haze of new grass has come up in the cracks of the pavement, ${hw}.`],
+        growing: [`Grass stands ${hw} in the cracks of the pavement and sways when the air moves.`],
+        flowering: [`Grass ${hw} fills the cracks of the pavement, with small white and yellow flowers among it, and bees at them.`],
+        seeding: ['The grass has gone to seed, pale gold and heavy-headed, and bends over the paving.'],
+        dying: ['The grass is straw now, flattened and brown, and crackles underfoot.'],
+      },
+      fern: {
+        bare: ['Only crushed brown fronds lie along the foot of the damp wall, waiting for the spring.'],
+        shoots: ['Tight green fiddleheads are uncurling from the damp at the foot of the wall.'],
+        growing: ['Ferns, fresh and bright, fan out of the cracks along the wall, still unrolling.'],
+        flowering: ['Ferns stand thick and glossy along the wet wall, and the air under them is green and cool.'],
+        seeding: ['The ferns are heavy with rust-coloured spores that dust your sleeve if you brush them.'],
+        dying: ['The ferns have gone the colour of old copper and are folding down over themselves.'],
+      },
+      moss: {
+        bare: ['Thick green moss lies over the north side of the plinths, brighter in the cold than at any other time.'],
+        shoots: ['The moss on the plinths is green and swollen with the damp, and small bright sporelings stand up from it.'],
+        growing: ['Moss lies like velvet over the shaded plinths, and the first dry patches show on the sunward side.'],
+        flowering: ['The moss has dried to a crisp grey-gold on the sunward faces of the statues, and is green only where the shade holds.'],
+        seeding: ['The moss is greening again as the damp returns, and small spore-capsules stand over it on hair-thin stalks.'],
+        dying: ['The moss is dark and heavy with autumn damp and has crept a hand’s width further up the plinths.'],
+      },
+      thistle: {
+        bare: ['Grey skeleton stalks of last year’s thistles stand in the pavement cracks, rattling when you pass.'],
+        shoots: ['Flat, prickly rosettes of thistle have spread on the pavement where the cracks are widest.'],
+        growing: [`Thistles are standing up in the pavement cracks, ${hw}, and spiny to the touch.`],
+        flowering: ['Purple thistle-heads nod over the pavement, and bees go from one to the next as if on a rope.'],
+        seeding: ['The thistles have gone to down, and a grey fluff drifts along the floor on the draught.'],
+        dying: ['The thistles stand dead and brown, their heads split and empty.'],
+      },
+    };
+    const options = L[p.flora][p.stage];
+    if (options) out.push(pick(rand, options));
   }
   return out;
 }

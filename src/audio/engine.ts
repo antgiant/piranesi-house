@@ -6,6 +6,7 @@
 // Randomness here (bird timing, drips) is cosmetic and deliberately not part of the deterministic world.
 
 import { babblePlan, type BabbleEvent } from './babble';
+import { Sea } from './sea';
 import type { AudioScene, Bed, Portal, Surface } from './director';
 import type { BirdSeason } from '../sim/seasons';
 import { REF_DISTANCE, airCutoffHz, bearingPosition, distanceOf, dopplerRatio, flybyPath, perchPosition, polar, positionAt, stageCell, velocityOf, type Flyby, type Vec3 } from './spatial';
@@ -87,6 +88,9 @@ interface BedVoice {
 }
 
 export class AudioEngine {
+  /** Which sea to make. The new one is built from measured recordings (sea.ts); the old stays the default until it is approved. */
+  seaModel: 'old' | 'new' = 'old';
+  private sea: Sea | null = null;
   private ctx: AudioContext | null = null;
   private master!: GainNode;
   private lowpass!: BiquadFilterNode;
@@ -225,6 +229,7 @@ export class AudioEngine {
     this.noise = this.makeNoise(4, 'white');
     this.brown = this.makeNoise(8, 'brown');
     this.buildBeds();
+    if (this.seaModel === 'new') this.sea = new Sea({ ctx, out: this.bus, spot: (at) => this.spot(at) });
     this.timer = setInterval(() => this.tickEvents(), 200);
     if (this.scene) this.apply(this.scene);
     if (ctx.state === 'suspended') await ctx.resume();
@@ -235,6 +240,8 @@ export class AudioEngine {
     this.timer = null;
     void this.ctx?.close();
     this.ctx = null;
+    this.sea?.dispose();
+    this.sea = null;
     this.stage.clear();
   }
 
@@ -693,7 +700,8 @@ export class AudioEngine {
     ease(this.wet.gain, a.reverb.wet);
     ease(this.dry.gain, 0.85 - a.reverb.wet * 0.5);
     ease(this.lowpass.frequency, 20000 - a.muffle * 19400, 0.6);
-    ease(this.seaGain.gain, a.sea.gain * 0.55);
+    ease(this.seaGain.gain, this.sea ? 0 : a.sea.gain * 0.55);
+    this.sea?.set(a.sea);
     ease(this.seaFilter.frequency, a.sea.lowpassHz, 1.5);
     // a tide booming next door is felt through the floor before it reaches you
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
@@ -792,6 +800,12 @@ export class AudioEngine {
     this.surfFilter.frequency.exponentialRampToValueAtTime(Math.min(4000, Math.max(500, a.sea.lowpassHz * 1.4)), t + rise);
     this.surfFilter.frequency.setTargetAtTime(300, t + rise, D * 0.25);
     this.burst(t + rise * 0.9, D * 0.35, 'highpass', 3200, 0.7, 0.05 * a.sea.gain * crest, 0, rise * 0.3);
+    this.pulseBeds(t, crest, rise, D);
+    this.nextWave = t + D * rand(0.8, 1.1);
+  }
+
+  /** The sea behind the walls swells and falls with each wave, a little later for each opening. */
+  private pulseBeds(t: number, crest: number, rise: number, D: number): void {
     let i = 0;
     for (const b of this.beds) {
       const at = t + 0.3 * (++i);
@@ -800,14 +814,16 @@ export class AudioEngine {
       b.wave.gain.linearRampToValueAtTime(0.4 + crest * 0.8, at + rise);
       b.wave.gain.setTargetAtTime(0.25, at + rise, D * 0.22);
     }
-    this.nextWave = t + D * rand(0.8, 1.1);
   }
 
   /** The water: waves and laps for the sea, bubbles for falling water, and gusts for the wind. */
   private waterEvents(t: number, a: AudioScene): void {
-    if (a.sea.gain > 0.03 && t >= this.nextWave) this.wave(t + 0.05, a);
+    if (this.sea) {
+      const w = this.sea.tick(t, a.sea);
+      if (w) this.pulseBeds(w.t, Math.min(0.9, w.crest * 0.8 + 0.1), w.rise, w.dur);
+    } else if (a.sea.gain > 0.03 && t >= this.nextWave) this.wave(t + 0.05, a);
     // the lap and slosh of water against stone, with a few bubbles
-    if (a.sea.gain > 0.03 && t >= this.nextLap) {
+    if (!this.sea && a.sea.gain > 0.03 && t >= this.nextLap) {
       this.burst(t + 0.02, rand(0.3, 0.8), 'bandpass', rand(200, 650), 1.2, 0.06 * a.sea.gain, rand(-0.7, 0.7), rand(0.05, 0.2));
       for (let i = 0; i < 1 + Math.floor(Math.random() * 3); i++) this.bubble(t + 0.05 + rand(0, 0.5), 0.02 * a.sea.gain + 0.005, undefined, rand(-0.7, 0.7));
       this.nextLap = t + rand(1.2, 4);

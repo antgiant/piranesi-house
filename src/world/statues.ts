@@ -10,6 +10,7 @@ import type { Figure, Mood } from '../data/catalogue';
 import {
   ATTRIBUTES, COMPANIONS_SOLITARY, COMPANIONS_WITH, FIGURES, MARK_BASES, MARK_EDGES, MARK_MOTIFS, POSES, POSES_DROWNED, SIZE_WORD,
 } from '../data/catalogue';
+import { attributeTraits, companionTraits, compatibleTraits, poseTraits } from '../data/compat';
 import { SUB_KINDS, listsFor, subOf, type Sub } from '../data/sublists';
 import type { Hall, WallGrid } from './hall';
 import { wallGrids } from './hall';
@@ -67,6 +68,14 @@ interface KindPalette {
   poses: string[];
   attributes: string[];
   companions: string[];
+  /** What each pose, attribute and companion is and needs (see data/compat.ts), in the same order. */
+  pt: number[];
+  at: number[];
+  ct: number[];
+}
+
+function kindPalette(poses: string[], attributes: string[], companions: string[]): KindPalette {
+  return { poses, attributes, companions, pt: poses.map(poseTraits), at: attributes.map(attributeTraits), ct: companions.map(companionTraits) };
 }
 
 interface Palette {
@@ -79,6 +88,11 @@ interface Palette {
   D: number;
   a: number;
   b: number;
+  /** Kind of each figure, so the scan below need not look it up. */
+  subs: Sub[];
+  /** The mixed-radix indices that are possible combinations, in the order the permutation visits them, found as far as needed. */
+  seq: number[];
+  scan: number;
 }
 
 const palettes = new WeakMap<Hall, Palette>();
@@ -110,24 +124,24 @@ function palette(world: World, hall: Hall): Palette {
   }
   const P = drowned ? POSES_DROWNED.length : Math.min(MAX_POSES, POSES[hall.mood].length);
   const kinds = {} as Record<Sub, KindPalette>;
-  kinds.human = {
-    poses: drowned ? [...POSES_DROWNED] : rng.shuffle(POSES[hall.mood]).slice(0, P),
-    attributes: rng.shuffle(ATTRIBUTES).slice(0, ATTRS),
-    companions: [...COMPANIONS_SOLITARY, ...rng.shuffle(COMPANIONS_WITH).slice(0, COMPANIONS_PER_HALL - COMPANIONS_SOLITARY.length)],
-  };
+  kinds.human = kindPalette(
+    drowned ? [...POSES_DROWNED] : rng.shuffle(POSES[hall.mood]).slice(0, P),
+    rng.shuffle(ATTRIBUTES).slice(0, ATTRS),
+    [...COMPANIONS_SOLITARY, ...rng.shuffle(COMPANIONS_WITH).slice(0, COMPANIONS_PER_HALL - COMPANIONS_SOLITARY.length)],
+  );
   for (const k of SUB_KINDS) {
     const l = listsFor(k);
-    kinds[k] = {
-      poses: drowned ? [...POSES_DROWNED] : rng.shuffle(l.poses).slice(0, P),
-      attributes: rng.shuffle(l.attributes).slice(0, ATTRS),
-      companions: [...l.solitary, ...rng.shuffle(l.withs).slice(0, COMPANIONS_PER_HALL - l.solitary.length)],
-    };
+    kinds[k] = kindPalette(
+      drowned ? [...POSES_DROWNED] : rng.shuffle(l.poses).slice(0, P),
+      rng.shuffle(l.attributes).slice(0, ATTRS),
+      [...l.solitary, ...rng.shuffle(l.withs).slice(0, COMPANIONS_PER_HALL - l.solitary.length)],
+    );
   }
   const D = figures.length * P * ATTRS * COMPANIONS_PER_HALL;
   if (D < hall.slotCount * 4) throw new Error(`palette too small: ${D} for ${hall.slotCount} slots`);
   let a = 1 + rng.int(D - 1);
   while (gcd(a, D) !== 1) a++;
-  const p: Palette = { figures, kinds, P, A: ATTRS, C: COMPANIONS_PER_HALL, D, a, b: rng.int(D) };
+  const p: Palette = { figures, kinds, P, A: ATTRS, C: COMPANIONS_PER_HALL, D, a, b: rng.int(D), subs: figures.map(subOf), seq: [], scan: 0 };
   palettes.set(hall, p);
   return p;
 }
@@ -141,6 +155,30 @@ export function workshopMark(x: number, y: number, level: number): string {
   const edge = MARK_EDGES[variant % 8] as string;
   const base = MARK_BASES[Math.floor(variant / 8) % 4] as string;
   return `${count} ${motif} on a ${base} plinth with ${edge} edging`;
+}
+
+/** Is this combination of figure, pose, attribute and companion one that could exist? (See data/compat.ts.) */
+function possible(pal: Palette, idx: number): boolean {
+  let i = idx;
+  const c = i % pal.C; i = Math.floor(i / pal.C);
+  const at = i % pal.A; i = Math.floor(i / pal.A);
+  const po = i % pal.P; i = Math.floor(i / pal.P);
+  const kp = pal.kinds[pal.subs[i % pal.figures.length] as Sub];
+  return compatibleTraits(kp.pt[po] as number, kp.at[at] as number, kp.ct[c] as number);
+}
+
+/**
+ * The n-th statue's place in the space of combinations. The permutation visits every combination once; the n-th statue takes the n-th
+ * visited combination that is possible. So no two statues in a hall are alike, and none is an impossible one (a leaping figure with a
+ * cat asleep in its lap). If a hall somehow ran out of possible combinations, the rest take the plain permutation, as before.
+ */
+function tupleIndex(pal: Palette, n: number): number {
+  while (pal.seq.length <= n && pal.scan < pal.D) {
+    const idx = (pal.a * pal.scan + pal.b) % pal.D;
+    if (possible(pal, idx)) pal.seq.push(idx);
+    pal.scan++;
+  }
+  return pal.seq[n] ?? (pal.a * n + pal.b) % pal.D;
 }
 
 export function slotRng(world: World, hall: Hall, wall: Side, tier: number, slot: number, salt: number): number {
@@ -189,7 +227,7 @@ export function generatedSlot(world: World, hall: Hall, wall: Side, tier: number
 
   const pal = palette(world, hall);
   const n = g.offset + tier * g.slots + slot;
-  let i = (pal.a * n + pal.b) % pal.D;
+  let i = tupleIndex(pal, n);
   const c = i % pal.C; i = Math.floor(i / pal.C);
   const at = i % pal.A; i = Math.floor(i / pal.A);
   const po = i % pal.P; i = Math.floor(i / pal.P);

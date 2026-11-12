@@ -14,18 +14,18 @@ export interface KindLists {
 const ANIMAL: KindLists = {
   poses: [
     'standing alert, head raised', 'lying curled at rest', 'crouched as if to spring', 'rearing on the hind legs', 'with head lowered to the ground',
-    'looking back over one shoulder', 'mid-stride, one foot lifted', 'sitting upright, ears pricked', 'stretched out asleep', 'with wings half open',
-    'with neck arched', 'poised on a single leg', 'crouching low, watching something small', 'turning in a slow circle', 'standing square, looking straight ahead',
+    'looking back over one shoulder', 'mid-stride, one foot lifted', 'sitting upright, ears pricked', 'stretched out asleep', 'standing with one forefoot raised',
+    'with neck arched', 'with the head cocked, listening', 'crouching low, watching something small', 'turning in a slow circle', 'standing square, looking straight ahead',
     'drinking from a stone bowl', 'caught in the middle of a cry',
   ],
   attributes: [
-    'with a collar of carved roses', 'its coat shown in fine ridged lines', 'with a tiny crown on its head', 'every feather separately cut', 'with a ribbon tied round its neck',
+    'with a collar of carved roses', 'its coat shown in fine ridged lines', 'with a tiny crown on its head', 'every hair of the coat separately cut', 'with a ribbon tied round its neck',
     'one paw resting on a stone ball', 'with eyes of polished dark stone', 'with a bell hung at its throat', 'with a garland of oak leaves', 'its mouth slightly open',
-    'with a chain trailing from a ring', 'the tail curled over the back', 'ears laid flat', 'with a deep scar across the flank', 'its mane in carved braids',
-    'wearing a little saddle-cloth', 'with a scroll in its beak', 'with one foot raised to the chin', 'with a worn patch where hands have touched it',
-    'with horns wreathed in vine', 'with a hoof planted on a shell', 'hung with seaweed rags', 'with a plume of carved water behind it', 'with a set of tiny pearls at the throat',
-    'its back strewn with carved petals', 'with a smooth stone in its claws', 'a quiver of reeds on its back', 'with a coin of stone in its mouth', 'each scale a separate lozenge',
-    'with a stone loop through the nose', 'the whole body wound in carved ivy', 'with a halo of small stars',
+    'with a chain trailing from a ring', 'the tail curled over the back', 'ears laid flat', 'with a deep scar across the flank', 'its coat in carved braids',
+    'wearing a little saddle-cloth', 'with a scroll held in its mouth', 'with one forefoot raised', 'with a worn patch where hands have touched it',
+    'with a wreath of vine over one ear', 'with one forefoot planted on a shell', 'hung with seaweed rags', 'with a plume of carved water behind it', 'with a set of tiny pearls at the throat',
+    'its back strewn with carved petals', 'with a smooth stone under one forepaw', 'a quiver of reeds on its back', 'with a coin of stone in its mouth', 'the hide cut in a pattern of lozenges',
+    'with a stone ring at the throat', 'the whole body wound in carved ivy', 'with a halo of small stars',
   ],
   solitary: ['alone on the plinth', 'looking aside', 'facing outward', 'with a faint frown'],
   withs: [

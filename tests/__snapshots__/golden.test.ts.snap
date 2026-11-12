@@ -2,7 +2,7 @@
 
 exports[`golden snapshot > hall -1,0 level 1 1`] = `
 {
-  "digest": 1424577961,
+  "digest": 2590326118,
   "doors": [
     5,
     1,
@@ -34,7 +34,7 @@ exports[`golden snapshot > hall -1,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -2,1 level 1 1`] = `
 {
-  "digest": 901562514,
+  "digest": 2590172465,
   "doors": [
     3,
     3,
@@ -66,7 +66,7 @@ exports[`golden snapshot > hall -2,1 level 1 1`] = `
 
 exports[`golden snapshot > hall -4,0 level 1 1`] = `
 {
-  "digest": 724092584,
+  "digest": 2644699142,
   "doors": [
     1,
     4,
@@ -96,7 +96,7 @@ exports[`golden snapshot > hall -4,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -5,-4 level 1 1`] = `
 {
-  "digest": 3129438146,
+  "digest": 3909311139,
   "doors": [
     2,
     1,
@@ -126,7 +126,7 @@ exports[`golden snapshot > hall -5,-4 level 1 1`] = `
 
 exports[`golden snapshot > hall -6,6 level 1 1`] = `
 {
-  "digest": 1393917530,
+  "digest": 3894540479,
   "doors": [
     5,
     2,
@@ -156,7 +156,7 @@ exports[`golden snapshot > hall -6,6 level 1 1`] = `
 
 exports[`golden snapshot > hall -6,7 level 1 1`] = `
 {
-  "digest": 2227692454,
+  "digest": 2067873936,
   "doors": [
     2,
     5,
@@ -188,7 +188,7 @@ exports[`golden snapshot > hall -6,7 level 1 1`] = `
 
 exports[`golden snapshot > hall -6,8 level 1 1`] = `
 {
-  "digest": 506015602,
+  "digest": 3230981906,
   "doors": [
     1,
     1,
@@ -220,7 +220,7 @@ exports[`golden snapshot > hall -6,8 level 1 1`] = `
 
 exports[`golden snapshot > hall -10,-50 level 1 1`] = `
 {
-  "digest": 2190618562,
+  "digest": 2931177034,
   "doors": [
     3,
     1,
@@ -233,7 +233,7 @@ exports[`golden snapshot > hall -10,-50 level 1 1`] = `
   "orientation": "NS",
   "sample": [
     "A life-sized heron, walking with a high, careful step, its wings finely scalloped, a pair of eggs at its feet; furred over with coral, crusted with shellfish.",
-    "A life-sized ship's carpenter, swinging a child by the hands, holding a short sword, point down, with a faint frown; furred over with coral, hung with seaweed.",
+    "A life-sized shipwrecked sailor clinging to a spar, spinning on one foot, carrying a bundle of arrows, alone; furred over with coral, hung with seaweed.",
   ],
   "size": [
     110,
@@ -252,7 +252,7 @@ exports[`golden snapshot > hall -10,-50 level 1 1`] = `
 
 exports[`golden snapshot > hall -33,41 level 0 1`] = `
 {
-  "digest": 246960080,
+  "digest": 1896074514,
   "doors": [
     0,
     1,
@@ -282,7 +282,7 @@ exports[`golden snapshot > hall -33,41 level 0 1`] = `
 
 exports[`golden snapshot > hall -88,0 level 1 1`] = `
 {
-  "digest": 3445949775,
+  "digest": 515311257,
   "doors": [
     3,
     5,
@@ -314,7 +314,7 @@ exports[`golden snapshot > hall -88,0 level 1 1`] = `
 
 exports[`golden snapshot > hall -192,0 level 1 1`] = `
 {
-  "digest": 4169176670,
+  "digest": 2208091836,
   "doors": [
     0,
     1,
@@ -346,7 +346,7 @@ exports[`golden snapshot > hall -192,0 level 1 1`] = `
 
 exports[`golden snapshot > hall 0,0 level 1 1`] = `
 {
-  "digest": 2763120270,
+  "digest": 2327032756,
   "doors": [
     3,
     4,
@@ -379,7 +379,7 @@ exports[`golden snapshot > hall 0,0 level 1 1`] = `
 
 exports[`golden snapshot > hall 0,5 level 1 1`] = `
 {
-  "digest": 369689196,
+  "digest": 1390868769,
   "doors": [
     4,
     2,
@@ -409,7 +409,7 @@ exports[`golden snapshot > hall 0,5 level 1 1`] = `
 
 exports[`golden snapshot > hall 1,-2 level 1 1`] = `
 {
-  "digest": 2930464957,
+  "digest": 2458688694,
   "doors": [
     1,
     2,
@@ -422,7 +422,7 @@ exports[`golden snapshot > hall 1,-2 level 1 1`] = `
   "orientation": "NS",
   "sample": [
     "A life-sized merchant weighing coin, spinning on one foot, carrying a bundle of keys, a hooded watcher behind; crusted with shellfish.",
-    "A life-sized horse-dealer, clapping hands overhead, holding a spindle, looking aside; crusted with shellfish.",
+    "A life-sized tailor, running forward, cloak streaming, carrying a pole across the shoulders, a snake coiled around the plinth; crusted with shellfish.",
   ],
   "size": [
     111,
@@ -439,7 +439,7 @@ exports[`golden snapshot > hall 1,-2 level 1 1`] = `
 
 exports[`golden snapshot > hall 2,2 level 1 1`] = `
 {
-  "digest": 4118810165,
+  "digest": 3974337661,
   "doors": [
     2,
     4,
@@ -452,7 +452,7 @@ exports[`golden snapshot > hall 2,2 level 1 1`] = `
   "orientation": "NS",
   "sample": [
     "A larger-than-life carving of the acolyte, arms folded peacefully, with a mask pushed up on the forehead, a pair of doves above; hung with seaweed.",
-    "A larger-than-life carving of the procession of the host, looking down with a faint smile, carrying a lantern with no flame, a sleeping cat in the lap; hung with seaweed.",
+    "A larger-than-life carving of the confessor, gazing into the distance, carrying a lantern with no flame, weight on one hip; hung with seaweed.",
   ],
   "size": [
     83,
@@ -471,7 +471,7 @@ exports[`golden snapshot > hall 2,2 level 1 1`] = `
 
 exports[`golden snapshot > hall 6,0 level 1 1`] = `
 {
-  "digest": 2471723194,
+  "digest": 3743882590,
   "doors": [
     1,
     0,
@@ -484,7 +484,7 @@ exports[`golden snapshot > hall 6,0 level 1 1`] = `
   "orientation": "NS",
   "sample": [
     "A colossal wind spirit, bent double, forehead almost touching the water, with a dozen small faces carved on the robe, alone.",
-    "A colossal giant, straining out of the wall, chest and arms reaching over the dark water, carrying a basket of carved fruit, a lamb at the side.",
+    "A colossal giant, leaning so far out that the broad back forms a flat ledge above the water, with great horns wound with flowers, with the face turned away.",
   ],
   "size": [
     124,
@@ -504,7 +504,7 @@ exports[`golden snapshot > hall 6,0 level 1 1`] = `
 
 exports[`golden snapshot > hall 12,-7 level 1 1`] = `
 {
-  "digest": 3090407184,
+  "digest": 2298895814,
   "doors": [
     2,
     1,
@@ -536,7 +536,7 @@ exports[`golden snapshot > hall 12,-7 level 1 1`] = `
 
 exports[`golden snapshot > hall 19,0 level 2 1`] = `
 {
-  "digest": 1193497444,
+  "digest": 1536346646,
   "doors": [
     3,
     1,

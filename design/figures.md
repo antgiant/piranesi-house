@@ -45,3 +45,13 @@ poses, attributes and companions (`src/data/sublists.ts`; `subOf` sorts every fi
 with the head turned to one side, every feather separately cut", a galleon "riding a carved wave, with oars shipped in neat
 rows", a cannon "laid across the plinth, a heap of carved shot at its foot". A hall draws up to 12 poses, 24 attributes and 12
 companions from each sort it needs, so figure, pose, attribute and companion are still one-to-one within a hall.
+
+## What can go with what (compatibility)
+A statue is drawn from four independent lists: figure, pose, what it holds or wears, and what keeps it company. Independent draws made impossible statues ("a wine-merchant, leaping from
+the plinth, with one sleeve rolled to the shoulder, a sleeping cat in the lap"). The root fix is in `src/data/compat.ts` and `tupleIndex` in `src/world/statues.ts`: every pose, attribute and
+companion is read for what it **is** and what it **needs** (a pose may be seated, both-hands-busy, airborne, active or violent; an attribute may need a free hand; a companion may need a lap, a
+floor to stand on, a free arm, or be gentle), and a combination is allowed only if nothing contradicts anything else (no lap without sitting; nothing at the feet of someone in the air; no hawk on
+the wrist of someone hauling a net; no lantern in the hands of someone clapping; nothing gentle with someone in a struggle). The generator still walks the same permutation of all combinations (so
+no two statues in a hall are alike), but the n-th statue takes the n-th **possible** combination it visits. Every list leaves at least 40% of its combinations possible, so a hall is never short.
+The general animal list lost the words that only suit some animals (feathers, beaks, wings, scales, horns, manes, claws). Fixing this changed every hall's statues: `WORLD_VERSION` is 8.
+When a new impossible pairing is found, add its words to the trait patterns in `compat.ts` and a line to `tests/compat.test.ts`.

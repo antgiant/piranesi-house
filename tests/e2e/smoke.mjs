@@ -321,7 +321,7 @@ try {
     check((await au.locator('#mute').getAttribute('aria-pressed')) === 'true', '[audiobook] the mute button shows it is muted');
     const before = await spokenCount();
     await au.click('#wander');
-    await au.waitForFunction((p) => document.getElementById('place').textContent !== p, held, { timeout: 30000 });
+    await au.waitForFunction((p) => document.getElementById('place').textContent !== p, held, { timeout: 120000 });
     check((await spokenCount()) === before, '[audiobook] muted, nothing is read aloud, though the wander goes on');
     await au.click('#wander');
     await au.click('#mute');

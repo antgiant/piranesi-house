@@ -4,7 +4,7 @@ import { hashInts, strHash } from './rng';
  * Bump when generator behaviour changes. Golden snapshot tests will fail until you do it on purpose. Peers in a shared world
  * must agree on it. Version 2: a far wider catalogue of statue subjects. Version 3: architectural flourishes in every hall. Version 4: about 140 kinds of them, birds in the upper and lower halls, and group statues without an article. Version 5: wording that fits each sort of subject (birds, fish, ships, weapons and so on). (Layout, tides and weather are unchanged by both.)
  */
-export const WORLD_VERSION = 7;
+export const WORLD_VERSION = 8;
 
 /**
  * What the seed is mixed with. It is NOT the world version: bumping the version for a change to one part of the world (such as

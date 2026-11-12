@@ -49,6 +49,8 @@ export interface Portal {
 export interface Bed {
   key: string;
   side: Side;
+  /** Where the opening is relative to the way you face (the engine places the sound in 3D from this). */
+  bearing: Bearing;
   pan: number;
   lowpassHz: number;
   /** The sea next door beyond what is heard here, 0..1. */
@@ -125,7 +127,7 @@ function portalsFor(world: World, s: SceneState, facing: Side | null, ownSea: nu
       const fl = a.falls.gain * DOOR_ATTEN;
       if (sea > 0.03 || fl > 0.03) {
         const bb = bearing(e.side, facing);
-        beds.push({ key: `${e.side}:${e.to.x},${e.to.y}`, side: e.side, pan: bb === 'left' ? -0.85 : bb === 'right' ? 0.85 : bb === 'ahead' ? (midPos - 500) / 1500 : 0, lowpassHz: bb === 'behind' ? 1100 : bb === 'ahead' ? 2400 : 1800, sea, falls: fl });
+        beds.push({ key: `${e.side}:${e.to.x},${e.to.y}`, side: e.side, bearing: bb, pan: bb === 'left' ? -0.85 : bb === 'right' ? 0.85 : bb === 'ahead' ? (midPos - 500) / 1500 : 0, lowpassHz: bb === 'behind' ? 1100 : bb === 'ahead' ? 2400 : 1800, sea, falls: fl });
       }
     }
     if (a.dark) continue;

@@ -1,10 +1,14 @@
 // Web Audio realisation of an AudioScene. Entirely procedural: no sample files, so no licensing and a tiny download.
 // Everything audible comes through one reverb whose length follows the hall, then one low-pass for cloud and water.
+// Sounds are placed in 3D with PannerNodes (HRTF, so headphones give front/back and up/down as well as left/right). The
+// listener stays at the origin facing -Z; see spatial.ts for the geometry. Birds are individual voices that can fly past, with
+// Doppler and air absorption done by hand (the PannerNode has neither). Tiny, frequent sounds share a fixed ring of panners.
 // Randomness here (bird timing, drips) is cosmetic and deliberately not part of the deterministic world.
 
 import { babblePlan, type BabbleEvent } from './babble';
 import type { AudioScene, Bed, Portal, Surface } from './director';
 import type { BirdSeason } from '../sim/seasons';
+import { REF_DISTANCE, airCutoffHz, bearingPosition, distanceOf, dopplerRatio, flybyPath, perchPosition, polar, positionAt, stageCell, velocityOf, type Flyby, type Vec3 } from './spatial';
 
 export type Species = 'goose' | 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
 
@@ -37,12 +41,30 @@ export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<Bird
 
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 
+/** Where a sound comes from. A number is the old -1..1 left/right pan (placed on an arc in front); 0 is "everywhere", unplaced. */
+export type Place = number | Vec3;
+
+/** Species that cross the sky while they call, how long the call is tracked for, and how fast they fly (m/s). */
+const FLIERS: Partial<Record<Species, { dur: number; speed: number; height: [number, number] }>> = {
+  goose: { dur: 3.4, speed: 16, height: [14, 30] },
+  swift: { dur: 1.4, speed: 22, height: [8, 26] },
+  gull: { dur: 1.7, speed: 11, height: [5, 18] },
+  wader: { dur: 1.3, speed: 14, height: [2, 6] },
+};
+/** In these bird scenes the birds that can fly are overhead and moving; in the rest they are perched. */
+const FLYING_MODES: ReadonlySet<AudioScene['birds']['mode']> = new Set(['soaring', 'passing', 'shore']);
+
+const FEET: Vec3 = { x: 0, y: -1.5, z: -0.4 };
+
+/** What a bird (or anything moving) is heard through: where it is, over the seconds it is tracked. */
+interface Voice { input: GainNode; doppler: ((t: number) => number) | null; path: Flyby | null }
+
 /** One doorway's worth of sound from the next hall: its own pan, its own muffling, its own timing. */
 interface PortalVoice {
   key: string;
   p: Portal;
   bus: GainNode;
-  pan: StereoPannerNode;
+  pan: PannerNode;
   lp: BiquadFilterNode;
   nextBoom: number;
   nextBird: number;
@@ -53,7 +75,7 @@ interface PortalVoice {
 interface BedVoice {
   key: string;
   bus: GainNode;
-  pan: StereoPannerNode;
+  pan: PannerNode;
   lp: BiquadFilterNode;
   /** Pulsed by the waves so the sea behind the wall swells and falls. */
   wave: GainNode;
@@ -114,7 +136,11 @@ export class AudioEngine {
   private whistleOsc: OscillatorNode[] = [];
   private outBus!: GainNode;
   private outLp!: BiquadFilterNode;
-  private outPan!: StereoPannerNode;
+  private outPan!: PannerNode;
+  /** Shared panners for small frequent sounds, made when first needed (see stageCell). */
+  private stage = new Map<string, GainNode>();
+  /** While a moving bird's call is being scheduled, the pitch ratio at a given time; applied by tone() and burst(). */
+  private doppler: ((t: number) => number) | null = null;
   private draughtGain!: GainNode;
   private hissGain!: GainNode;
   private ringGain!: GainNode;
@@ -178,6 +204,7 @@ export class AudioEngine {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AC();
     this.ctx = ctx;
+    this.setupListener();
     this.master = ctx.createGain();
     this.master.gain.value = this.muted ? 0 : this.volume;
     this.lowpass = ctx.createBiquadFilter();
@@ -208,6 +235,7 @@ export class AudioEngine {
     this.timer = null;
     void this.ctx?.close();
     this.ctx = null;
+    this.stage.clear();
   }
 
   setVolume(v: number): void {
@@ -233,6 +261,11 @@ export class AudioEngine {
     if (!ctx) return;
     if (kind === 'thunder') this.thunder(ctx.currentTime + 0.02, 0.8);
     else this.bird(kind, ctx.currentTime + 0.02, 0.8);
+  }
+
+  /** Play a bird call from a given point, or along a given path (or a random fly-past with 'fly'). For tests and for trying the sounds out. */
+  demoAt(kind: Species, where: Vec3 | Flyby | 'fly', loud = 0.8): void {
+    if (this.ctx) this.bird(kind, this.ctx.currentTime + 0.02, loud, undefined, where);
   }
 
   /** RMS of what is currently coming out (0..1). Used by the end-to-end tests. */
@@ -278,6 +311,103 @@ export class AudioEngine {
     s.loopStart = Math.random() * 1;
     s.start();
     return s;
+  }
+
+  // -------------------------------------------------------------------------------------------------------------
+  // Placing sound in space
+  // -------------------------------------------------------------------------------------------------------------
+
+  /** The listener is the visitor: at the origin, facing -Z, head up. It never moves; sources are placed around it. */
+  private setupListener(): void {
+    const l = (this.ctx as AudioContext).listener;
+    if (l.positionX) {
+      l.positionX.value = 0; l.positionY.value = 0; l.positionZ.value = 0;
+      l.forwardX.value = 0; l.forwardY.value = 0; l.forwardZ.value = -1;
+      l.upX.value = 0; l.upY.value = 1; l.upZ.value = 0;
+    } else {
+      l.setPosition(0, 0, 0); // older Safari has only the method forms
+      l.setOrientation(0, 0, -1, 0, 1, 0);
+    }
+  }
+
+  /** A panner at a point. HRTF gives headphones real direction; loudness is unchanged within REF_DISTANCE and falls beyond it. */
+  private makePanner(at: Vec3, hrtf = true): PannerNode {
+    const p = (this.ctx as AudioContext).createPanner();
+    p.panningModel = hrtf ? 'HRTF' : 'equalpower';
+    p.distanceModel = 'inverse';
+    p.refDistance = REF_DISTANCE;
+    p.rolloffFactor = 1.1;
+    p.maxDistance = 10000;
+    this.placeAt(p, at);
+    return p;
+  }
+
+  /** Move a panner to a point, at once, or (with `tc`) easing there so a turn of the head does not click. */
+  private placeAt(p: PannerNode, at: Vec3, tc?: number): void {
+    if (!p.positionX) { p.setPosition(at.x, at.y, at.z); return; }
+    if (tc === undefined) { p.positionX.value = at.x; p.positionY.value = at.y; p.positionZ.value = at.z; return; }
+    const now = (this.ctx as AudioContext).currentTime;
+    p.positionX.setTargetAtTime(at.x, now, tc);
+    p.positionY.setTargetAtTime(at.y, now, tc);
+    p.positionZ.setTargetAtTime(at.z, now, tc);
+  }
+
+  /**
+   * Where to send a small sound so that it is heard from `place`: straight to the mix for 0 ("everywhere"), otherwise into a
+   * shared panner for that direction, made the first time it is needed.
+   */
+  private spot(place: Place): AudioNode {
+    if (place === 0) return this.bus;
+    const at = typeof place === 'number' ? polar(place * 70, 0, REF_DISTANCE) : place;
+    const cell = stageCell(at);
+    let g = this.stage.get(cell.key);
+    if (!g) {
+      const ctx = this.ctx as AudioContext;
+      g = ctx.createGain();
+      g.connect(this.makePanner(polar(cell.az, cell.el, REF_DISTANCE))).connect(this.bus);
+      this.stage.set(cell.key, g);
+    }
+    return g;
+  }
+
+  /**
+   * One voice with a panner of its own: a bird on a perch (a point) or crossing the sky (a path). The path is followed by the
+   * panner's position, the air takes the highs off with distance, and a Doppler function says how much to bend each note's
+   * pitch at the time it is played. Torn down shortly after the call ends.
+   */
+  private voice(t: number, at: Vec3 | Flyby, tail = 1.5): Voice {
+    const ctx = this.ctx as AudioContext;
+    const path = 'from' in at ? at : null;
+    const start = path ? path.from : (at as Vec3);
+    const input = ctx.createGain();
+    const air = ctx.createBiquadFilter();
+    air.type = 'lowpass';
+    const panner = this.makePanner(start);
+    input.connect(air).connect(panner).connect(this.bus);
+    air.frequency.value = airCutoffHz(distanceOf(start));
+    let doppler: Voice['doppler'] = null;
+    let life = Math.max(0, t - ctx.currentTime) + tail;
+    if (path && panner.positionX) {
+      const N = 14;
+      panner.positionX.setValueAtTime(start.x, t);
+      panner.positionY.setValueAtTime(start.y, t);
+      panner.positionZ.setValueAtTime(start.z, t);
+      air.frequency.setValueAtTime(airCutoffHz(distanceOf(start)), t);
+      for (let i = 1; i <= N; i++) {
+        const u = i / N, at2 = t + u * path.dur, p = positionAt(path, u);
+        panner.positionX.linearRampToValueAtTime(p.x, at2);
+        panner.positionY.linearRampToValueAtTime(p.y, at2);
+        panner.positionZ.linearRampToValueAtTime(p.z, at2);
+        air.frequency.linearRampToValueAtTime(airCutoffHz(distanceOf(p)), at2);
+      }
+      const v = velocityOf(path);
+      doppler = (tt) => dopplerRatio(positionAt(path, Math.max(0, Math.min(1, (tt - t) / path.dur))), v);
+      life += path.dur;
+    } else if (path) {
+      this.placeAt(panner, positionAt(path, 0.5)); // an old browser without AudioParam positions: hold still in the middle
+    }
+    setTimeout(() => { input.disconnect(); air.disconnect(); panner.disconnect(); }, life * 1000);
+    return { input, doppler, path };
   }
 
   private buildBeds(): void {
@@ -370,7 +500,7 @@ export class AudioEngine {
     this.outLp = ctx.createBiquadFilter();
     this.outLp.type = 'lowpass';
     this.outLp.frequency.value = 1300;
-    this.outPan = ctx.createStereoPanner();
+    this.outPan = this.makePanner(bearingPosition('ahead', 0));
     this.outBus = ctx.createGain();
     this.outBus.connect(this.outLp).connect(this.outPan).connect(this.bus);
     const draughtFilter = ctx.createBiquadFilter();
@@ -440,7 +570,7 @@ export class AudioEngine {
     ease(this.ringGain.gain, o?.kind === 'draught' ? o.gain * 0.01 : 0);
     ease(this.trafficGain.gain, o?.kind === 'traffic' ? o.gain * 0.5 : 0);
     ease(this.trafficFilter.frequency, 250 + (o?.kind === 'traffic' ? o.gain * 650 : 0), 1.2);
-    ease(this.outPan.pan, !o ? 0 : o.bearing === 'left' ? -0.8 : o.bearing === 'right' ? 0.8 : 0);
+    if (o) this.placeAt(this.outPan, bearingPosition(o.bearing, 0, 5), 0.5);
     ease(this.outLp.frequency, o?.bearing === 'behind' ? 700 : 1300);
     const id = o?.id ?? '';
     if (id !== this.outsideId) {
@@ -489,7 +619,7 @@ export class AudioEngine {
       let v = this.beds.find((x) => x.key === b.key);
       if (!v) {
         const bus = ctx.createGain();
-        const pan = ctx.createStereoPanner();
+        const pan = this.makePanner(bearingPosition(b.bearing, b.pan));
         const lp = ctx.createBiquadFilter();
         lp.type = 'lowpass';
         // through a doorway the low parts of water carry and the rest does not: a bump in the low mids, nothing bright
@@ -518,7 +648,7 @@ export class AudioEngine {
       }
       const now = ctx.currentTime;
       v.falls = b.falls;
-      v.pan.pan.setTargetAtTime(b.pan, now, 0.3);
+      this.placeAt(v.pan, bearingPosition(b.bearing, b.pan), 0.3);
       v.lp.frequency.setTargetAtTime(b.lowpassHz * 0.5, now, 0.3);
       v.seaG.gain.setTargetAtTime(b.sea * 0.6, now, 1);
       v.fallsG.gain.setTargetAtTime(b.falls * 0.2, now, 1);
@@ -540,14 +670,14 @@ export class AudioEngine {
       let v = this.voices.find((x) => x.key === key);
       if (!v) {
         const bus = ctx.createGain();
-        const pan = ctx.createStereoPanner();
+        const pan = this.makePanner(bearingPosition(p.bearing, p.pan));
         const lp = ctx.createBiquadFilter();
         lp.type = 'lowpass';
         bus.connect(lp).connect(pan).connect(this.bus);
         v = { key, p, bus, pan, lp, nextBoom: 0, nextBird: 0, nextDrip: 0 };
       }
       v.p = p;
-      v.pan.pan.setTargetAtTime(p.pan, ctx.currentTime, 0.3);
+      this.placeAt(v.pan, bearingPosition(p.bearing, p.pan), 0.3);
       v.lp.frequency.setTargetAtTime(p.lowpassHz, ctx.currentTime, 0.3);
       keep.push(v);
     }
@@ -631,7 +761,7 @@ export class AudioEngine {
     // birds
     const kinds = speciesFor(a.birds.mode, a.birds.season);
     if (a.birds.perMinute > 0 && kinds.length > 0 && t >= this.nextBird) {
-      this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness);
+      this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, FLYING_MODES.has(a.birds.mode) ? 'fly' : undefined);
       this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6);
     }
   }
@@ -739,34 +869,31 @@ export class AudioEngine {
     g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
   }
 
-  private burst(t: number, dur: number, type: BiquadFilterType, freq: number, q: number, peak: number, pan = 0, attack = 0.004, out?: AudioNode): void {
+  private burst(t: number, dur: number, type: BiquadFilterType, freq: number, q: number, peak: number, at: Place = 0, attack = 0.004, out?: AudioNode): void {
     const ctx = this.ctx as AudioContext;
     const s = ctx.createBufferSource();
     s.buffer = this.noise;
     const f = ctx.createBiquadFilter();
     f.type = type;
-    f.frequency.value = freq;
+    f.frequency.value = freq * (this.doppler?.(t) ?? 1);
     f.Q.value = q;
     const g = ctx.createGain();
-    const p = ctx.createStereoPanner();
-    p.pan.value = pan;
     this.env(g, t, attack, 0, dur, peak);
-    s.connect(f).connect(g).connect(p).connect(out ?? this.bus);
+    s.connect(f).connect(g).connect(out ?? this.spot(at));
     s.start(t, Math.random() * 2);
     s.stop(t + dur + attack + 0.05);
   }
 
-  private tone(t: number, f0: number, f1: number, dur: number, type: OscillatorType, peak: number, pan = 0, attack = 0.005, out?: AudioNode): void {
+  private tone(t: number, f0: number, f1: number, dur: number, type: OscillatorType, peak: number, at: Place = 0, attack = 0.005, out?: AudioNode): void {
     const ctx = this.ctx as AudioContext;
     const o = ctx.createOscillator();
     o.type = type;
-    o.frequency.setValueAtTime(f0, t);
-    o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    const k = this.doppler?.(t) ?? 1;
+    o.frequency.setValueAtTime(f0 * k, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, f1 * k), t + dur);
     const g = ctx.createGain();
-    const p = ctx.createStereoPanner();
-    p.pan.value = pan;
     this.env(g, t, attack, 0, dur, peak);
-    o.connect(g).connect(p).connect(out ?? this.bus);
+    o.connect(g).connect(out ?? this.spot(at));
     o.start(t);
     o.stop(t + dur + attack + 0.05);
   }
@@ -780,10 +907,30 @@ export class AudioEngine {
     this.burst(t, 0.6, 'lowpass', 300, 0.5, peak * 0.6, 0, 0.004, out);
   }
 
-  /** A bird call. Through a doorway it keeps the doorway's own placement (pan 0 here; the portal bus pans it). */
-  private bird(sp: Species, t: number, loud: number, out?: AudioNode): void {
+  /**
+   * A bird call. Through a doorway it keeps the doorway's own placement (the portal bus places it). In the hall it gets a voice of
+   * its own: perched somewhere around and above you, or, with `where` = 'fly' (and a species that flies), crossing the sky on a
+   * random path, or on the path or point given. The flock is the exception: it is scattered over the sky, burst by burst.
+   */
+  private bird(sp: Species, t: number, loud: number, out?: AudioNode, where?: 'fly' | Vec3 | Flyby): void {
     this.calls++;
-    const pan = out ? 0 : rand(-0.9, 0.9);
+    const pan = 0;
+    const prev = this.doppler;
+    let answer: Voice | null = null;
+    if (!out && sp !== 'flock') {
+      const fl = FLIERS[sp];
+      const flight = (): Flyby => flybyPath(Math.random, { dur: (fl as NonNullable<typeof fl>).dur, speed: (fl as NonNullable<typeof fl>).speed, closest: [3, 12], height: (fl as NonNullable<typeof fl>).height });
+      const at: Vec3 | Flyby = where && where !== 'fly' ? where : where === 'fly' && fl ? flight() : perchPosition(Math.random);
+      const voice = this.voice(t, at);
+      out = voice.input;
+      this.doppler = voice.doppler;
+      // a second swift answering from somewhere else
+      if (sp === 'swift') answer = this.voice(t + 0.35, where === 'fly' && fl ? flight() : perchPosition(Math.random, [10, 50], [6, 18]));
+    }
+    try { this.birdCall(sp, t, loud, out, pan, answer); } finally { this.doppler = prev; }
+  }
+
+  private birdCall(sp: Species, t: number, loud: number, out: AudioNode | undefined, pan: number, answer: Voice | null): void {
     const v = 0.05 + loud * 0.08;
     switch (sp) {
       case 'goose': {
@@ -852,7 +999,8 @@ export class AudioEngine {
         // a high thin scream: a fast descending trill, with a second bird answering a little way behind
         const n = 8 + Math.floor(Math.random() * 6);
         for (let i = 0; i < n; i++) this.tone(t + i * 0.052, 7400 - i * 90, 6000 - i * 90, 0.05, 'sine', v * 0.8, pan, 0.004, out);
-        for (let i = 0; i < n - 3; i++) this.tone(t + 0.35 + i * 0.05, 6600 - i * 80, 5600 - i * 80, 0.05, 'sine', v * 0.5, -pan, 0.004, out);
+        if (answer) this.doppler = answer.doppler;
+        for (let i = 0; i < n - 3; i++) this.tone(t + 0.35 + i * 0.05, 6600 - i * 80, 5600 - i * 80, 0.05, 'sine', v * 0.5, 0, 0.004, answer ? answer.input : out);
         break;
       }
       case 'wader': {
@@ -884,7 +1032,7 @@ export class AudioEngine {
         break;
       }
       case 'flock':
-        for (let i = 0; i < 6; i++) this.burst(t + i * 0.12, 0.5, 'bandpass', rand(2500, 5000), 0.8, v * 0.9, out ? 0 : rand(-1, 1), 0.15, out);
+        for (let i = 0; i < 6; i++) this.burst(t + i * 0.12, 0.5, 'bandpass', rand(2500, 5000), 0.8, v * 0.9, out ? 0 : perchPosition(Math.random, [10, 65], [6, 22]), 0.15, out);
         break;
       case 'rustle':
         this.burst(t, rand(0.1, 0.25), 'highpass', 3500, 0.7, v * 0.7, pan, 0.02, out);
@@ -935,11 +1083,12 @@ export class AudioEngine {
     if (!ctx) return;
     if (!this.usable()) return;
     const t = ctx.currentTime + 0.01;
+    const f = FEET; // under you and a little ahead: the floor, not the middle of your head
     switch (surface) {
-      case 'marble': this.burst(t, 0.07, 'bandpass', 1500, 1.2, 0.35); this.tone(t, 160, 90, 0.08, 'sine', 0.2); break;
-      case 'wet': this.burst(t, 0.12, 'bandpass', 900, 0.9, 0.35); this.burst(t + 0.02, 0.18, 'highpass', 3000, 0.5, 0.15); break;
-      case 'shallow': this.burst(t, 0.35, 'bandpass', 600, 0.6, 0.5); this.burst(t + 0.05, 0.3, 'highpass', 2500, 0.5, 0.25); break;
-      case 'rubble': for (let i = 0; i < 5; i++) this.burst(t + i * 0.025, 0.05, 'bandpass', rand(900, 3000), 1.5, 0.28); break;
+      case 'marble': this.burst(t, 0.07, 'bandpass', 1500, 1.2, 0.35, f); this.tone(t, 160, 90, 0.08, 'sine', 0.2, f); break;
+      case 'wet': this.burst(t, 0.12, 'bandpass', 900, 0.9, 0.35, f); this.burst(t + 0.02, 0.18, 'highpass', 3000, 0.5, 0.15, f); break;
+      case 'shallow': this.burst(t, 0.35, 'bandpass', 600, 0.6, 0.5, f); this.burst(t + 0.05, 0.3, 'highpass', 2500, 0.5, 0.25, f); break;
+      case 'rubble': for (let i = 0; i < 5; i++) this.burst(t + i * 0.025, 0.05, 'bandpass', rand(900, 3000), 1.5, 0.28, f); break;
     }
   }
 }

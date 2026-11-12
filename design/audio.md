@@ -10,6 +10,30 @@ what you read cannot disagree.
 **The engine** (`src/audio/engine.ts`) realises an `AudioScene` with the Web Audio API. It is entirely procedural: no
 sample files, so no licensing and a tiny download. It needs a user gesture to start (the title screen's button).
 
+## Spatial audio (`src/audio/spatial.ts`, placement in `engine.ts`)
+Sounds are placed in 3D with Web Audio `PannerNode`s in HRTF mode, so on headphones the sound comes from outside the head and
+front/back and up/down are audible, not just left/right. On speakers it degrades to something like stereo.
+
+* **The listener is fixed** at the origin facing -Z (+X right, +Y up, metres). The director already gives every door's bearing
+  *relative to the way the visitor faces*, so sources are placed around the listener and the listener never turns.
+* **Doorways, wall-borne beds and "outside" hints** get one panner each, placed by bearing (`bearingPosition`): left and right are
+  hard left and right, an opening ahead is nudged by its position along the wall, and one behind is really behind (the old stereo pan
+  could not tell ahead from behind). Moving between positions eases, so turning does not click.
+* **Birds** each get a voice (`voice()`): a gain, an air-absorption low-pass and a panner. Perched birds sit somewhere around and
+  above you at 4-14 m. Birds that fly (gull, swift, goose, wader, in the soaring, passing and shore scenes) cross the sky on a straight
+  path (`flybyPath`) with the panner's position automated along it. The panner has no Doppler, so the pitch of every note is
+  scaled by `dopplerRatio` for where the bird is at the moment the note starts; and the air takes the highs off with distance
+  (`airCutoffHz`). The flock is scattered over the sky burst by burst.
+* **Loudness**: `refDistance` is 4 m, so nothing nearer than that is louder than before; farther sources fall off (inverse model).
+* **Small frequent sounds** (laps, bubbles, drips, footsteps) cannot each have an HRTF panner: they share a lazily-made ring of at
+  most 37 fixed directions (`stageCell`). Footsteps are placed under you.
+* **Still unplaced** (centre of the head, as before): the main sea, rain, wind and falls beds, thunder, the muttering and the reverb
+  (a 2-channel noise IR). Making these surround is the next step.
+
+Checked in `tests/spatial.test.ts` (geometry, Doppler, paths) and, measured on the rendered output of the real engine in an offline
+context: a source at the left is about 3.5x louder in the left ear, right likewise; ahead is louder than behind; a fly-past
+from left to right moves the level between the ears and glides pitch from about +6% to -6%.
+
 ## Layers
 | Layer | Made from | Driven by |
 |---|---|---|

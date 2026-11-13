@@ -60,6 +60,7 @@ export class Falls {
   private level = 0;
   private dripping = 1;
   private flow = 0;
+  private drown = 1;
   private air!: BiquadFilterNode;
   /** Live drips made so far (for tests). */
   drips = 0;
@@ -156,18 +157,24 @@ export class Falls {
     const near = s.near ?? 1;                         // distance: louder at the foot of it, a murmur across the floor...
     const lv = Math.pow(Math.max(L, 0.05), 0.8) * near; // loudness moves by the square root of the flow (6-7 dB over the whole range), and by how near you are
     const to = (p: AudioParam, v: number): void => { p.setTargetAtTime(v, t, tc); };
+    // The single drops, plops and bubbles are the pool the water lands in. A pool does not grow with the flow: it stays the size it is, so these keep the
+    // level they have in a thread (lvPool) and are then *drowned* as the roar rises over them: a thread falls straight into the pool; an ordinary flow
+    // buries most of them; a torrent leaves none to hear. (The roar is the fall itself, not a second stream.)
+    const lvPool = Math.pow(0.48, 0.8) * near;
+    const drown = 1 - 0.97 * clamp((m - 0.08) / 0.4, 0, 1) ** 0.8;
+    this.drown = drown;
     to(this.air.frequency, airCutoffHz(s.dist ?? 5));   // ...and darker, the farther it is: what distance does, and more water does not
     const w = (lo: number, hi: number, k: number): number => lo + (hi - lo) * Math.pow(m, k);
-    to(this.layer.wash.gain, TRIM * LEVEL.wash * lv * w(0.05, 1.5, 1.3));             // the roar: almost none in a thread, most of it in a torrent
-    to(this.layer.fine.gain, TRIM * LEVEL.fine * lv * w(0.6, 0.45, 1));               // the sparkle of small bubbles: always there, but no more for more water
-    to(this.layer.plops.gain, TRIM * LEVEL.plops * lv * w(1.0, 0.4, 1));           // big plops: more, and bigger, with more water
-    to(this.layer.trickle.gain, TRIM * LEVEL.trickle * lv * w(2.0, 0.02, 0.7));        // single drops and threads: a thread is made of them
-    to(this.layer.rumble.gain, TRIM * LEVEL.rumble * lv * w(0, 1.6, 1.2) * clamp((m - 0.25) / 0.75, 0, 1)); // the mass of the water: only a real flow has it
-    to(this.layer.spray.gain, TRIM * LEVEL.spray * lv * w(1.0, 0.45, 1));              // a fine spray: the top of a thin fall
+    to(this.layer.wash.gain, TRIM * LEVEL.wash * lv * (0.07 + 1.8 * Math.pow(clamp((m - 0.06) / 0.44, 0, 1), 0.8) + 0.7 * clamp((m - 0.5) / 0.5, 0, 1)));             // the roar: almost none in a thread, most of it in a torrent
+    to(this.layer.fine.gain, TRIM * LEVEL.fine * lvPool * 0.6 * drown);               // the sparkle of small bubbles: always there, but no more for more water
+    to(this.layer.plops.gain, TRIM * LEVEL.plops * lvPool * 1.0 * drown);           // big plops: more, and bigger, with more water
+    to(this.layer.trickle.gain, TRIM * LEVEL.trickle * lvPool * 2.0 * drown);        // single drops and threads: a thread is made of them
+    to(this.layer.rumble.gain, TRIM * LEVEL.rumble * lv * w(0, 1.8, 0.8) * clamp((m - 0.1) / 0.5, 0, 1)); // the mass of the water: only a real flow has it
+    to(this.layer.spray.gain, TRIM * LEVEL.spray * lv * w(1.0, 0.12, 0.5));              // a fine spray: the top of a thin fall
     for (const d of this.diffuse) to(d.gain, TRIM * LEVEL.diffuse * lv * w(0.5, 0.45, 1)); // a thread is heard across the room, a torrent is right at you: less of the room's share
     // the wash gains body as it grows (the cut moves from 600 Hz down to 230) and loses a little of its top
-    for (const h of this.washHp) to(h.frequency, w(850, 230, 1));
-    for (const a of this.washAir) to(a.gain, w(9, 3, 1));                              // and the top is brighter the thinner it is
+    for (const h of this.washHp) to(h.frequency, w(850, 200, 0.45));
+    for (const a of this.washAir) to(a.gain, w(9, -2, 0.6));                              // and the top is brighter the thinner it is
     for (const l of this.washLp) to(l.frequency, w(12500, 8500, 1));
     // bigger bubbles ring lower: the swarms play slower as the water grows (a fall of a thread's size is high and small)
     for (const src of this.fineSrc) to(src.playbackRate, w(1.35, 0.82, 1));
@@ -181,7 +188,7 @@ export class Falls {
   tick(t: number): void {
     if (this.level < 0.05 || t < this.nextDrip) return;
     // a stream drips more, in the wetter, quieter way; a strong fall hides most of its drips
-    if (Math.random() < this.flow * 0.85) { this.nextDrip = t + rand(1, 3); return; } // a drop is buried in running water
+    if (Math.random() > this.drown) { this.nextDrip = t + rand(1, 3); return; } // a drop is buried in running water
     this.drip(t + 0.02);
     this.nextDrip = t + rand(1.5, 5) / ((0.4 + this.level * (1.2 - 0.6 * this.flow)) * Math.max(0.2, this.dripping));
   }

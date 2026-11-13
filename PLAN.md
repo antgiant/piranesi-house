@@ -334,3 +334,10 @@ standing in the same hall hear the same ambience.
 ### Config (draft)
 `seed`, `worldVersion`, `timeScale`, `showDead`, `packs.outsideTraces`, `packs.visitorMarks`, `packs.previousVisitors`, `relicDensity`, `inventory`, `audio.master`, `view` (`text` | `map` |
 `3d`), `multiplayer` (`off` | `on`), `roomName`.
+
+## Next (owner's direction, after the weather)
+
+* Ground the whole natural world in the author's home region (Derbyshire and the English coast): weather (done), then plants and animals. The book's
+  intent is read as: the House's life is that place's life, with animals now and then straying in through the portal and seeds blown or carried in.
+  Anything the book says to the contrary wins.
+* Order of work: wind, then the sound of steps, then animal life (birds first); echo/reverb of the halls may come early or first.

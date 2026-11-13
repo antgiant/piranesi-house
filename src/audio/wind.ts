@@ -3,6 +3,9 @@
 //     listener instead of pumping in the middle of the head;
 //   * DEEPER WITH SPEED: a low roar always, a mid rush that opens up as it blows, a hiss that only comes in a strong wind; the loudness rises steeply with
 //     speed (aerodynamic noise goes with about the fifth power of it) and the gusting deepens as it blows harder;
+//   * GUSTS THAT ARE DEEP, SLOW AND COMMON: measured on a recording from a castle tower in a mistral (design/wind.md), the level swings 13-18 dB between its
+//     quiet and its loud moments, in every band together, and takes a few seconds to change; one gust is shared by all the beds, with a smaller share of its own in each;
+//   * MOANING IN THE STONE: the openings of a tower or hall ring at fixed low pitches (about 200 and 300 Hz) that swell with the gusts: what the real wind does most;
 //   * WHISTLING WHERE IT PASSES EDGES: an edge or a rod sheds vortices at a rate that follows the wind (Strouhal: frequency = 0.2 x speed / thickness),
 //     so a statue's whistle rises and falls with each gust. Three of them, each at its own place in the hall.
 
@@ -20,8 +23,10 @@ export interface WindScene {
 
 /** Where the whistles are (azimuth, elevation) and what thickness makes them, as the pitch at 10 m/s. */
 const WHISTLES: readonly { at: number; f10: number }[] = [
-  { at: 2, f10: 520 }, { at: 5, f10: 790 }, { at: 7, f10: 1240 },
+  { at: 2, f10: 420 }, { at: 5, f10: 700 }, { at: 7, f10: 1500 },
 ];
+/** The stone's own low notes, and where they come from. */
+const MOANS: readonly { at: number; f: number; q: number }[] = [{ at: 3, f: 195, q: 9 }, { at: 4, f: 305, q: 8 }];
 const BEDS = [0, 1, 4, 5, 6];
 const TRIM = 0.28;
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
@@ -30,7 +35,9 @@ export class Wind {
   private readonly ctx: BaseAudioContext;
   private sources: AudioScheduledSourceNode[] = [];
   private nodes: AudioNode[] = [];
-  private bed: { out: GainNode; body: BiquadFilterNode; mid: BiquadFilterNode; midG: GainNode; hissG: GainNode; wob: GainNode }[] = [];
+  private bed: { out: GainNode; body: BiquadFilterNode; bodyG: GainNode; mid: BiquadFilterNode; midG: GainNode; hissG: GainNode }[] = [];
+  private moans: { g: GainNode; bp: BiquadFilterNode }[] = [];
+  private gustDepth: GainNode[] = [];
   private whistles: { osc: OscillatorNode[]; g: GainNode; f10: number }[] = [];
 
   constructor(deps: { ctx: BaseAudioContext; spot: (at: Vec3) => AudioNode }) {
@@ -42,27 +49,44 @@ export class Wind {
       s.playbackRate.value = speed * (0.95 + Math.random() * 0.1); s.start(0, Math.random() * s.buffer.duration);
       this.sources.push(s); return s;
     };
+    // a gust is never negative: its level is the shaped, slow wander of a control signal (a peaky curve, so the loud moments are brief and the quiet ones long)
+    const curve = new Float32Array(257);
+    for (let i = 0; i < 257; i++) { const v = (i / 256) * 2 - 1; curve[i] = 0.03 + 1.25 * Math.pow(clamp(v * 0.5 + 0.5, 0, 1), 1.7); }
+    const shape = (): WaveShaperNode => { const w = ctx.createWaveShaper(); w.curve = curve; this.nodes.push(w); return w; };
+    const shared = gain(1); // one gust, felt everywhere
+    const sharedDepth = gain(0.36); this.gustDepth.push(sharedDepth);
+    loop('ctl', 0.035).connect(sharedDepth).connect(shared);
     for (const i of BEDS) {
       const at = AROUND[i]!;
-      const out = gain(0), wob = gain(1);
-      // the gusting of this bed alone: a slow wander, deeper in a strong wind
-      loop('ctl', 0.3 + Math.random() * 0.25).connect(gain(0.5)).connect(wob.gain);
-      const body = filt('lowpass', 200, -3.01), mid = filt('bandpass', 600, 0.7), midG = gain(0), hissG = gain(0);
-      loop('brown').connect(body).connect(gain(0.12)).connect(wob);
+      const out = gain(0), wob = gain(0);
+      // this bed's gust: the shared one with a share of its own, so a gust sweeps across the listener
+      const mixc = gain(1); shared.connect(mixc); loop('ctl', 0.11 + Math.random() * 0.05).connect(gain(0.32)).connect(mixc); mixc.connect(shape()).connect(wob.gain);
+      const body = filt('lowpass', 200, -3.01), mid = filt('bandpass', 600, 0.7), midG = gain(0), hissG = gain(0), bodyG = gain(0.5);
+      loop('brown').connect(body).connect(bodyG).connect(wob);
       loop('pink').connect(mid).connect(midG).connect(wob);
       loop('white').connect(filt('highpass', 3200, -3.01)).connect(filt('lowpass', 9000, -3.01)).connect(hissG).connect(wob);
       wob.connect(out).connect(deps.spot(polar(at.az, at.el, 6)));
-      this.bed.push({ out, body, mid, midG, hissG, wob });
+      this.bed.push({ out, body, bodyG, mid, midG, hissG });
+    }
+    for (const mo of MOANS) {
+      const at = AROUND[mo.at]!;
+      const g = gain(0), wob = gain(0), mixc = gain(1);
+      shared.connect(mixc); loop('ctl', 0.1).connect(gain(0.35)).connect(mixc); mixc.connect(shape()).connect(wob.gain);
+      const bp = filt('bandpass', mo.f, mo.q);
+      loop('ctl', 0.09).connect(gain(mo.f * 0.05)).connect(bp.frequency); // the note leans with the gust
+      loop('pink').connect(bp).connect(gain(2.2)).connect(wob);
+      wob.connect(g).connect(deps.spot(polar(at.az, at.el, 6)));
+      this.moans.push({ g, bp });
     }
     for (const w of WHISTLES) {
       const at = AROUND[w.at]!;
-      const g = gain(0), wob = gain(0.6);
-      loop('ctl', 0.45).connect(gain(0.4)).connect(wob.gain); // the whistle swells and fades with each gust
+      const g = gain(0), wob = gain(0), mixc = gain(1);
+      shared.connect(mixc); mixc.connect(shape()).connect(wob.gain); // the whistle swells and fades with each gust
       const osc: OscillatorNode[] = [];
       for (const k of [1, 1.004]) {
         const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = w.f10 * k; o.start();
         // and rises and falls in pitch with it
-        loop('ctl', 0.45).connect(gain(w.f10 * 0.07)).connect(o.frequency);
+        loop('ctl', 0.3).connect(gain(w.f10 * 0.06)).connect(o.frequency);
         o.connect(wob); osc.push(o); this.sources.push(o);
       }
       wob.connect(g).connect(deps.spot(polar(at.az, at.el, 7)));
@@ -78,21 +102,23 @@ export class Wind {
     const amp = TRIM * Math.pow(level, 1.5);          // loudness rises steeply with how hard it blows
     for (const b of this.bed) {
       to(b.out.gain, amp * 0.5);
-      to(b.body.frequency, 110 + 380 * u);
+      to(b.body.frequency, 160 + 320 * u);
+      to(b.bodyG.gain, 0.7);
       to(b.mid.frequency, 330 + 700 * u);
-      to(b.midG.gain, 0.5 + 1.4 * u * u);
-      to(b.hissG.gain, 0.5 * Math.pow(Math.max(0, u - 0.35), 1.2));
+      to(b.midG.gain, 0.4 + 0.5 * u * u);
+      to(b.hissG.gain, 0.12 * Math.pow(Math.max(0, u - 0.35), 1.2));
     }
+    for (const m of this.moans) to(m.g.gain, 1.2 * Math.pow(clamp((u - 0.15) / 0.85, 0, 1), 1.3) * TRIM);
     const f = clamp(s.mps, 2, 22) / 10;
     for (const w of this.whistles) {
       w.osc.forEach((o, i) => to(o.frequency, w.f10 * f * (i ? 1.004 : 1)));
-      to(w.g.gain, s.whistle * 0.1);
+      to(w.g.gain, s.whistle * 0.007);
     }
   }
 
   dispose(): void {
     for (const x of this.sources) { try { x.stop(); } catch { /* already */ } }
     for (const n of this.nodes) { try { n.disconnect(); } catch { /* already */ } }
-    this.sources = []; this.nodes = []; this.bed = []; this.whistles = [];
+    this.sources = []; this.nodes = []; this.bed = []; this.whistles = []; this.moans = []; this.gustDepth = [];
   }
 }

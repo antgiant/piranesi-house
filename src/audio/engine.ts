@@ -10,6 +10,7 @@ import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
+import { waterBuffer } from './buffers';
 import { StairsWater } from './stairs';
 import { Through } from './through';
 import { Sea } from './sea';
@@ -443,12 +444,17 @@ export class AudioEngine {
     this.loop(this.brown).connect(rumbleFilter).connect(this.rumbleGain).connect(this.bus);
 
     // rain
-    const rainFilter = ctx.createBiquadFilter();
-    rainFilter.type = 'highpass';
-    rainFilter.frequency.value = 1800;
+    // Rain on hard floor and stone: the same sound as water running over steps (a smooth broad body with a crisp spatter of spray over it), which
+    // the owner found right for it, in place of the old thin hiss. It all round you, not at a point.
     this.rainGain = ctx.createGain();
     this.rainGain.gain.value = 0;
-    this.loop(this.noise).connect(rainFilter).connect(this.rainGain).connect(this.bus);
+    {
+      const bq = (type: BiquadFilterType, f: number): BiquadFilterNode => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = -3.01; return b; };
+      const spray = ctx.createGain(); spray.gain.value = 0.6;
+      this.loop(waterBuffer(ctx, 'pink')).connect(bq('highpass', 260)).connect(bq('lowpass', 9500)).connect(this.rainGain);
+      this.loop(waterBuffer(ctx, 'foam')).connect(bq('highpass', 1800)).connect(spray).connect(this.rainGain);
+      this.rainGain.connect(this.bus);
+    }
 
     // wind and the whistling statues. Air does not blow at one steady pitch: a low body, a middle rush and a high hiss, each swelling and
     // dying on its own schedule (see gust()), so it comes in gusts and lulls.
@@ -715,7 +721,7 @@ export class AudioEngine {
     this.syncBeds(a.beds);
     this.syncLeaks(a.leaks ?? []);
     this.applyOutside(a);
-    ease(this.rainGain.gain, a.rain.gain * 0.3);
+    ease(this.rainGain.gain, a.rain.gain * 0.2);
     ease(this.windGain.gain, a.wind.gain * 0.3);
     ease(this.whistleGain.gain, a.wind.whistle * 0.05);
   }
@@ -739,6 +745,7 @@ export class AudioEngine {
     this.falls?.tick(t);
     this.waterEvents(t, a);
     // tide strikes
+    if (a.tide.kind !== 'none' && a.tide.kind !== 'submerged' && this.nextBoom === 0) this.nextBoom = t + a.tide.strikeEverySec * rand(0.2, 1); // never a strike the instant a scene opens
     if (a.tide.kind !== 'none' && a.tide.kind !== 'submerged' && t >= this.nextBoom) {
       this.boom(t + 0.02, a.tide.kind === 'approach' ? 0.18 * a.tide.gain * 2 : 0.5 * a.tide.gain);
       this.nextBoom = t + a.tide.strikeEverySec * rand(0.75, 1.3);
@@ -752,6 +759,7 @@ export class AudioEngine {
     // what drifts in through the doorways
     for (const v of this.voices) {
       const p = v.p;
+      if (p.tide.kind === 'booming' && v.nextBoom === 0) v.nextBoom = t + rand(1.5, 9); // likewise a doorway's first boom comes some while in
       if (p.tide.kind === 'booming' && t >= v.nextBoom) {
         this.boom(t + 0.02, 0.45 * p.tide.gain * 2, v.bus);
         this.portalEvents++;

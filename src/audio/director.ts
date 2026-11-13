@@ -315,10 +315,14 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   // --- leaks: fixed points that drip; the stone drips more while it is wet (hydrology), hardly at all in the hushed halls ---
   const listener = pose ?? { x: h.xExtent / 2, y: h.yExtent / 2, heading: opts.facing ? headingOf(opts.facing) : 0 };
   const leakRate = drowned ? 0.1 : dark ? 0.6 : hy.dripping;
+  // A drop is only heard against quiet: running water (falls, a stream on the stairs, a downpour) buries it, and a drop only "bloops" where there is
+  // still water to fall into (a flooded floor), otherwise it lands on stone.
+  const masking = Math.min(1, Math.max((falls + streams) * fallNear * 0.9, stairsFlow * 0.8, rain * 0.9));
+  const standing = depth > 0 || drowned;
   const leaks: Leak[] = leaksOf(world, h).map((l) => {
     const dx = l.x - listener.x, dy = l.y - listener.y, horiz = Math.hypot(dx, dy), dz = l.z - 1.6;
     const dist = Math.hypot(horiz, dz);
-    return { key: l.id, az: azimuthTo(listener, l), el: (Math.atan2(dz, Math.max(0.5, horiz)) * 180) / Math.PI, perMin: l.perMin * leakRate, gain: proximity(dist, LEAK_REACH_M, 1.5, 0), pitch: l.pitch, wet: l.wet };
+    return { key: l.id, az: azimuthTo(listener, l), el: (Math.atan2(dz, Math.max(0.5, horiz)) * 180) / Math.PI, perMin: l.perMin * leakRate, gain: proximity(dist, LEAK_REACH_M, 1.5, 0) * (1 - 0.92 * masking), pitch: l.pitch, wet: l.wet && standing };
   }).filter((l) => l.gain > 0.08).sort((a, b) => b.gain * Math.sqrt(b.perMin) - a.gain * Math.sqrt(a.perMin)).slice(0, MAX_LEAKS);
 
   const through = opts.portals === false ? { portals: [] as Portal[], beds: [] as Bed[] } : portalsFor(world, s, facing, seaGain, pose);

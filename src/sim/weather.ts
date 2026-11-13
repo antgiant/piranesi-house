@@ -60,17 +60,50 @@ function windDirAt(world: World, t: number): Ray {
   return 'W';
 }
 
+/**
+ * The long rains. The book records five days of steady, grey, drenching rain in all the vestibules (canon WX-002, WX-009), a kind of weather the
+ * showers below cannot make (they last hours). Now and then, most often in autumn and winter, a wet spell of two to five days settles in: rain that is
+ * steady rather than gusty, a thick grey sky, and a wind that drops. One 12-day block of the calendar can hold at most one; they come about four times
+ * a year. Integer maths only, as the rest of the weather.
+ */
+const SPELL_BLOCK_MS = 12 * MS.day;
+const SPELL_CHANCE: Record<Season, number> = { autumn: 220, winter: 160, spring: 80, summer: 30 }; // per 1000 blocks' worth
+export interface WetSpell { start: number; end: number }
+
+export function wetSpellIn(world: World, block: number): WetSpell | null {
+  const mid = block * SPELL_BLOCK_MS + SPELL_BLOCK_MS / 2;
+  if (hashInts(world.seed, 0x5e11, block) % 1000 >= SPELL_CHANCE[clock(mid).season]) return null;
+  const hours = 48 + (hashInts(world.seed, 0x5e12, block) % 73); // two to five days
+  const offset = hashInts(world.seed, 0x5e13, block) % (12 * 24 - hours);
+  const start = block * SPELL_BLOCK_MS + offset * MS.hour;
+  return { start, end: start + hours * MS.hour };
+}
+
+/** How far into a wet spell it is, 0..1000: eased in and out over six hours so that the rain comes and goes as rain does. 0 when there is none. */
+function spellLevel(world: World, t: number): number {
+  const spell = wetSpellIn(world, floorDiv(t, SPELL_BLOCK_MS));
+  if (!spell || t < spell.start || t >= spell.end) return 0;
+  const ramp = 6 * MS.hour;
+  return clamp(Math.floor((1000 * Math.min(t - spell.start, spell.end - t, ramp)) / ramp));
+}
+
 export function weatherAt(world: World, t: number): Weather {
   const c = clock(t);
   const winterness = Math.floor((250 * (seasonalDist2(c.dayOfYear))) / 365); // 0 midsummer .. 250 midwinter
-  const cloud = clamp(noise(world, 1, t, 6 * MS.hour) - 100 + winterness);
+  const spell = spellLevel(world, t);
+  // under a long rain the sky is a thick grey ceiling
+  const cloud = Math.max(clamp(noise(world, 1, t, 6 * MS.hour) - 100 + winterness), Math.floor((Math.min(1000, spell * 2) * 750) / 1000)); // the cloud builds in the first three hours, before the rain
   const rainRaw = noise(world, 2, t, 18 * MS.hour);
   // The climate of a temperate coast: wettest in autumn and winter, driest in summer, and wild weather coming in the cold months.
   const rainThreshold = c.season === 'winter' ? 560 : c.season === 'autumn' ? 540 : c.season === 'spring' ? 600 : 660;
-  const rain = cloud >= 600 ? clamp((rainRaw - rainThreshold) * 3) : 0;
+  const showers = cloud >= 600 ? clamp((rainRaw - rainThreshold) * 3) : 0;
+  // steady rain, not gusty: 350 to 600 of 1000 over the day, whatever the showers are doing
+  const steady = spell > 0 ? Math.floor(((350 + Math.floor((noise(world, 7, t, MS.day) * 250) / 1000)) * spell) / 1000) : 0;
+  const rain = Math.max(showers, cloud >= 600 ? steady : 0);
   const windDir = windDirAt(world, t);
   const n = noise(world, 3, t, 8 * MS.hour);
-  const windSpeed = clamp(Math.floor((n * n) / 1000) + (c.season === 'winter' ? 60 : c.month >= 10 ? 40 : 0));
+  const windRaw = clamp(Math.floor((n * n) / 1000) + (c.season === 'winter' ? 60 : c.month >= 10 ? 40 : 0));
+  const windSpeed = spell > 0 ? Math.floor((windRaw * (1000 - Math.floor((spell * 400) / 1000))) / 1000) : windRaw; // the wind drops under a long rain
   const storm = windSpeed >= 750 && (windDir === 'W' || windDir === 'SW' || windDir === 'NW');
   const tempTenths = seasonalTempTenths(c.dayOfYear) + Math.floor(((noise(world, 4, t, 24 * MS.hour) - 500) * 40) / 500) + dailyTempSwing(c.minuteOfDay, c.season);
   const precip: Weather['precip'] = rain > 0 ? (tempTenths <= 10 ? 'snow' : 'rain') : 'none';

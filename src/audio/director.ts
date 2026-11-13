@@ -66,7 +66,7 @@ export interface Bed {
 }
 
 /** One leak, as heard: where it is from where you stand, how fast it drips, how loud it is for how far, and the pitch of its drops. */
-export interface Leak { key: string; az: number; el: number; perMin: number; gain: number; pitch: number }
+export interface Leak { key: string; az: number; el: number; perMin: number; gain: number; pitch: number; /** Falls into water (a bubble's "bloop") rather than onto stone (a click and a ring). */ wet: boolean }
 
 export interface AudioOpts {
   /** Where the visitor is in the hall and which way they head (see pose.ts): sounds then follow them through it, not only from hall to hall. */
@@ -131,6 +131,8 @@ const FALLS_REACH_M = 30;
 const STAIR_REACH_M = 40;
 /** Water down the stair carries about as far across a hall as a fall does. */
 const STAIR_WATER_REACH_M = 35;
+/** From this depth (decimetres) the water is over a person's head: the tide is 'submerged' (see the tide sounds). */
+const SUBMERGED_DM = 16;
 /** A drip is quiet: heard at half its closest loudness 60 ft away, and the nearest few are all there is room to hear. */
 const LEAK_REACH_M = 18;
 const MAX_LEAKS = 4;
@@ -292,8 +294,10 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   let stairsFlow = 0, stairsCause: 'rain' | 'drain' | null = null, stairAz: number | undefined, stairBearing: Bearing = 'ahead';
   if (h.stairs.length > 0 && !drowned && !dark) {
     const rain = hy.streams * (openToRain ? 1 : 0.35) * 0.8;
-    const drain = s.tide.depthDm > 0 && s.tide.trend === 'falling' ? Math.min(1.2, 0.5 + s.tide.depthDm / 40) : 0;
-    stairsFlow = Math.max(rain, drain);
+    // water runs down the stair while a tide drains through the shallows; once it is over your head the stair is under it and there is nothing to hear running
+    const submerged = s.tide.depthDm >= SUBMERGED_DM;
+    const drain = s.tide.depthDm > 0 && !submerged && s.tide.trend === 'falling' ? Math.min(1.2, 0.5 + s.tide.depthDm / 40) : 0;
+    stairsFlow = submerged ? 0 : Math.max(rain, drain);
     stairsCause = stairsFlow < 0.05 ? null : drain > rain ? 'drain' : 'rain';
     if (stairsCause === null) stairsFlow = 0;
     const near = pose
@@ -312,7 +316,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const leaks: Leak[] = leaksOf(world, h).map((l) => {
     const dx = l.x - listener.x, dy = l.y - listener.y, horiz = Math.hypot(dx, dy), dz = l.z - 1.6;
     const dist = Math.hypot(horiz, dz);
-    return { key: l.id, az: azimuthTo(listener, l), el: (Math.atan2(dz, Math.max(0.5, horiz)) * 180) / Math.PI, perMin: l.perMin * leakRate, gain: proximity(dist, LEAK_REACH_M, 1.5, 0), pitch: l.pitch };
+    return { key: l.id, az: azimuthTo(listener, l), el: (Math.atan2(dz, Math.max(0.5, horiz)) * 180) / Math.PI, perMin: l.perMin * leakRate, gain: proximity(dist, LEAK_REACH_M, 1.5, 0), pitch: l.pitch, wet: l.wet };
   }).filter((l) => l.gain > 0.08).sort((a, b) => b.gain * Math.sqrt(b.perMin) - a.gain * Math.sqrt(a.perMin)).slice(0, MAX_LEAKS);
 
   const through = opts.portals === false ? { portals: [] as Portal[], beds: [] as Bed[] } : portalsFor(world, s, facing, seaGain, pose);

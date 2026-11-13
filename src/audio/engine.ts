@@ -82,7 +82,7 @@ interface PortalVoice {
 interface BedVoice { key: string; v: Through }
 
 /** One leak in the hall as the engine plays it: a place of its own that moves as the listener does, a pitch, a rate, and when it next drips. */
-interface LeakVoice { key: string; place: { input: AudioNode; move: (at: Vec3, tc: number) => void; dispose: () => void }; pitch: number; perMin: number; gain: number; next: number }
+interface LeakVoice { key: string; place: { input: AudioNode; move: (at: Vec3, tc: number) => void; dispose: () => void }; pitch: number; perMin: number; gain: number; wet: boolean; next: number }
 
 export class AudioEngine {
   /** The sea, built from measured recordings (sea.ts). */
@@ -623,18 +623,30 @@ export class AudioEngine {
       const at = polar(l.az, l.el, 5);
       let v = this.leakVoices.find((x) => x.key === l.key);
       if (v) v.place.move(at, 0.3);
-      else v = { key: l.key, place: this.placeHandle(at), pitch: l.pitch, perMin: l.perMin, gain: l.gain, next: t + rand(0, 60 / Math.max(0.5, l.perMin)) };
-      v.pitch = l.pitch; v.perMin = l.perMin; v.gain = l.gain;
+      else v = { key: l.key, place: this.placeHandle(at), pitch: l.pitch, perMin: l.perMin, gain: l.gain, wet: l.wet, next: t + rand(0, 60 / Math.max(0.5, l.perMin)) };
+      v.pitch = l.pitch; v.perMin = l.perMin; v.gain = l.gain; v.wet = l.wet;
       keep.push(v);
     }
     for (const v of this.leakVoices) if (!keep.includes(v)) setTimeout(() => v.place.dispose(), 4000); // let the last drop's tail finish
     this.leakVoices = keep;
   }
 
-  /** One drop from a leak: its own pitch, a little different each time. */
+  /**
+   * One drop from a leak, a little different each time. Into water it is a bubble's "bloop" (a short ring that rises as it fades, as the recordings
+   * of drips in cool, wet caves have). Onto stone it is a click and a short damped ring with no glide at all: a rising chirp at two or three kilohertz
+   * is just what a bird does, and drips falling on stone do not do it.
+   */
   private leakDrip(v: LeakVoice, t: number): void {
-    const f0 = v.pitch * rand(0.94, 1.06), d = bubbleDamping(f0), dur = 9.2 / d;
-    this.tone(t, f0, f0 * (1 + CHIRP * d * dur * 0.35), dur, 'sine', 0.1 * v.gain * Math.pow(1450 / f0, 0.7) * rand(0.7, 1.2), 0, 0.001, v.place.input);
+    const f0 = v.pitch * rand(0.88, 1.12), loud = v.gain * rand(0.6, 1.25);
+    if (v.wet) {
+      const d = bubbleDamping(f0), dur = 9.2 / d;
+      this.tone(t, f0, f0 * (1 + CHIRP * d * dur * 0.35), dur, 'sine', 0.1 * loud * Math.pow(1450 / f0, 0.7), 0, 0.001, v.place.input);
+      return;
+    }
+    const ring = rand(0.05, 0.14); // how long the stone rings
+    this.burst(t, 0.012, 'bandpass', f0 * 1.4, 2.5, 0.16 * loud, 0, 0.0004, v.place.input);                                   // the impact itself
+    this.tone(t, f0, f0 * 0.985, ring, 'sine', 0.07 * loud * Math.pow(1450 / f0, 0.5), 0, 0.0008, v.place.input);               // its ring, falling a hair
+    this.tone(t, f0 * 2.43, f0 * 2.4, ring * 0.45, 'sine', 0.025 * loud, 0, 0.0008, v.place.input);                              // and a higher, shorter partial
   }
 
   /** A panner of its own that can be moved, for the water voices that have a place in the hall. */

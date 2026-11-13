@@ -19,6 +19,8 @@ export interface StairsScene {
 const DIST = 6;
 /** Levels at flow 1, tuned against the recordings (see design/water-more.md). */
 const LEVEL = { steps: 0.2, shaft: 0.24, gurgle: 0.32, plops: 0.07 };
+/** The sparkle over the steps' roar, relative to it. */
+const SPARKLE = 0.6;
 /** Overall trim, in the manner of the other water voices. */
 const TRIM = 0.6;
 
@@ -28,7 +30,7 @@ export class StairsWater {
   private readonly ctx: BaseAudioContext;
   private readonly steps: PlaceHandle;
   private readonly shaft: PlaceHandle;
-  private g: Record<'steps' | 'shaft' | 'gurgle' | 'plops', GainNode>;
+  private g: Record<'steps' | 'shaft' | 'gurgle' | 'plops' | 'foam', GainNode>;
   private sources: AudioScheduledSourceNode[] = [];
   private nodes: AudioNode[] = [];
 
@@ -55,8 +57,9 @@ export class StairsWater {
     // --- steps ---
     const stepsOut = gain(0);
     flutter(loop('pink').connect(filt('highpass', 260, -3.01)).connect(filt('lowpass', 9500, -3.01)), 0.24, 0.6).connect(stepsOut);
-    const plopsG = gain(0);
+    const plopsG = gain(0), foamG = gain(0);
     loop('plops').connect(plopsG).connect(stepsOut);
+    loop('foam').connect(filt('highpass', 1800, -3.01)).connect(gain(0.6)).connect(foamG).connect(stepsOut); // a fizz of spray over the roar: what makes it sound like water and not wind
     stepsOut.connect(this.steps.input);
     // --- shaft ---
     const shaftOut = gain(0);
@@ -69,7 +72,7 @@ export class StairsWater {
     loop('gurgle').connect(filt('lowpass', 9500, -3.01)).connect(gurgleG).connect(shaftOut);
     loop('fine').connect(filt('highpass', 800, -3.01)).connect(gain(0.6)).connect(gurgleG); // the splash and spray of it landing
     shaftOut.connect(this.shaft.input);
-    this.g = { steps: stepsOut, shaft: shaftOut, gurgle: gurgleG, plops: plopsG };
+    this.g = { steps: stepsOut, shaft: shaftOut, gurgle: gurgleG, plops: plopsG, foam: foamG };
   }
 
   set(s: StairsScene): void {
@@ -77,7 +80,8 @@ export class StairsWater {
     const f = clamp(s.flow, 0, 1.3);
     const to = (p: AudioParam, v: number): void => { p.setTargetAtTime(v, t, tc); };
     to(this.g.steps.gain, TRIM * LEVEL.steps * Math.pow(f, 1.2));
-    to(this.g.plops.gain, LEVEL.plops * f / LEVEL.steps * 0.3); // relative to the steps' own gain
+    to(this.g.foam.gain, SPARKLE * f);   // relative to the steps' own gain
+    to(this.g.plops.gain, 0.12 * f);     // the real steps are smooth: only the odd splash
     to(this.g.shaft.gain, TRIM * LEVEL.shaft * Math.pow(f, 1.1));
     to(this.g.gurgle.gain, LEVEL.gurgle * (0.4 + 0.6 * clamp(f, 0, 1)));
     this.steps.move(polar(s.az, 5, DIST), 0.3);

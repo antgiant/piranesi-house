@@ -40,7 +40,7 @@ const r = await page.evaluate(async ([gain, low, swell, wet, secs, solo, extra])
   for (let i = 0; i < dripsN; i++) e.drip(1 + i * 1.6, 0.12);
   if (only) { e.rainGain.gain.cancelScheduledValues(0); e.rainGain.gain.setValueAtTime(0, 0); }
   if (solo && e.falls) { const keep = solo.split(','); for (const [k, g] of Object.entries(e.falls.layer)) if (!keep.includes(k)) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } if (!keep.includes('diffuse')) for (const g of e.falls.diffuse) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } }
-  if (solo && e.stairs) { const keep = solo.split(','); for (const [k, g] of Object.entries(e.stairs.g)) { const grp = k === 'steps' || k === 'plops' ? 'steps' : 'shaft'; if (!keep.includes(grp) && !keep.includes(k)) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } } }
+  if (solo && e.stairs) { const keep = solo.split(','); for (const [k, g] of Object.entries(e.stairs.g)) { const grp = k === 'steps' || k === 'plops' || k === 'foam' ? 'steps' : 'shaft'; if (!keep.includes(grp) && !keep.includes(k)) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } } }
   if (solo && (e.falls || e.stairs)) { /* solo applied to the water voices above */ } else if (solo) for (const [k, layer] of Object.entries(e.sea.layers)) if (!solo.split(',').includes(k)) for (const m of layer.master) { m.gain.cancelScheduledValues(0); m.gain.setValueAtTime(0, 0); }
   for (let t = 0; t < secs - 0.01; t += 0.2) { ctx.__t = t; if (!only) e.tickEvents(); }
   ctx.__t = 0;

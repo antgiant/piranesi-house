@@ -18,6 +18,8 @@ export interface Leak {
   perMin: number;
   /** The pitch of its drops, in Hz (one leak keeps nearly one pitch). */
   pitch: number;
+  /** What the drops land on: water (a bubble's "bloop", rising in pitch) or stone (a click and a ring, with no glide). Most land on stone. */
+  wet: boolean;
 }
 
 const cache = new WeakMap<World, Map<string, Leak[]>>();
@@ -46,6 +48,7 @@ export function leaksOf(world: World, h: Hall): Leak[] {
       z: high ? 3 + r(2) * Math.max(1, h.heightM - 4) : 0.2 + r(2) * 1.6,
       perMin: 0.4 + r(4) * 2.6,
       pitch: Math.min(4400, Math.max(800, 1450 * Math.exp((r(5) + r(6) - 1) * 1.1))),
+      wet: r(7) < 0.3,
     });
   }
   if (m.size > 3000) m.clear();

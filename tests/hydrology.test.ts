@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/world/world';
 import { hydrologyAt } from '../src/sim/hydrology';
-import { weatherAt } from '../src/sim/weather';
+import { weatherAt, wetSpellIn } from '../src/sim/weather';
 import { MS } from '../src/sim/time';
 
 const w = createWorld('test-seed');
@@ -68,5 +68,17 @@ describe('where the water comes from', () => {
     const a0 = performance.now(); hydrologyAt(w, t); const first = performance.now() - a0;
     const b0 = performance.now(); for (let i = 0; i < 1000; i++) hydrologyAt(w, t + i * 1000); const again = performance.now() - b0;
     expect(again).toBeLessThan(first * 5 + 50);
+  });
+
+  it('a five-day rain of the book fills the stores over their brims: the falls swell and the stairs run, and over the following week they ease back', () => {
+    let spell = null as ReturnType<typeof wetSpellIn>;
+    for (let b = 40; b < 600 && !spell; b++) { const sp = wetSpellIn(w, b); if (sp && sp.end - sp.start >= 100 * MS.hour) spell = sp; }
+    expect(spell).not.toBeNull();
+    const before = hydrologyAt(w, spell!.start - 2 * MS.hour), atEnd = hydrologyAt(w, spell!.end), later = hydrologyAt(w, spell!.end + 6 * MS.day);
+    expect(atEnd.overflow).toBeGreaterThan(0.4);
+    expect(atEnd.flow).toBeGreaterThan(before.flow + 0.5);
+    expect(atEnd.streams).toBeGreaterThan(0.4);
+    expect(later.flow).toBeLessThan(atEnd.flow - 0.3);
+    expect(later.overflow).toBeLessThan(atEnd.overflow);
   });
 });

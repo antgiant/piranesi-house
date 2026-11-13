@@ -389,6 +389,11 @@ export function statueDetail(hall: Hall, sn: Seen): string {
 // Sound
 // ---------------------------------------------------------------------------------------------------------------
 
+/** Which of the four directions an azimuth (degrees from straight ahead, + right) is in. */
+function bearingFromAzimuth(az: number): keyof typeof BEARING_PHRASE {
+  const a = Math.abs(az);
+  return a <= 45 ? 'ahead' : a >= 135 ? 'behind' : az > 0 ? 'right' : 'left';
+}
 const BEARING_PHRASE = { ahead: 'ahead of you', right: 'to your right', left: 'to your left', behind: 'behind you' } as const;
 
 /** What is heard through a doorway, in a few words. */
@@ -437,6 +442,16 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
     if (a.water.overflow > 0.3) bits.push(v(['The fresh water is running over its brims: it roars down the wall and the whole hall booms with it.', 'The falls are swollen with the rains and thunder down the stone.']));
     else if (a.water.flow < 0.65) bits.push(v(['Fresh water falls thinly, in threads and drips, as it does in a dry spell.', 'You can hear only a thread of fresh water falling.']));
     else bits.push(v(['Fresh water trickles and splashes over stone somewhere nearby.', 'Water runs down a wall close by, with a bright, broken sound.', 'You can hear a thread of fresh water falling.']));
+  }
+  // the loudest leak is a real place in the hall, and it is described where it is, as the sound is placed: what you read and what you hear agree
+  const leak = a.leaks.filter((l) => l.gain > 0.4).sort((x, y) => y.gain - x.gain)[0];
+  if (leak) {
+    const where = BEARING_PHRASE[bearingFromAzimuth(leak.az)];
+    const how = leak.perMin < 1.5 ? 'now and then' : leak.perMin < 5 ? 'every few moments' : 'one drop after another';
+    const up = leak.el > 25 ? 'from high above' : leak.el < -5 ? 'near the floor' : 'from the stone';
+    bits.push(leak.wet
+      ? `${how[0]!.toUpperCase()}${how.slice(1)}, ${where}, a drop falls ${up} into water with a small round sound.`
+      : `${how[0]!.toUpperCase()}${how.slice(1)}, ${where}, a drop falls ${up} and ticks on the stone.`);
   }
   if (a.stairs.flow > 0.2) bits.push(a.stairs.cause === 'drain'
     ? v(['Water pours back down the great stair, step after step, and a deep gurgle rises from the shaft below.', 'The tide drains away down the stair with a long hollow rush.'])

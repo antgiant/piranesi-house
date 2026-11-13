@@ -26,8 +26,11 @@ export interface Hydrology {
 /** Time constants, in hours: roofs and walls shed in half a day; cisterns and stone hold for days. */
 const RUNOFF_TAU_H = 10;
 const STORE_TAU_H = 84;
-/** Steady rain at this strength (0..1) for a couple of weeks fills the stores: this world rains about a tenth of the time, so a wet fortnight is full. */
-const FULL_AT = 0.07;
+/**
+ * Steady rain at this strength (0..1) for a couple of weeks fills the stores. This world rains about a tenth of the time (showers of about five hours, and
+ * three or four long rains of two to five days a year), a mean of about 0.06, so a wet fortnight is full and a long rain overflows them.
+ */
+const FULL_AT = 0.10;
 /** How far back the history is taken, and how often it is sampled. */
 const HISTORY_H = 14 * 24;
 const STEP_H = 3;

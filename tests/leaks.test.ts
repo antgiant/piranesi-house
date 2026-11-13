@@ -31,8 +31,15 @@ describe('where water drips from (the leaks of a hall)', () => {
         expect(l.z).toBeGreaterThanOrEqual(0.2); expect(l.z).toBeLessThanOrEqual(h.heightM);
         expect(l.pitch).toBeGreaterThanOrEqual(800); expect(l.pitch).toBeLessThanOrEqual(4400);
         expect(l.perMin).toBeGreaterThanOrEqual(0.4); expect(l.perMin).toBeLessThanOrEqual(3.0);
+        expect(typeof l.wet).toBe('boolean');
       }
     }
+  });
+  it('most drops fall onto stone, and some into water', () => {
+    let wet = 0, total = 0;
+    for (let x = -10; x < 10; x++) for (let y = -10; y < 10; y++) for (const l of leaksOf(w, getHall(w, x, y, 1))) { total++; if (l.wet) wet++; }
+    expect(wet / total).toBeGreaterThan(0.2);
+    expect(wet / total).toBeLessThan(0.4);
   });
   it('a big hall has more than a small one', () => {
     expect(leakCount({ xExtent: 250, yExtent: 136 })).toBeGreaterThan(leakCount({ xExtent: 60, yExtent: 40 }));

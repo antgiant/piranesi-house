@@ -23,13 +23,16 @@ describe('water on the great stair', () => {
   });
 
   it('runs while a tide drains back down it, and not while the tide is rising or the floor is dry and no rain runs off', () => {
-    let drain = 0, quiet = 0;
+    let drain = 0, quiet = 0, deep = 0;
     for (let t = MS.hour; t < 40 * MS.day; t += 20 * MS.min) {
       const sc = scene(t);
       const a = audioFor(w, sc, { portals: false });
       expect(a.stairs.flow).toBeGreaterThanOrEqual(0);
       expect(a.stairs.flow).toBeLessThanOrEqual(2.3);
-      if (sc.tide.depthDm > 0 && sc.tide.trend === 'falling') {
+      if (sc.tide.depthDm >= 16) {
+        expect(a.stairs.flow).toBe(0); // the stair is under water: nothing runs
+        deep++;
+      } else if (sc.tide.depthDm > 0 && sc.tide.trend === 'falling') {
         expect(a.stairs.flow).toBeGreaterThan(0.3);
         expect(a.stairs.cause).toBe('drain');
         drain++;
@@ -41,6 +44,7 @@ describe('water on the great stair', () => {
     }
     expect(drain).toBeGreaterThan(0);
     expect(quiet).toBeGreaterThan(0);
+    expect(deep).toBeGreaterThan(0);
   });
 
   it('runs with the rain too: rain streams down the stair of an open hall while it runs off, and for a while after', () => {
@@ -56,7 +60,7 @@ describe('water on the great stair', () => {
 
   it('is loud at the foot of the stair and far away across a huge floor, and the stair is where it is: ahead as you walk to it', () => {
     let t = 0;
-    for (let k = MS.hour; k < 40 * MS.day; k += 20 * MS.min) { const sc = scene(k); if (sc.tide.depthDm > 0 && sc.tide.trend === 'falling') { t = k; break; } }
+    for (let k = MS.hour; k < 40 * MS.day; k += 20 * MS.min) { const sc = scene(k); if (sc.tide.depthDm > 0 && sc.tide.depthDm < 16 && sc.tide.trend === 'falling') { t = k; break; } }
     expect(t).toBeGreaterThan(0);
     const st = hall.stairs[0]!;
     const at = wallPoint(hall, st.wall, st.pos);

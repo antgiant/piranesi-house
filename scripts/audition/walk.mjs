@@ -1,6 +1,7 @@
 // Render a walk across a real hall through the real world, director and engine (offline, Chromium via Playwright), to hear the soundscape follow you.
 //
-//   node scripts/audition/walk.mjs <outdir> <name> <follow|static> [seed] [seconds] [falls|stairs|leaks]
+//   node scripts/audition/walk.mjs <outdir> <name> <follow|static> [seed] [seconds] [falls|stairs|leaks] [mute]
+//   mute: comma list of parts to silence, to find what a sound is: wind, birds, leaks, stairs, falls, beds, portals, sea, rain, tide, outside
 //
 // It finds a hall with a fall and doors that carry sound, sets you at the far wall and walks you toward the fall (at a brisk 2.2 m/s so a
 // huge hall fits the clip). `follow` gives the director your place each second; `static` is the old hall-wide sound, the same all the way.
@@ -15,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(ROOT);
 const { chromium } = require('playwright');
-const [, , outDir, name, mode = 'follow', seed = 'the-house', secsArg = '70', scenario = 'falls'] = process.argv;
+const [, , outDir, name, mode = 'follow', seed = 'the-house', secsArg = '70', scenario = 'falls', muteArg = ''] = process.argv;
 const tmp = mkdtempSync(`${tmpdir()}/walk-`);
 writeFileSync(`${tmp}/entry.ts`, `
 import { AudioEngine } from '${ROOT}src/audio/engine';
@@ -36,7 +37,8 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.setContent('<html></html>');
 await page.addScriptTag({ content: code });
-const r = await page.evaluate(async ([mode, seed, secs, scenario]) => {
+const r = await page.evaluate(async ([mode, seed, secs, scenario, muteArg]) => {
+  const mute = new Set(muteArg.split(',').filter(Boolean));
   let rs = 12345; Math.random = () => { rs = (Math.imul(rs, 1664525) + 1013904223) >>> 0; return rs / 4294967296; };
   const w = createWorld(seed);
   const shortOf = (p, q, d) => { const vx = q.x - p.x, vy = q.y - p.y, len = Math.hypot(vx, vy) || 1; return { x: q.x - (vx / len) * d, y: q.y - (vy / len) * d }; };
@@ -49,7 +51,7 @@ const r = await page.evaluate(async ([mode, seed, secs, scenario]) => {
       const h = getHall(w, v.x, v.y, 1); if (!h.stairs.length) continue;
       for (let t = MS.hour; t < 60 * MS.day; t += 20 * MS.min) {
         const sc = sceneAtWorldTime(w, v.x, v.y, 1, t, { forecast: false });
-        if (sc.tide.depthDm > 0 && sc.tide.trend === 'falling') { const score = sc.tide.depthDm + 40 * hydrologyAt(w, t).streams; if (score > best) { best = score; pick = { x: v.x, y: v.y, t }; } }
+        if (sc.tide.depthDm > 3 && sc.tide.depthDm < 12 && sc.tide.trend === 'falling') { /* draining through the shallows, not over your head */ const score = 20 - Math.abs(sc.tide.depthDm - 7) + 40 * hydrologyAt(w, t).streams; if (score > best) { best = score; pick = { x: v.x, y: v.y, t }; } }
       }
     }
     if (!pick) return { error: 'no draining vestibule' };
@@ -102,6 +104,18 @@ const r = await page.evaluate(async ([mode, seed, secs, scenario]) => {
     const u = Math.max(0, Math.min(1, sec / walkS));
     const pose = { x: far.x + (end.x - far.x) * u, y: far.y + (end.y - far.y) * u, heading };
     const a = mode === 'follow' ? audioFor(w, sceneAtWorldTime(w, pick.x, pick.y, 1, pick.t + sec * 1000), { pose, facing: 'N' }) : audioFor(w, sceneAtWorldTime(w, pick.x, pick.y, 1, pick.t), { facing: 'N' });
+    if (mute.has('wind')) a.wind = { gain: 0, whistle: 0 };
+    if (mute.has('birds')) { a.birds = { ...a.birds, perMinute: 0 }; for (const p of a.portals) p.birds = { ...p.birds, perMinute: 0 }; }
+    if (mute.has('leaks')) a.leaks = [];
+    if (mute.has('stairs')) a.stairs = { ...a.stairs, flow: 0 };
+    if (mute.has('falls')) a.falls = { ...a.falls, gain: 0 };
+    if (mute.has('beds')) a.beds = [];
+    if (mute.has('portals')) a.portals = [];
+    if (mute.has('sea')) a.sea = { ...a.sea, gain: 0 };
+    if (mute.has('rain')) { a.rain = { gain: 0, onWater: 0 }; }
+    if (mute.has('tide')) a.tide = { ...a.tide, kind: 'none', gain: 0 };
+    if (mute.has('outside')) a.outside = null;
+    if (mute.has('thunder')) a.thunder = 0;
     return { a, pose };
   };
   e.setScene(sceneAt(0).a);
@@ -109,18 +123,18 @@ const r = await page.evaluate(async ([mode, seed, secs, scenario]) => {
   const ctx = e.ctx, log = [];
   for (let t = 0; t < secs - 0.01; t += 0.2) {
     ctx.__t = t;
-    if (Math.abs(t - Math.round(t)) < 0.01) { const s = sceneAt(t); e.setScene(s.a); if (Math.round(t) % 10 === 0) log.push({ t: Math.round(t), stairs: +s.a.stairs.flow.toFixed(2), leaks: s.a.leaks.length, fall: +s.a.falls.gain.toFixed(3), az: s.a.falls.az === undefined ? null : Math.round(s.a.falls.az), bearing: s.a.falls.bearing, portals: s.a.portals.map((p) => `${p.bearing}${p.az === undefined ? '' : '@' + Math.round(p.az)}:${p.loudness.toFixed(2)}`) }); }
+    if (Math.abs(t - Math.round(t)) < 0.01) { const s = sceneAt(t); e.setScene(s.a); if (Math.round(t) % 10 === 0) log.push({ t: Math.round(t), wind: +s.a.wind.gain.toFixed(2), whistle: +s.a.wind.whistle.toFixed(2), birds: s.a.birds.mode + ':' + s.a.birds.perMinute, rainG: +s.a.rain.gain.toFixed(2), sea: +s.a.sea.gain.toFixed(2), tide: s.a.tide.kind, stairs: +s.a.stairs.flow.toFixed(2), leaks: s.a.leaks.length, fall: +s.a.falls.gain.toFixed(3), az: s.a.falls.az === undefined ? null : Math.round(s.a.falls.az), bearing: s.a.falls.bearing, portals: s.a.portals.map((p) => `${p.bearing}${p.az === undefined ? '' : '@' + Math.round(p.az)}:${p.loudness.toFixed(2)}`) }); }
     e.tickEvents();
   }
   ctx.__t = 0;
   const b = await ctx.startRendering();
-  return { hall: { x: pick.x, y: pick.y, size: [Math.round(h.xExtent), Math.round(h.yExtent)], falls: h.falls, ...extra }, path: { far, end, dist: Math.round(dist), walkS: Math.round(walkS) }, log, L: Array.from(b.getChannelData(0)), R: Array.from(b.getChannelData(1)), sr: SR };
-}, [mode, seed, +secsArg, scenario]);
+  return { calls: e.stats().calls, hall: { x: pick.x, y: pick.y, size: [Math.round(h.xExtent), Math.round(h.yExtent)], falls: h.falls, ...extra }, path: { far, end, dist: Math.round(dist), walkS: Math.round(walkS) }, log, L: Array.from(b.getChannelData(0)), R: Array.from(b.getChannelData(1)), sr: SR };
+}, [mode, seed, +secsArg, scenario, muteArg]);
 if (r.error) { console.error(r.error); process.exit(1); }
 const n = r.L.length, buf = Buffer.alloc(44 + n * 8);
 buf.write('RIFF', 0); buf.writeUInt32LE(36 + n * 8, 4); buf.write('WAVEfmt ', 8); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(3, 20); buf.writeUInt16LE(2, 22); buf.writeUInt32LE(r.sr, 24); buf.writeUInt32LE(r.sr * 8, 28); buf.writeUInt16LE(8, 32); buf.writeUInt16LE(32, 34); buf.write('data', 36); buf.writeUInt32LE(n * 8, 40);
 for (let i = 0; i < n; i++) { buf.writeFloatLE(r.L[i], 44 + i * 8); buf.writeFloatLE(r.R[i], 48 + i * 8); }
 writeFileSync(`${outDir}/${name}.wav`, buf);
-console.log(JSON.stringify({ hall: r.hall, path: r.path }));
+console.log(JSON.stringify({ hall: r.hall, path: r.path, birdCallsAndThunder: r.calls }));
 for (const l of r.log) console.log(JSON.stringify(l));
 await browser.close();

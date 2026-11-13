@@ -8,5 +8,7 @@ How the water sounds were built and checked (see `design/sea-model.md`). Referen
   second. `tonal.py`: how pitched (peaky) short frames are. The last two found the pebble/ice character in the first foam.
   Python needs numpy, scipy, matplotlib: `python3 -m venv v && v/bin/pip install numpy scipy matplotlib`.
 
+* `walk.mjs`: render a walk across a real hall through the real world, director and engine, with or without the sound following your place.
+
 A useful comparison is always: the real recording, the old sound and the new sound through the same measurements. Calibrate the detector
 first with controls (white noise should score as noise; a deliberately flanged copy should light up).

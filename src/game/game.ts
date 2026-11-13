@@ -5,6 +5,7 @@ import { sceneAtWorldTime, type SceneState } from '../sim/scene';
 import { defaultSimConfig, worldTime, type SimConfig } from '../sim/time';
 import { tideAt } from '../sim/tides';
 import { getHall, wallGrids, type Hall } from '../world/hall';
+import { headingOf, headingOfMove, standingPoint, wallPoint, type Pose } from '../audio/pose';
 import { OPPOSITE, SIDES, exits as hallExits, type Exit, type Level, type Side } from '../world/layout';
 import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
@@ -317,11 +318,29 @@ function doorLabel(e: NamedExit, all: NamedExit[]): string {
 }
 
 /** Take in where you are without saying anything: what the exits, statues and relics are, and note the hall as explored. */
+/**
+ * Where the visitor is in the hall, and which way they head, for the sound: standing, at the wall or in the middle; on a walk, somewhere between
+ * where they set out and where they are going, by how far along the walk is. The halls are huge, so this matters: the sound follows you across.
+ */
+export function listenerPose(g: Game, realNowMs: number): Pose {
+  const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+  const here = standingPoint(h, g.pos.wall, g.pos.pos);
+  const facing = headingOf(g.facing);
+  const w = g.walk;
+  if (!w) return { x: here.x, y: here.y, heading: facing };
+  let target = here;
+  if (w.kind === 'door' && w.exit) target = wallPoint(h, w.exit.side, w.exit.pos);
+  else if (w.kind === 'wall' && w.wall) target = wallPoint(h, w.wall, w.pos ?? 500);
+  else if (w.kind === 'stairs' && h.stairs[0]) target = wallPoint(h, h.stairs[0].wall, h.stairs[0].pos);
+  const f = Math.max(0, Math.min(1, walkStatus(g, realNowMs)?.fraction ?? 0));
+  return { x: here.x + (target.x - here.x) * f, y: here.y + (target.y - here.y) * f, heading: headingOfMove(here, target, facing) };
+}
+
 function prepareHall(g: Game, realNowMs: number): { scene: SceneState; audio: AudioScene } {
   g.explored.add(exploredKey(g.pos.level, g.pos.x, g.pos.y));
   const t = worldNow(g, realNowMs);
   const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, t, { outside: g.opts.outsideTraces });
-  const audio = audioFor(g.world, scene, { facing: g.facing });
+  const audio = audioFor(g.world, scene, { facing: g.facing, pose: listenerPose(g, realNowMs) });
   g.exitsListed = listExits(g, g.pos.level);
   g.seenListed = visibleStatues(g, scene.hall);
   g.relicsListed = g.walk ? [] : relicsIn(g.world, scene.hall, scene.clock.month, g.opts.relicDensity, Math.floor(scene.t / TIDAL_DAY_MS));
@@ -1248,7 +1267,7 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'journal': return readJournal(g);
     case 'listen': {
       const s = sceneNow(g, realNowMs);
-      return [text(g, soundParagraph(audioFor(g.world, s, { facing: g.facing }), s))];
+      return [text(g, soundParagraph(audioFor(g.world, s, { facing: g.facing, pose: listenerPose(g, realNowMs) }), s))];
     }
     case 'go': {
       if (g.exitsListed.length === 0) prepareHall(g, realNowMs);

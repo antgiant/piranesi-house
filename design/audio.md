@@ -38,6 +38,8 @@ from left to right moves the level between the ears and glides pitch from about 
 The sea has been rebuilt from measurements of real recordings, with rain on water and an always-on deep end: see `design/sea-model.md`.
 The layer table below describes the original, procedural-noise design; the sea, rain-on-water and bass rows are superseded by that file.
 
+The sound also follows you through a hall, not just from hall to hall, and what is shown is in your own units: see `design/moving-through-halls.md`.
+
 ## Layers
 | Layer | Made from | Driven by |
 |---|---|---|

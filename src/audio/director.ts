@@ -9,6 +9,7 @@ import type { OutsideKind } from '../sim/outside';
 import { getHall } from '../world/hall';
 import { nearbyVestibules } from '../world/tidegeo';
 import type { World } from '../world/world';
+import { azimuthTo, bearingFromAz, distanceTo, nearestOnWall, proximity, sideOfHeading, wallPoint, type Pose } from './pose';
 
 export type Surface = 'marble' | 'wet' | 'shallow' | 'rubble';
 export type TideSound = 'none' | 'approach' | 'booming' | 'submerged';
@@ -32,6 +33,8 @@ export interface Portal {
   bearing: Bearing;
   /** -1 (left) .. 1 (right). */
   pan: number;
+  /** Where the doorway is from where you stand, in degrees from straight ahead (+ right): set when the visitor's place in the hall is known. */
+  az?: number;
   /** A doorway muffles; a door behind you muffles more. */
   lowpassHz: number;
   tide: { kind: 'none' | 'approach' | 'booming'; gain: number };
@@ -52,6 +55,7 @@ export interface Bed {
   /** Where the opening is relative to the way you face (the engine places the sound in 3D from this). */
   bearing: Bearing;
   pan: number;
+  az?: number;
   lowpassHz: number;
   /** The sea next door beyond what is heard here, 0..1. */
   sea: number;
@@ -60,6 +64,8 @@ export interface Bed {
 }
 
 export interface AudioOpts {
+  /** Where the visitor is in the hall and which way they head (see pose.ts): sounds then follow them through it, not only from hall to hall. */
+  pose?: Pose;
   /** The way you face (the way you last walked); doors are placed to your left, right, ahead or behind. */
   facing?: Side | null;
   /** Compute what arrives through the doorways (default true). */
@@ -72,7 +78,7 @@ export interface AudioScene {
   sea: { gain: number; lowpassHz: number; swellSec: number };
   tide: { kind: TideSound; gain: number; character: string | null; strikeEverySec: number };
   /** Falling and running fresh water here, and which way it is from where you face (it has a place in the hall: it stays put as you turn). */
-  falls: { gain: number; bearing: Bearing; /** -1..1 along the wall when it is ahead, as for doors. */ pan: number };
+  falls: { gain: number; bearing: Bearing; /** -1..1 along the wall when it is ahead, as for doors. */ pan: number; /** From where you stand, in degrees from straight ahead (+ right), when your place in the hall is known. */ az?: number };
   /** Rain, and how much of it lands on water (a hall the tide has flooded, falls or a stream, the lower halls by the sea): 0..1. */
   rain: { gain: number; onWater: number };
   wind: { gain: number; whistle: number };
@@ -106,9 +112,15 @@ export function fallSide(x: number, y: number, level: number): Side {
 
 /** A neighbouring hall heard through one open door: a fraction of its level. */
 const DOOR_ATTEN = 0.45;
+/** At this distance (metres, about 130 ft) a doorway is heard at half its closest loudness. */
+const DOOR_REACH_M = 40;
+/** The same for the water of a fall, which carries further across a hall. */
+const FALLS_REACH_M = 30;
+/** The sea and tide come up the stairs: a little louder near them, a little softer across the floor. */
+const STAIR_REACH_M = 40;
 const MAX_PORTALS = 10;
 
-function portalsFor(world: World, s: SceneState, facing: Side | null, ownSea: number): { portals: Portal[]; beds: Bed[] } {
+function portalsFor(world: World, s: SceneState, facing: Side | null, ownSea: number, pose?: Pose): { portals: Portal[]; beds: Bed[] } {
   const beds: Bed[] = [];
   const h = s.hall;
   const heard = new Map<string, AudioScene>();
@@ -122,6 +134,12 @@ function portalsFor(world: World, s: SceneState, facing: Side | null, ownSea: nu
     merged.add(wallKey);
     const same = doors.filter((d) => d.side === e.side && d.to.x === e.to.x && d.to.y === e.to.y);
     const midPos = Math.round(same.reduce((n, d) => n + d.pos, 0) / same.length);
+    // where the door is from where you stand: loud and ahead as you walk toward it, beside you as you pass, faint and behind as you leave it
+    const at = wallPoint(h, e.side, midPos);
+    const az = pose ? azimuthTo(pose, at) : undefined;
+    const k = pose ? proximity(distanceTo(pose, at), DOOR_REACH_M, 1.9, 0.25) : 1;
+    const dirOf = (): Bearing => (az !== undefined ? bearingFromAz(az) : bearing(e.side, facing));
+    const muffle = (b: Bearing): number => (az !== undefined ? 2400 - 1300 * (Math.abs(az) / 180) : b === 'behind' ? 1100 : b === 'ahead' ? 2400 : 1800);
     const key = `${e.to.x},${e.to.y}`;
     let a = heard.get(key);
     if (!a) {
@@ -131,26 +149,26 @@ function portalsFor(world: World, s: SceneState, facing: Side | null, ownSea: nu
     if (a.hush) continue;
     {
       // the sea (or a waterfall) in the next hall, heard through the opening or the wall
-      const sea = a.sea.gain > ownSea + 0.05 ? (a.sea.gain - ownSea * 0.5) * DOOR_ATTEN : 0;
-      const fl = a.falls.gain * DOOR_ATTEN;
+      const sea = (a.sea.gain > ownSea + 0.05 ? (a.sea.gain - ownSea * 0.5) * DOOR_ATTEN : 0) * k;
+      const fl = a.falls.gain * DOOR_ATTEN * k;
       if (sea > 0.03 || fl > 0.03) {
-        const bb = bearing(e.side, facing);
-        beds.push({ key: `${e.side}:${e.to.x},${e.to.y}`, side: e.side, bearing: bb, pan: bb === 'left' ? -0.85 : bb === 'right' ? 0.85 : bb === 'ahead' ? (midPos - 500) / 1500 : 0, lowpassHz: bb === 'behind' ? 1100 : bb === 'ahead' ? 2400 : 1800, sea, falls: fl });
+        const bb = dirOf();
+        beds.push({ key: `${e.side}:${e.to.x},${e.to.y}`, side: e.side, bearing: bb, pan: bb === 'left' ? -0.85 : bb === 'right' ? 0.85 : bb === 'ahead' ? (midPos - 500) / 1500 : 0, az, lowpassHz: muffle(bb), sea, falls: fl });
       }
     }
     if (a.dark) continue;
     const tideKind = a.tide.kind === 'booming' || a.tide.kind === 'submerged' ? 'booming' : a.tide.kind === 'approach' ? 'approach' : 'none';
-    const tideGain = tideKind === 'none' ? 0 : a.tide.gain * DOOR_ATTEN * (tideKind === 'booming' ? 1 : 0.8);
-    const birdLoud = a.birds.perMinute > 0 ? a.birds.loudness * DOOR_ATTEN : 0;
-    const falls = a.falls.gain * DOOR_ATTEN;
-    const rain = a.rain.gain * DOOR_ATTEN;
+    const tideGain = tideKind === 'none' ? 0 : Math.min(1, a.tide.gain * DOOR_ATTEN * (tideKind === 'booming' ? 1 : 0.8) * k);
+    const birdLoud = a.birds.perMinute > 0 ? a.birds.loudness * DOOR_ATTEN * k : 0;
+    const falls = a.falls.gain * DOOR_ATTEN * k;
+    const rain = a.rain.gain * DOOR_ATTEN * k;
     const loudness = Math.max(tideGain, birdLoud, falls * 1.4, rain * 1.4);
     if (loudness < 0.06) continue;
-    const b = bearing(e.side, facing);
+    const b = dirOf();
     const pan = b === 'left' ? -0.85 : b === 'right' ? 0.85 : b === 'ahead' ? (midPos - 500) / 1500 : 0;
     out.push({
-      side: e.side, pos: midPos, toName: getName(world, e.to.x, e.to.y, h.level), bearing: b, pan,
-      lowpassHz: b === 'behind' ? 1100 : b === 'ahead' ? 2400 : 1800,
+      side: e.side, pos: midPos, toName: getName(world, e.to.x, e.to.y, h.level), bearing: b, pan, az,
+      lowpassHz: muffle(b),
       tide: { kind: tideKind, gain: tideGain },
       birds: { mode: a.birds.mode, perMinute: birdLoud > 0 ? a.birds.perMinute : 0, loudness: birdLoud, season: a.birds.season },
       falls, rain, loudness,
@@ -165,6 +183,8 @@ function getName(world: World, x: number, y: number, level: 0 | 1 | 2): string {
 
 export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): AudioScene {
   const h = s.hall;
+  const pose = opts.pose;
+  const facing: Side | null = pose ? sideOfHeading(pose.heading) : opts.facing ?? null; // for the parts that still think in four directions
   const drowned = h.regions.drowned && h.level === 1;
   const dark = h.tags.includes('dark-hall');
 
@@ -203,12 +223,28 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   }
   const strike = depth > 0 ? clamp(Math.round(14 - depth / 3), 4, 12) : 8;
 
+  // the sea and the tides come up the stairs: a little louder near them, a little softer across a huge floor
+  if (pose && h.stairs.length > 0) {
+    const d = Math.min(...h.stairs.map((st) => distanceTo(pose, wallPoint(h, st.wall, st.pos))));
+    const near = 0.7 + 0.6 * (STAIR_REACH_M / (STAIR_REACH_M + d));
+    seaGain = Math.min(1, seaGain * near);
+    tideGain = Math.min(1, tideGain * near);
+  }
+
   // --- weather ---
   const falls = !drowned && h.falls ? 0.3 : 0;
   const streams = s.here.streams && !h.falls ? 0.18 : 0;
   // where the water is: a fall runs down a known wall (the hall says which, and where along it); a stream has no wall, so it gets a fixed one
-  const fallBearing = bearing(h.falls ? h.falls.wall : fallSide(h.x, h.y, h.level), opts.facing ?? null);
+  const fallWall = h.falls ? h.falls.wall : fallSide(h.x, h.y, h.level);
   const fallMid = h.falls ? (h.falls.from + h.falls.to) / 2 : 500;
+  let fallAz: number | undefined;
+  let fallNear = 1; // louder near the wall the water runs down, a far murmur across a huge floor
+  if (pose) {
+    const pt = nearestOnWall(h, fallWall, h.falls ? h.falls.from : 400, h.falls ? h.falls.to : 600, pose);
+    fallAz = azimuthTo(pose, pt);
+    fallNear = proximity(distanceTo(pose, pt), FALLS_REACH_M, 1.7, 0.3);
+  }
+  const fallBearing = fallAz !== undefined ? bearingFromAz(fallAz) : bearing(fallWall, facing);
   // The Drowned Halls are cut off: windows half-submerged or choked with rubble, so little weather reaches them.
   // How much of the rain outside is heard, by where you are: the upper halls have half a roof, so they hear all of it; a
   // vestibule is open to the courtyards and hears it all; an ordinary hall hears it on its windows; the lower halls hear
@@ -231,12 +267,12 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const muffle = clamp((cloudy / 1000) * 0.35 + (s.here.fogHere / 1000) * 0.2 + (tideKind === 'submerged' ? 0.9 : 0) + snowing * 0.25, 0, 0.95);
   const surface: Surface = depth >= 4 ? 'shallow' : depth > 0 ? 'wet' : h.regions.derelict >= 60 ? 'rubble' : 'marble';
 
-  const through = opts.portals === false ? { portals: [] as Portal[], beds: [] as Bed[] } : portalsFor(world, s, opts.facing ?? null, seaGain);
+  const through = opts.portals === false ? { portals: [] as Portal[], beds: [] as Bed[] } : portalsFor(world, s, facing, seaGain, pose);
   return {
     reverb,
     sea: { gain: seaGain, lowpassHz: seaLow, swellSec: h.level === 0 ? 7 : 11 },
     tide: { kind: tideKind, gain: tideGain, character: s.tide.character?.sound ?? null, strikeEverySec: strike },
-    falls: { gain: falls + streams, bearing: fallBearing, pan: fallBearing === 'ahead' ? (fallMid - 500) / 1500 : 0 },
+    falls: { gain: (falls + streams) * fallNear, bearing: fallBearing, pan: fallBearing === 'ahead' && !pose ? (fallMid - 500) / 1500 : 0, az: fallAz },
     rain: { gain: rain, onWater: depth > 0 ? 1 : h.level === 0 ? 0.7 : h.falls || s.here.streams ? 0.6 : 0 },
     wind: { gain: windGain * (1 - snowing * 0.4), whistle },
     thunder,
@@ -248,6 +284,6 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     space,
     portals: through.portals,
     beds: through.beds,
-    outside: s.outside ? { kind: s.outside.event.kind, gain: s.outside.gain, id: s.outside.id, bearing: bearing(s.outside.event.wall, opts.facing ?? null) } : null,
+    outside: s.outside ? { kind: s.outside.event.kind, gain: s.outside.gain, id: s.outside.id, bearing: bearing(s.outside.event.wall, facing) } : null,
   };
 }

@@ -3,7 +3,7 @@
 
 import { audioFor } from '../audio/director';
 import { AudioEngine } from '../audio/engine';
-import { believedSpot, deleteEntry, editEntry, look, newGame, sceneNow, shownEpithet, shownName, step, tick, walkStatus, writeEntry, type Game, type GameOptions, type Line } from '../game/game';
+import { believedSpot, deleteEntry, editEntry, listenerPose, look, newGame, sceneNow, shownEpithet, shownName, step, tick, walkStatus, writeEntry, type Game, type GameOptions, type Line } from '../game/game';
 import { BOOK_KMH, MARATHON_KMH, describeDuration, gait, paceFromKmh, stepsPerSecond } from '../game/walk';
 import { formatClock } from '../sim/time';
 import { mapView, type MapCell, type MapView } from '../game/mapdata';
@@ -19,9 +19,12 @@ import { ScreenWake } from './wakelock';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
 import { Playlist } from './playlist';
+import { lengthText, localiseUnits, parseUnits, resolveUnits, speedText, type UnitSystem, type UnitsSetting } from '../game/units';
 
 interface Settings {
   volume: number;
+  /** Feet and miles or metres and kilometres in what is shown and read aloud. Automatic follows the browser's region. */
+  units: UnitsSetting;
   muted: boolean;
   timeScale: number;
   showDead: boolean;
@@ -53,13 +56,13 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, units: 'auto', muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
   const label = kmh <= BOOK_KMH + 0.05 ? "the book's pace: a steady walk" : g === 'walk' ? 'a brisk walk' : g === 'jog' ? 'a jog' : kmh >= MARATHON_KMH - 0.05 ? 'a two-hour marathon pace' : 'a run';
   const crossing = Math.round(150 / (kmh / 3.6));
-  return `${label}. A 150 m hall takes about ${crossing} seconds.`;
+  return `${label}. A ${lengthText(150, unitsNow())} hall takes about ${crossing} seconds.`;
 }
 const KEY = 'the-house.settings.v1';
 
@@ -73,6 +76,7 @@ function loadSettings(): Settings {
       if (n === true) s.narrate = 'always';
       else if (n === false) s.narrate = 'play';
       else if (n !== 'off' && n !== 'play' && n !== 'always') s.narrate = DEFAULTS.narrate;
+      s.units = parseUnits(s.units);
       return s;
     }
   } catch { /* storage can be blocked; carry on with defaults */ }
@@ -96,6 +100,8 @@ narrator.onSpeaking = () => engine.yieldToSpeech(true);
 narrator.onSilent = () => engine.yieldToSpeech(false);
 const screenWake = new ScreenWake();
 let settings = loadSettings();
+/** The units in use: the setting, or (Automatic) those of the browser's region. */
+function unitsNow(): UnitSystem { return resolveUnits(settings.units, navigator.language); }
 let game: Game | null = null;
 /** Wandering (the Play button is down). */
 let wandering = false;
@@ -126,15 +132,17 @@ function print(lines: Line[], scroll: 'start' | 'end' = 'start'): void {
   const mark = logEl.lastElementChild;
   let firstEl: HTMLElement | null = null;
   const spoken: string[] = [];
+  const system = unitsNow();
   for (const l of lines) {
-    if (l.kind !== 'system') narrator.speak(l.text);
+    const shown = localiseUnits(l.text, system); // metres in the world, the reader's own units on the page and in the voice
+    if (l.kind !== 'system') narrator.speak(shown);
     lastPrintMs = Date.now();
-    lastPrintChars += l.text.length;
+    lastPrintChars += shown.length;
     const p = document.createElement('p');
     p.className = l.kind;
-    p.textContent = l.text;
+    p.textContent = shown;
     logEl.appendChild(p);
-    if (l.kind !== 'system') { firstEl ??= p; spoken.push(l.text); }
+    if (l.kind !== 'system') { firstEl ??= p; spoken.push(shown); }
     if (l.links?.length) {
       const wrap = document.createElement('div');
       wrap.className = 'links';
@@ -206,7 +214,7 @@ function refresh(): void {
   if (!game) return;
   const now = Date.now();
   const s = sceneNow(game, now);
-  const a = audioFor(game.world, s, { facing: game.facing });
+  const a = audioFor(game.world, s, { facing: game.facing, pose: listenerPose(game, now) });
   engine.setScene(a);
   if (!$('map-panel').hidden) map.draw();
   // the name given is what you believe, which, if you have gone astray, is not what is true
@@ -325,7 +333,7 @@ function startGame(fromHash = false, fresh = false): void {
     (window as unknown as Record<string, unknown>).__house = {
       game: g, engine,
       teleport(x: number, y: number, level: 0 | 1 | 2) { g.pos = { x, y, level, wall: null, pos: 500 }; print(look(g, Date.now())); refresh(); },
-      audio() { return audioFor(g.world, sceneNow(g, Date.now()), { facing: g.facing }); },
+      audio() { return audioFor(g.world, sceneNow(g, Date.now()), { facing: g.facing, pose: listenerPose(g, Date.now()) }); },
       mapView(level: Level = g.pos.level) { return mapView(g, level, Date.now()); },
       relics() { return g.relicsListed; },
       scene() { return sceneNow(g, Date.now()); },
@@ -631,6 +639,7 @@ $('s-about').addEventListener('click', openAbout);
 $('about-close').addEventListener('click', (e) => { e.preventDefault(); closeDialog(aboutDlg); });
 function fillSettings(): void {
   $<HTMLInputElement>('s-volume').value = String(settings.volume);
+  $<HTMLSelectElement>('s-units').value = settings.units;
   $<HTMLInputElement>('s-dead').checked = settings.showDead;
   $<HTMLInputElement>('s-diary').checked = settings.diary;
   $<HTMLInputElement>('s-relics').checked = settings.relics;
@@ -652,7 +661,7 @@ function fillSettings(): void {
   $<HTMLSelectElement>('s-scale').value = String(settings.timeScale);
   const sp = $<HTMLInputElement>('s-speed');
   sp.value = String(settings.speedKmh);
-  $('s-speed-out').textContent = `${settings.speedKmh.toFixed(1)} km/h`;
+  $('s-speed-out').textContent = speedText(settings.speedKmh, unitsNow());
   $('s-speed-note').textContent = speedNote(settings.speedKmh);
   $<HTMLInputElement>('s-seed').value = settings.seed;
 }
@@ -660,7 +669,7 @@ $('open-settings').addEventListener('click', () => { fillSettings(); openDialog(
 $('s-cancel').addEventListener('click', () => closeDialog(dlg));
 $<HTMLInputElement>('s-speed').addEventListener('input', (e) => {
   const v = Number((e.target as HTMLInputElement).value);
-  $('s-speed-out').textContent = `${v.toFixed(1)} km/h`;
+  $('s-speed-out').textContent = speedText(v, unitsNow());
   $('s-speed-note').textContent = speedNote(v);
 });
 $<HTMLInputElement>('s-volume').addEventListener('input', (e) => engine.setVolume(Number((e.target as HTMLInputElement).value) / 100));
@@ -668,6 +677,7 @@ $('s-save').addEventListener('click', (e) => {
   e.preventDefault();
   const next: Settings = {
     volume: Number($<HTMLInputElement>('s-volume').value),
+    units: parseUnits($<HTMLSelectElement>('s-units').value),
     muted: settings.muted,
     showDead: $<HTMLInputElement>('s-dead').checked,
     diary: $<HTMLInputElement>('s-diary').checked,
@@ -961,7 +971,7 @@ setInterval(() => {
   const gap = (mutterEveryS || mutterDelayS(Math.random)) * 1000;
   nextMutterMs = Date.now() + gap;
   if (!settings.mutter) return;
-  const a = audioFor(game.world, sceneNow(game, Date.now()), { facing: game.facing });
+  const a = audioFor(game.world, sceneNow(game, Date.now()), { facing: game.facing, pose: listenerPose(game, Date.now()) });
   if (!mutterAllowed(a)) return;
   const line = mutterLine(Math.random);
   const secs = engine.mutter(line);

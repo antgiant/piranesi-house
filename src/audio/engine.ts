@@ -11,7 +11,7 @@ import { Falls } from './falls';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
 import { Sea } from './sea';
-import type { AudioScene, Bed, Portal, Surface } from './director';
+import type { AudioScene, Bearing, Bed, Portal, Surface } from './director';
 import type { BirdSeason } from '../sim/seasons';
 import { REF_DISTANCE, airCutoffHz, bearingPosition, distanceOf, dopplerRatio, flybyPath, perchPosition, polar, positionAt, stageCell, velocityOf, type Flyby, type Vec3 } from './spatial';
 
@@ -606,7 +606,7 @@ export class AudioEngine {
       let v = this.beds.find((x) => x.key === b.key);
       if (!v) {
         const bus = ctx.createGain();
-        const pan = this.makePanner(bearingPosition(b.bearing, b.pan));
+        const pan = this.makePanner(this.doorPlace(b));
         const lp = ctx.createBiquadFilter();
         lp.type = 'lowpass';
         // through a doorway the low parts of water carry and the rest does not: a bump in the low mids, nothing bright
@@ -635,7 +635,7 @@ export class AudioEngine {
       }
       const now = ctx.currentTime;
       v.falls = b.falls;
-      this.placeAt(v.pan, bearingPosition(b.bearing, b.pan), 0.3);
+      this.placeAt(v.pan, this.doorPlace(b), 0.3);
       v.lp.frequency.setTargetAtTime(b.lowpassHz * 0.5, now, 0.3);
       v.seaG.gain.setTargetAtTime(b.sea * 0.6, now, 1);
       v.fallsG.gain.setTargetAtTime(b.falls * 0.2, now, 1);
@@ -649,6 +649,11 @@ export class AudioEngine {
     this.beds = keep;
   }
 
+  /** Where a doorway is heard from: its true direction when the visitor's place in the hall is known, else the nearest of four. */
+  private doorPlace(d: { bearing: Bearing; pan: number; az?: number }): Vec3 {
+    return d.az !== undefined ? polar(d.az, 0, REF_DISTANCE) : bearingPosition(d.bearing, d.pan);
+  }
+
   private syncPortals(list: Portal[]): void {
     const ctx = this.ctx as AudioContext;
     const keep: PortalVoice[] = [];
@@ -657,14 +662,14 @@ export class AudioEngine {
       let v = this.voices.find((x) => x.key === key);
       if (!v) {
         const bus = ctx.createGain();
-        const pan = this.makePanner(bearingPosition(p.bearing, p.pan));
+        const pan = this.makePanner(this.doorPlace(p));
         const lp = ctx.createBiquadFilter();
         lp.type = 'lowpass';
         bus.connect(lp).connect(pan).connect(this.bus);
         v = { key, p, bus, pan, lp, nextBoom: 0, nextBird: 0, nextDrip: 0 };
       }
       v.p = p;
-      this.placeAt(v.pan, bearingPosition(p.bearing, p.pan), 0.3);
+      this.placeAt(v.pan, this.doorPlace(p), 0.3);
       v.lp.frequency.setTargetAtTime(p.lowpassHz, ctx.currentTime, 0.3);
       keep.push(v);
     }
@@ -692,7 +697,7 @@ export class AudioEngine {
         place: (at) => { const p = this.makePanner(at); p.connect(this.bus); return { input: p, move: (to, tc) => this.placeAt(p, to, tc), dispose: () => p.disconnect() }; },
       });
     }
-    this.falls?.set({ gain: a.falls.gain, at: bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
+    this.falls?.set({ gain: a.falls.gain, at: a.falls.az !== undefined ? polar(a.falls.az, 0, 5) : bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
     // a tide booming next door is felt through the floor before it reaches you
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
     ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));

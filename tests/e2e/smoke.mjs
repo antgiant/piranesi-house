@@ -145,7 +145,7 @@ try {
   // --- falling water: a hall with falls makes the falls voice and it is heard ---
   {
     const found = await page.evaluate(() => {
-      for (let x = -12; x < 12; x++) for (let y = -12; y < 12; y++) { window.__house.teleport(x, y, 1); if (window.__house.audio().falls.gain > 0.2) return [x, y]; }
+      for (let x = -12; x < 12; x++) for (let y = -12; y < 12; y++) { window.__house.teleport(x, y, 1); if (window.__house.audio().falls.gain > 0.04) return [x, y]; } // (standing mid-floor in a huge hall, a fall is a far murmur: about 0.1)
       return null;
     });
     check(found !== null, 'there are halls with falls near the start');
@@ -162,6 +162,24 @@ try {
   await page.screenshot({ path: 'tests/e2e/out/screenshot.png' });
   await page.setViewportSize({ width: 390, height: 780 });
   await page.screenshot({ path: 'tests/e2e/out/screenshot-mobile.png' });
+
+  // --- units: the same walk, in feet and in metres ---
+  for (const [units, re, label] of [['us', /set off for the west door, \d+ feet away/, 'feet'], ['metric', /set off for the west door, \d+ metres away/, 'metres']]) {
+    const u = await newPage({ viewport: { width: 900, height: 700 } });
+    u.on('pageerror', (e) => errors.push(String(e)));
+    await u.addInitScript((val) => { try { localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true, narrate: 'off', units: val })); } catch { /* ignore */ } }, units);
+    await u.goto(URL_WALK('real'));
+    await u.click('#enter');
+    await u.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await u.fill('#input', 'go west');
+    await u.press('#input', 'Enter');
+    await u.waitForFunction(() => /set off for the west door/.test(document.getElementById('log').textContent));
+    check(re.test(await u.locator('#log').textContent()), `with units set to ${units}, the walk's distance is in ${label}`);
+    await u.click('#open-settings');
+    const out = await u.locator('#s-speed-out').textContent();
+    check(units === 'us' ? /mph$/.test(out) : /km\/h$/.test(out), `and the walking speed is ${units === 'us' ? 'mph' : 'km/h'} (${out})`);
+    await u.close();
+  }
 
   // --- what earlier visitors left behind ---
   {

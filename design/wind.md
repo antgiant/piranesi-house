@@ -37,7 +37,7 @@ A highrise's windows in a gale (indoors), an open window in a 30-50 mph windstor
 These three are all open-air, and all very different from the wind in stone:
 * **Bright.** The centroid is 2.4 kHz in the forest, 7.4 kHz in the dry stalks, with most of the energy at 4-8 kHz and almost none below 250 Hz (the stalks are 30 dB lower at 125 Hz than at 8 kHz). The sound of a breeze is the leaves, grass and twigs, not the air; in stone it is a low, hollow flow (my light wind: centroid 160 Hz, which the owner found right for the House).
 * **Gusts live in the highs**: the forest swings 21 dB between its p5 and p95 at 1.5-4 kHz and only 4 dB in the mids, and remembers itself for seconds (autocorrelation 0.54 after 4 s). The stalks swing 10 dB in the highs and 5 dB below.
-* **Ice crackle** on trees in the wind: about 7 events a second above the local floor, plus a low 200 Hz creak of the trunks and a very low roar of the wind itself (centroid 79 Hz).
+* **Ice crackle** on trees in the wind: about one event every two seconds above the local floor (0.5 a second, median gap 0.7 s), plus a low 200 Hz creak of the trunks and a very low roar of the wind itself (centroid 79 Hz).
 They matter for the plants and animals work (seeds blown in, grass and thistles in the cracks, ivy and roots in the vaults): the wind in them is a high swish that follows the gusts, to be added over the stone wind where there is something to blow about; and the owner's reading of the light breeze as already right is a check on the level.
 
 Not done: wind direction as a cue (the gust coming through the door that faces it), wind in the stair shaft, snow-hush.

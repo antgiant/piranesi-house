@@ -6,6 +6,8 @@
 // Randomness here (bird timing, drips) is cosmetic and deliberately not part of the deterministic world.
 
 import { babblePlan, type BabbleEvent } from './babble';
+import { bassShape, type BassMode } from './bass';
+import { Patter } from './patter';
 import { Sea } from './sea';
 import type { AudioScene, Bed, Portal, Surface } from './director';
 import type { BirdSeason } from '../sim/seasons';
@@ -91,6 +93,14 @@ export class AudioEngine {
   /** Which sea to make. The new one is built from measured recordings (sea.ts); the old stays the default until it is approved. */
   seaModel: 'old' | 'new' = 'old';
   private sea: Sea | null = null;
+  private patter: Patter | null = null;
+  /** The deep-bass setting (see bass.ts). */
+  private bass: BassMode = 'standard';
+  /** Two high-passes in a row, so the cut for small speakers is steep (24 dB an octave). */
+  private bassHp!: BiquadFilterNode;
+  private bassHp2!: BiquadFilterNode;
+  private bassShelf!: BiquadFilterNode;
+  private bassTrim!: GainNode;
   private ctx: AudioContext | null = null;
   private master!: GainNode;
   private lowpass!: BiquadFilterNode;
@@ -223,13 +233,20 @@ export class AudioEngine {
     this.wet.gain.value = 0.34;
     this.bus.connect(this.dry).connect(this.lowpass);
     this.wet.connect(this.lowpass);
-    this.lowpass.connect(this.master);
+    // the deep-bass stage: after the muffle, before the volume
+    // (for a high-pass, Web Audio's Q is in dB: -3 is the flat, Butterworth response; 0.707 would be a small resonance)
+    this.bassHp = ctx.createBiquadFilter(); this.bassHp.type = 'highpass'; this.bassHp.Q.value = -3.0103;
+    this.bassHp2 = ctx.createBiquadFilter(); this.bassHp2.type = 'highpass'; this.bassHp2.Q.value = -3.0103;
+    this.bassShelf = ctx.createBiquadFilter(); this.bassShelf.type = 'lowshelf'; this.bassShelf.frequency.value = 60;
+    this.bassTrim = ctx.createGain();
+    this.lowpass.connect(this.bassHp).connect(this.bassHp2).connect(this.bassShelf).connect(this.bassTrim).connect(this.master);
+    this.pushBass(true);
     this.master.connect(this.analyser);
     this.analyser.connect(ctx.destination);
     this.noise = this.makeNoise(4, 'white');
     this.brown = this.makeNoise(8, 'brown');
     this.buildBeds();
-    if (this.seaModel === 'new') this.sea = new Sea({ ctx, out: this.bus, spot: (at) => this.spot(at) });
+    if (this.seaModel === 'new') { this.sea = new Sea({ ctx, out: this.bus, spot: (at) => this.spot(at) }); this.sea.setThump(bassShape(this.bass).thump); }
     this.timer = setInterval(() => this.tickEvents(), 200);
     if (this.scene) this.apply(this.scene);
     if (ctx.state === 'suspended') await ctx.resume();
@@ -242,7 +259,24 @@ export class AudioEngine {
     this.ctx = null;
     this.sea?.dispose();
     this.sea = null;
+    this.patter?.dispose();
+    this.patter = null;
     this.stage.clear();
+  }
+
+  /** Deep bass: for small speakers, standard, or full range (headphones or a subwoofer). Eases, so changing it mid-sound does not click. */
+  setBass(mode: BassMode): void {
+    this.bass = mode;
+    this.pushBass(false);
+  }
+  private pushBass(now: boolean): void {
+    if (!this.ctx) return;
+    const s = bassShape(this.bass), t = this.ctx.currentTime, tc = now ? 0.001 : 0.15;
+    this.bassHp.frequency.setTargetAtTime(s.highpassHz, t, tc);
+    this.bassHp2.frequency.setTargetAtTime(s.highpassHz, t, tc);
+    this.bassShelf.gain.setTargetAtTime(s.shelfDb, t, tc);
+    this.bassTrim.gain.setTargetAtTime(s.trim, t, tc);
+    this.sea?.setThump(s.thump);
   }
 
   setVolume(v: number): void {
@@ -702,6 +736,12 @@ export class AudioEngine {
     ease(this.lowpass.frequency, 20000 - a.muffle * 19400, 0.6);
     ease(this.seaGain.gain, this.sea ? 0 : a.sea.gain * 0.55);
     this.sea?.set(a.sea);
+    if (this.seaModel === 'new') {
+      // rain that lands on water has its own patter (made the first time it is needed)
+      const onWater = (a.rain.gain / 0.75) * (a.rain.onWater ?? 0);
+      if (onWater > 0.02 && !this.patter) this.patter = new Patter({ ctx, spot: (at) => this.spot(at) });
+      this.patter?.set(onWater);
+    }
     ease(this.seaFilter.frequency, a.sea.lowpassHz, 1.5);
     // a tide booming next door is felt through the floor before it reaches you
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);

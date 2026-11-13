@@ -433,7 +433,8 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
   }
   if (a.thunder > 0.2) bits.push(v(['Thunder rolls somewhere far above, slow and heavy, and dies away along the walls.', 'A long low rumble of thunder comes down through the building.']));
   if (a.falls.gain > 0) bits.push(v(['Fresh water trickles and splashes over stone somewhere nearby.', 'Water runs down a wall close by, with a bright, broken sound.', 'You can hear a thread of fresh water falling.']));
-  if (a.rain.gain > 0.3) bits.push(v(['Rain drums on the pavement.', 'Rain beats on the stone, and the whole hall hisses with it.']));
+  if (a.rain.gain > 0.3 && a.rain.onWater >= 0.6) bits.push(v(['Rain patters on the water all around you.', 'Rain pocks the water in a thousand small drops, and the whole hall hisses with it.']));
+  else if (a.rain.gain > 0.3) bits.push(v(['Rain drums on the pavement.', 'Rain beats on the stone, and the whole hall hisses with it.']));
   else if (a.rain.gain > 0) bits.push(v(['A fine rain patters.', 'Rain whispers somewhere outside the windows.']));
   if (a.wind.whistle > 0.1) bits.push(v(['Wind sings through hollows in the statues, a thin shifting whistle.', 'A thin whistling comes and goes among the statues as the wind finds its hollows.']));
   else if (a.wind.gain > 0.25) bits.push(v(['Wind moans through the vestibule.', 'The wind moves through the great room with a low moan.']));

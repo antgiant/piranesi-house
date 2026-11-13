@@ -13,7 +13,8 @@
 //
 // The sea is driven by the same three numbers as before (gain, how muffled, how long a swell), so the director need not change.
 
-import { polar, type Vec3 } from './spatial';
+import { fillBrown, fillControl, fillFoam, fillPink, fillWhite, makeBuffer, randn } from './noise';
+import { AROUND as SPOTS, polar, type Vec3 } from './spatial';
 
 export interface SeaScene { gain: number; lowpassHz: number; swellSec: number }
 
@@ -30,71 +31,13 @@ export interface SeaDeps {
 /** A wave that has just been started, so the engine can echo it through the doorways. */
 export interface WaveInfo { t: number; rise: number; crest: number; dur: number }
 
-/** Where the sound comes from: front pair, sides, rear pair; a little above the ear line at the sides. */
-const SPOTS: { az: number; el: number }[] = [
-  { az: -35, el: 0 }, { az: 35, el: 0 }, { az: -95, el: 8 }, { az: 95, el: 8 }, { az: -150, el: 0 }, { az: 150, el: 0 },
-  { az: 0, el: 30 }, { az: 180, el: 25 },
-];
 const SPOT_DIST = 5;
 
 const BUF_SEC = 12;
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
-const randn = (): number => Math.sqrt(-2 * Math.log(Math.random() + 1e-12)) * Math.cos(2 * Math.PI * Math.random());
 
 // ---- noise made once, shared by every voice (each plays it from its own offset and speed, so they are independent) ----------------
-
-function makeBuffer(ctx: BaseAudioContext, fill: (d: Float32Array, sr: number) => void, rms = 0.25): AudioBuffer {
-  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * BUF_SEC), ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  fill(d, ctx.sampleRate);
-  let s = 0;
-  for (let i = 0; i < d.length; i++) s += d[i]! * d[i]!;
-  const g = rms / Math.sqrt(s / d.length + 1e-20);
-  for (let i = 0; i < d.length; i++) d[i]! *= g;
-  return buf;
-}
-
-function fillPink(d: Float32Array): void {
-  // Paul Kellet's economical pink filter
-  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-  for (let i = 0; i < d.length; i++) {
-    const w = Math.random() * 2 - 1;
-    b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
-    b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
-    d[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362; b6 = w * 0.115926;
-  }
-}
-
-function fillBrown(d: Float32Array): void {
-  let last = 0;
-  for (let i = 0; i < d.length; i++) { last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last; }
-}
-
-/** Slow random wobble (about 2 Hz, unit spread, clipped at about 2.2 sigma so a modulation of up to 0.45 never reverses the sign). */
-function fillControl(d: Float32Array, sr: number): void {
-  const a = 1 - Math.exp((-2 * Math.PI * 2) / sr);
-  let y = 0;
-  for (let i = 0; i < d.length; i++) { y += a * ((Math.random() * 2 - 1) - y); d[i] = y; }
-  let s = 0;
-  for (let i = 0; i < d.length; i++) s += d[i]! * d[i]!;
-  const g = 1 / Math.sqrt(s / d.length + 1e-20);
-  for (let i = 0; i < d.length; i++) d[i] = clamp(d[i]! * g, -2.2, 2.2);
-}
-
-/** Foam: a dense scatter of tiny bubble pops, each a short decaying ring at its own pitch (small bubbles ring high and quiet). */
-function fillCrackle(d: Float32Array, sr: number): void {
-  const pops = Math.floor(2200 * (d.length / sr));
-  for (let e = 0; e < pops; e++) {
-    const at = Math.floor(Math.random() * d.length);
-    const f = Math.exp(rand(Math.log(1400), Math.log(9500)));
-    const tau = sr * 0.0009 * Math.sqrt(3000 / f) * rand(0.6, 1.6);
-    const amp = Math.pow(Math.random(), 2.4) * Math.sqrt(2600 / f) * (0.3 + Math.abs(randn()));
-    const len = Math.min(d.length - at, Math.floor(tau * 5));
-    const w = (2 * Math.PI * f) / sr;
-    for (let k = 0; k < len; k++) d[at + k]! += amp * Math.exp(-k / tau) * Math.sin(w * k);
-  }
-}
 
 // ---- the layers ------------------------------------------------------------------------------------------------------------------
 
@@ -112,7 +55,7 @@ const SHAPE: Record<LayerName, { rise: number; tau: number; power: number }> = {
   body: { rise: 0.44, tau: 0.26, power: 1 },
   roar: { rise: 0.46, tau: 0.22, power: 1.1 },
   hiss: { rise: 0.52, tau: 0.3, power: 1.4 },
-  crack: { rise: 0.54, tau: 0.34, power: 1.7 },
+  crack: { rise: 0.52, tau: 0.3, power: 1.25 },
 };
 
 /** Level of each layer at full scene gain, and its floor between waves. Tuned against the measured recordings. */
@@ -124,7 +67,7 @@ const LEVEL: Record<LayerName, { gain: number; floor: number; swing: number }> =
   crack: { gain: 0.24, floor: 0.03, swing: 1 },
 };
 /** Overall trim, so that the whole sea sits at about the loudness of the sea it replaces and never nears clipping. */
-const TRIM = 0.88;
+const TRIM = 0.78;
 
 export class Sea {
   private readonly ctx: BaseAudioContext;
@@ -141,6 +84,7 @@ export class Sea {
   private nextWave = 0;
   private waves = 0;
   private level = 0;
+  private thump = 1;
 
   constructor(deps: SeaDeps) {
     this.ctx = deps.ctx;
@@ -149,6 +93,9 @@ export class Sea {
     this.n = clamp(deps.voices ?? 6, 2, SPOTS.length);
     this.build();
   }
+
+  /** How hard each wave's low thump is struck (the deep-bass setting): 1 is standard, 0 none. */
+  setThump(k: number): void { this.thump = Math.max(0, k); }
 
   /** Waves made so far (for tests). */
   get waveCount(): number { return this.waves; }
@@ -176,10 +123,10 @@ export class Sea {
   private build(): void {
     const ctx = this.ctx;
     this.buffers = {
-      white: makeBuffer(ctx, (d) => { for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }),
-      pink: makeBuffer(ctx, fillPink),
-      brown: makeBuffer(ctx, fillBrown),
-      crackle: makeBuffer(ctx, fillCrackle, 0.3),
+      white: makeBuffer(ctx, BUF_SEC, fillWhite),
+      pink: makeBuffer(ctx, BUF_SEC, fillPink),
+      brown: makeBuffer(ctx, BUF_SEC, fillBrown),
+      crackle: makeBuffer(ctx, BUF_SEC, fillFoam, 0.3),
       ctl: (() => { const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * BUF_SEC), ctx.sampleRate); fillControl(b.getChannelData(0), ctx.sampleRate); return b; })(),
     };
     const merger = this.track(ctx.createChannelMerger(2));
@@ -227,7 +174,7 @@ export class Sea {
       const sum = this.gain(1);
       sum.connect(this.spot(polar(at.az, at.el, SPOT_DIST)));
       // each direction flutters on its own: the wash is turbulent, not a clean swell. Foam flutters faster and deeper than the roar.
-      const FLUTTER = { roar: { speed: 0.55, depth: 0.32 }, hiss: { speed: 1.3, depth: 0.4 }, crack: { speed: 1.9, depth: 0.45 } } as const;
+      const FLUTTER = { roar: { speed: 0.55, depth: 0.32 }, hiss: { speed: 1.0, depth: 0.32 }, crack: { speed: 1.0, depth: 0.28 } } as const;
       const add = (layer: Layer, name: 'roar' | 'hiss' | 'crack', node: AudioNode): void => {
         const e = this.gain(LEVEL[name].floor), m = this.gain(0), wob = this.gain(1);
         const fl = FLUTTER[name];
@@ -324,13 +271,14 @@ export class Sea {
     const ctx = this.ctx;
     const amp = gain * a;
     if (amp < 0.02) return;
+    const thump = this.thump;
     const o = ctx.createOscillator();
     o.type = 'sine';
     o.frequency.setValueAtTime(rand(48, 62), t);
     o.frequency.exponentialRampToValueAtTime(rand(24, 30), t + 1.1);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.3 * TRIM * amp * amp, t + 0.05);
+    g.gain.linearRampToValueAtTime(0.3 * TRIM * amp * amp * thump + 0.0001, t + 0.05);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
     o.connect(g).connect(this.lfOut);
     o.start(t); o.stop(t + 1.4);

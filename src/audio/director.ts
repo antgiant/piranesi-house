@@ -72,7 +72,8 @@ export interface AudioScene {
   sea: { gain: number; lowpassHz: number; swellSec: number };
   tide: { kind: TideSound; gain: number; character: string | null; strikeEverySec: number };
   falls: { gain: number };
-  rain: { gain: number };
+  /** Rain, and how much of it lands on water (a hall the tide has flooded, falls or a stream, the lower halls by the sea): 0..1. */
+  rain: { gain: number; onWater: number };
   wind: { gain: number; whistle: number };
   birds: { mode: BirdMode; perMinute: number; loudness: number; species: string[]; season: BirdSeason };
   /** 0..1: how much high frequency is taken away (cloud, water over the head). */
@@ -226,7 +227,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     sea: { gain: seaGain, lowpassHz: seaLow, swellSec: h.level === 0 ? 7 : 11 },
     tide: { kind: tideKind, gain: tideGain, character: s.tide.character?.sound ?? null, strikeEverySec: strike },
     falls: { gain: falls + streams },
-    rain: { gain: rain },
+    rain: { gain: rain, onWater: depth > 0 ? 1 : h.level === 0 ? 0.7 : h.falls || s.here.streams ? 0.6 : 0 },
     wind: { gain: windGain * (1 - snowing * 0.4), whistle },
     thunder,
     birds,

@@ -96,3 +96,23 @@ describe('audio director', () => {
     expect(audioFor(w, scene(p, 777 * MS.hour))).toEqual(audioFor(createWorld('test-seed'), scene(p, 777 * MS.hour)));
   });
 });
+
+describe('rain on water', () => {
+  it('lands on water wherever the hall is flooded, the sea is underfoot, or water falls: never outside 0..1', () => {
+    let flooded = 0, lower = 0, dry = 0;
+    for (let t = 0; t < 40 * MS.day; t += 3 * MS.hour) {
+      const a = audioFor(w, scene(here('Ninth Vestibule'), t), { portals: false });
+      expect(a.rain.onWater).toBeGreaterThanOrEqual(0);
+      expect(a.rain.onWater).toBeLessThanOrEqual(1);
+      if (a.surface === 'wet' || a.surface === 'shallow') { expect(a.rain.onWater).toBe(1); flooded++; }
+      const low = audioFor(w, scene({ ...here('Second Southern Hall'), level: 0 }, t), { portals: false });
+      expect(low.rain.onWater).toBeGreaterThanOrEqual(0.7);
+      lower++;
+      const mid = audioFor(w, scene(here('Second Southern Hall'), t), { portals: false });
+      if (mid.surface === 'marble' && mid.falls.gain === 0) { expect(mid.rain.onWater).toBe(0); dry++; }
+    }
+    expect(flooded).toBeGreaterThan(0);
+    expect(lower).toBeGreaterThan(0);
+    expect(dry).toBeGreaterThan(0);
+  });
+});

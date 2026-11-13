@@ -34,6 +34,10 @@ Checked in `tests/spatial.test.ts` (geometry, Doppler, paths) and, measured on t
 context: a source at the left is about 3.5x louder in the left ear, right likewise; ahead is louder than behind; a fly-past
 from left to right moves the level between the ears and glides pitch from about +6% to -6%.
 
+## Water, rain on water and deep bass
+The sea has been rebuilt from measurements of real recordings (off by default until approved), with rain-on-water and a deep-bass setting:
+see `design/sea-model.md`.
+
 ## Layers
 | Layer | Made from | Driven by |
 |---|---|---|

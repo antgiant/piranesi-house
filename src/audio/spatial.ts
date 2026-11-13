@@ -104,6 +104,15 @@ export function perchPosition(rand: () => number, elevation: [number, number] = 
   return polar(rand() * 360 - 180, elevation[0] + rand() * (elevation[1] - elevation[0]), distance[0] + rand() * (distance[1] - distance[0]));
 }
 
+/**
+ * Directions around the listener for sounds that surround: front pair, sides, rear pair, then overhead and behind-above. The sea and the
+ * rain on water each use the first few; all land on a cell of the shared ring below, so they cost no panners of their own.
+ */
+export const AROUND: readonly { az: number; el: number }[] = [
+  { az: -35, el: 0 }, { az: 35, el: 0 }, { az: -95, el: 8 }, { az: 95, el: 8 }, { az: -150, el: 0 }, { az: 150, el: 0 },
+  { az: 0, el: 30 }, { az: 180, el: 25 },
+];
+
 const AZ_STEP = 30;
 const EL_CELLS = [-50, 0, 35, 70];
 

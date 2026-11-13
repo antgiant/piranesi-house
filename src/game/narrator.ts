@@ -432,7 +432,15 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
     case 'none': break;
   }
   if (a.thunder > 0.2) bits.push(v(['Thunder rolls somewhere far above, slow and heavy, and dies away along the walls.', 'A long low rumble of thunder comes down through the building.']));
-  if (a.falls.gain > 0) bits.push(v(['Fresh water trickles and splashes over stone somewhere nearby.', 'Water runs down a wall close by, with a bright, broken sound.', 'You can hear a thread of fresh water falling.']));
+  if (a.falls.gain > 0) {
+    // the water is what the weather has made it: a thread in a dry spell, swollen and roaring after long rain
+    if (a.water.overflow > 0.3) bits.push(v(['The fresh water is running over its brims: it roars down the wall and the whole hall booms with it.', 'The falls are swollen with the rains and thunder down the stone.']));
+    else if (a.water.flow < 0.65) bits.push(v(['Fresh water falls thinly, in threads and drips, as it does in a dry spell.', 'You can hear only a thread of fresh water falling.']));
+    else bits.push(v(['Fresh water trickles and splashes over stone somewhere nearby.', 'Water runs down a wall close by, with a bright, broken sound.', 'You can hear a thread of fresh water falling.']));
+  }
+  if (a.stairs.flow > 0.2) bits.push(a.stairs.cause === 'drain'
+    ? v(['Water pours back down the great stair, step after step, and a deep gurgle rises from the shaft below.', 'The tide drains away down the stair with a long hollow rush.'])
+    : v(['Rain-water runs down the great stair in a sheet, step after step, with a hollow gurgle from the dark below.', 'Water runs down the stair from the courtyards, and somewhere far beneath it falls into the dark.']));
   if (a.rain.gain > 0.3 && a.rain.onWater >= 0.6) bits.push(v(['Rain patters on the water all around you.', 'Rain pocks the water in a thousand small drops, and the whole hall hisses with it.']));
   else if (a.rain.gain > 0.3) bits.push(v(['Rain drums on the pavement.', 'Rain beats on the stone, and the whole hall hisses with it.']));
   else if (a.rain.gain > 0) bits.push(v(['A fine rain patters.', 'Rain whispers somewhere outside the windows.']));

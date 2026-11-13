@@ -10,10 +10,12 @@ import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
+import { StairsWater } from './stairs';
+import { Through } from './through';
 import { Sea } from './sea';
-import type { AudioScene, Bearing, Bed, Portal, Surface } from './director';
+import type { AudioScene, Bearing, Bed, Leak, Portal, Surface } from './director';
 import type { BirdSeason } from '../sim/seasons';
-import { REF_DISTANCE, airCutoffHz, bearingPosition, distanceOf, dopplerRatio, flybyPath, perchPosition, polar, positionAt, stageCell, velocityOf, type Flyby, type Vec3 } from './spatial';
+import { REF_DISTANCE, airCutoffHz, bearingPosition, distanceOf, dopplerRatio, flybyPath, perchPosition, polar, positionAt, stageCell, toPolar, velocityOf, type Flyby, type Vec3 } from './spatial';
 
 export type Species = 'goose' | 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
 
@@ -76,26 +78,19 @@ interface PortalVoice {
   nextDrip: number;
 }
 
-/** The sea and falling water from one neighbouring hall, heard through the wall or opening. */
-interface BedVoice {
-  key: string;
-  bus: GainNode;
-  pan: PannerNode;
-  lp: BiquadFilterNode;
-  /** Pulsed by the waves so the sea behind the wall swells and falls. */
-  wave: GainNode;
-  seaG: GainNode;
-  fallsG: GainNode;
-  srcs: AudioBufferSourceNode[];
-  falls: number;
-  nextBubble: number;
-}
+/** The sea and falling water from one neighbouring hall, heard through the wall or opening (see through.ts). */
+interface BedVoice { key: string; v: Through }
+
+/** One leak in the hall as the engine plays it: a place of its own that moves as the listener does, a pitch, a rate, and when it next drips. */
+interface LeakVoice { key: string; place: { input: AudioNode; move: (at: Vec3, tc: number) => void; dispose: () => void }; pitch: number; perMin: number; gain: number; next: number }
 
 export class AudioEngine {
   /** The sea, built from measured recordings (sea.ts). */
   private sea: Sea | null = null;
   private patter: Patter | null = null;
   private falls: Falls | null = null;
+  private stairs: StairsWater | null = null;
+  private leakVoices: LeakVoice[] = [];
   /** Two high-passes in a row, so the cut for small speakers is steep (24 dB an octave). */
   private bassHp!: BiquadFilterNode;
   private bassHp2!: BiquadFilterNode;
@@ -120,7 +115,6 @@ export class AudioEngine {
   private irKey = '';
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBird = 0;
-  private nextDrip = 0;
   private nextBoom = 0;
   private nextThunder = 0;
   /** Bird calls and thunderclaps played, for the end-to-end tests. */
@@ -257,6 +251,12 @@ export class AudioEngine {
     this.patter = null;
     this.falls?.dispose();
     this.falls = null;
+    this.stairs?.dispose();
+    this.stairs = null;
+    for (const b of this.beds) b.v.dispose();
+    this.beds = [];
+    for (const l of this.leakVoices) l.place.dispose();
+    this.leakVoices = [];
     this.stage.clear();
   }
 
@@ -599,54 +599,49 @@ export class AudioEngine {
   }
 
   /** Sea and falling water from next door: a muffled, steady presence behind the wall, shaped by the opening it comes through. */
+  /** The sea and falls of the halls next door, each through its own opening. */
   private syncBeds(list: Bed[]): void {
     const ctx = this.ctx as AudioContext;
     const keep: BedVoice[] = [];
+    const place = (at: Vec3) => this.placeHandle(at);
     for (const b of list) {
+      const at = this.doorPlace(b);
       let v = this.beds.find((x) => x.key === b.key);
-      if (!v) {
-        const bus = ctx.createGain();
-        const pan = this.makePanner(this.doorPlace(b));
-        const lp = ctx.createBiquadFilter();
-        lp.type = 'lowpass';
-        // through a doorway the low parts of water carry and the rest does not: a bump in the low mids, nothing bright
-        const body = ctx.createBiquadFilter();
-        body.type = 'peaking';
-        body.frequency.value = 200;
-        body.gain.value = 5;
-        bus.connect(body).connect(lp).connect(pan).connect(this.bus);
-        const wave = ctx.createGain();
-        wave.gain.value = 0.5;
-        const seaG = ctx.createGain();
-        seaG.gain.value = 0;
-        const sf = ctx.createBiquadFilter();
-        sf.type = 'lowpass';
-        sf.frequency.value = 450;
-        const fallsG = ctx.createGain();
-        fallsG.gain.value = 0;
-        const ff = ctx.createBiquadFilter();
-        ff.type = 'bandpass';
-        ff.frequency.value = 900;
-        ff.Q.value = 0.5;
-        const srcs = [this.loop(this.brown), this.loop(this.noise)];
-        srcs[0]!.connect(sf).connect(wave).connect(seaG).connect(bus);
-        srcs[1]!.connect(ff).connect(fallsG).connect(bus);
-        v = { key: b.key, bus, pan, lp, wave, seaG, fallsG, srcs, falls: 0, nextBubble: 0 };
-      }
-      const now = ctx.currentTime;
-      v.falls = b.falls;
-      this.placeAt(v.pan, this.doorPlace(b), 0.3);
-      v.lp.frequency.setTargetAtTime(b.lowpassHz * 0.5, now, 0.3);
-      v.seaG.gain.setTargetAtTime(b.sea * 0.6, now, 1);
-      v.fallsG.gain.setTargetAtTime(b.falls * 0.2, now, 1);
+      if (!v) v = { key: b.key, v: new Through({ ctx, place }, at) };
+      v.v.set({ sea: b.sea, falls: b.falls, lowpassHz: b.lowpassHz, at });
       keep.push(v);
     }
-    for (const v of this.beds) if (!keep.includes(v)) {
-      v.seaG.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
-      v.fallsG.gain.setTargetAtTime(0, ctx.currentTime, 0.4);
-      setTimeout(() => { for (const s of v.srcs) { try { s.stop(); } catch { /* already stopped */ } } v.bus.disconnect(); v.pan.disconnect(); }, 2500);
-    }
+    for (const v of this.beds) if (!keep.includes(v)) v.v.retire();
     this.beds = keep;
+  }
+
+  /** The leaks heard from here: each at its own fixed place (moved as you walk, so it stays where it is in the hall), dripping on its own time. */
+  private syncLeaks(list: Leak[]): void {
+    const t = (this.ctx as AudioContext).currentTime;
+    const keep: LeakVoice[] = [];
+    for (const l of list) {
+      const at = polar(l.az, l.el, 5);
+      let v = this.leakVoices.find((x) => x.key === l.key);
+      if (v) v.place.move(at, 0.3);
+      else v = { key: l.key, place: this.placeHandle(at), pitch: l.pitch, perMin: l.perMin, gain: l.gain, next: t + rand(0, 60 / Math.max(0.5, l.perMin)) };
+      v.pitch = l.pitch; v.perMin = l.perMin; v.gain = l.gain;
+      keep.push(v);
+    }
+    for (const v of this.leakVoices) if (!keep.includes(v)) setTimeout(() => v.place.dispose(), 4000); // let the last drop's tail finish
+    this.leakVoices = keep;
+  }
+
+  /** One drop from a leak: its own pitch, a little different each time. */
+  private leakDrip(v: LeakVoice, t: number): void {
+    const f0 = v.pitch * rand(0.94, 1.06), d = bubbleDamping(f0), dur = 9.2 / d;
+    this.tone(t, f0, f0 * (1 + CHIRP * d * dur * 0.35), dur, 'sine', 0.1 * v.gain * Math.pow(1450 / f0, 0.7) * rand(0.7, 1.2), 0, 0.001, v.place.input);
+  }
+
+  /** A panner of its own that can be moved, for the water voices that have a place in the hall. */
+  private placeHandle(at: Vec3): { input: AudioNode; move: (to: Vec3, tc: number) => void; dispose: () => void } {
+    const p = this.makePanner(at);
+    p.connect(this.bus);
+    return { input: p, move: (to, tc) => this.placeAt(p, to, tc), dispose: () => p.disconnect() };
   }
 
   /** Where a doorway is heard from: its true direction when the visitor's place in the hall is known, else the nearest of four. */
@@ -694,15 +689,19 @@ export class AudioEngine {
     if (a.falls.gain > 0.02 && !this.falls) {
       this.falls = new Falls({
         ctx, spot: (at) => this.spot(at),
-        place: (at) => { const p = this.makePanner(at); p.connect(this.bus); return { input: p, move: (to, tc) => this.placeAt(p, to, tc), dispose: () => p.disconnect() }; },
+        place: (at) => this.placeHandle(at),
       });
     }
-    this.falls?.set({ gain: a.falls.gain, at: a.falls.az !== undefined ? polar(a.falls.az, 0, 5) : bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
+    // water running down the great stair, and into the shaft beneath it
+    if (a.stairs.flow > 0.02 && !this.stairs) this.stairs = new StairsWater({ ctx, place: (at) => this.placeHandle(at) });
+    this.stairs?.set({ flow: a.stairs.flow, az: a.stairs.az ?? toPolar(bearingPosition(a.stairs.bearing, 0)).az });
+    this.falls?.set({ dripping: a.water.dripping, gain: a.falls.gain, at: a.falls.az !== undefined ? polar(a.falls.az, 0, 5) : bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
     // a tide booming next door is felt through the floor before it reaches you
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
     ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));
     this.syncPortals(a.portals);
     this.syncBeds(a.beds);
+    this.syncLeaks(a.leaks ?? []);
     this.applyOutside(a);
     ease(this.rainGain.gain, a.rain.gain * 0.3);
     ease(this.windGain.gain, a.wind.gain * 0.3);
@@ -718,11 +717,12 @@ export class AudioEngine {
     const a = this.scene;
     if (!ctx || !a || !this.usable()) return;
     const t = ctx.currentTime;
-    // drips: from falls and rain, and (rarely) in the hushed halls
-    const dripRate = a.hush ? 0.12 : a.rain.gain * 4; // (falling water makes its own drips: see falls.ts)
-    if (dripRate > 0 && t >= this.nextDrip) {
-      this.drip(t + 0.02, a.hush ? 0.14 : 0.1);
-      this.nextDrip = t + rand(0.4, 1.4) / Math.max(0.05, dripRate);
+    // drips: each leak in the hall drips from its own place, at its own pitch and rate (the falls make their own drips: see falls.ts)
+    for (const v of this.leakVoices) {
+      if (v.perMin > 0.05 && t >= v.next) {
+        this.leakDrip(v, t + 0.02);
+        v.next = t + (60 / v.perMin) * rand(0.45, 1.8);
+      }
     }
     this.falls?.tick(t);
     this.waterEvents(t, a);
@@ -784,13 +784,7 @@ export class AudioEngine {
   /** The sea behind the walls swells and falls with each wave, a little later for each opening. */
   private pulseBeds(t: number, crest: number, rise: number, D: number): void {
     let i = 0;
-    for (const b of this.beds) {
-      const at = t + 0.3 * (++i);
-      b.wave.gain.cancelScheduledValues(at);
-      b.wave.gain.setValueAtTime(0.25, at);
-      b.wave.gain.linearRampToValueAtTime(0.4 + crest * 0.8, at + rise);
-      b.wave.gain.setTargetAtTime(0.25, at + rise, D * 0.22);
-    }
+    for (const b of this.beds) b.v.pulse(t + 0.3 * ++i, crest, rise, D);
   }
 
   /** The water: waves for the sea, bubbles for falling water, and gusts for the wind. */
@@ -798,17 +792,7 @@ export class AudioEngine {
     // the sea starts its own waves; the sea behind the walls swells with them
     const w = this.sea?.tick(t, a.sea);
     if (w) this.pulseBeds(w.t, Math.min(0.9, w.crest * 0.8 + 0.1), w.rise, w.dur);
-    for (const b of this.beds) if (b.falls > 0.03 && t >= b.nextBubble) {
-      this.bubble(t + rand(0, 0.15), 0.01 + Math.random() * 0.02 * b.falls * 3, b.bus);
-      b.nextBubble = t + 0.12;
-    }
     if (a.wind.gain > 0.01 && t >= this.nextGust) this.gust(t, a);
-  }
-
-  /** The ring of one air bubble in water: a short sine that rises in pitch as it decays. */
-  private bubble(t: number, peak: number, out?: AudioNode, pan = 0): void {
-    const f0 = rand(450, 3200);
-    this.tone(t, f0, f0 * rand(1.2, 1.8), rand(0.035, 0.09), 'sine', peak, out ? 0 : pan, 0.002, out);
   }
 
   /** Thunder: a crack that only the nearest storms have, then a long low rumble that rolls and dies away. */

@@ -11,6 +11,9 @@ export type Command =
   | { t: 'travel'; place: string }
   | { t: 'trek'; side: Side; n?: number }
   | { t: 'approach'; n: number }
+  | { t: 'walkby'; side: Side; meters: number }
+  | { t: 'toward'; what: 'falls' | 'stairs' | 'middle' }
+  | { t: 'face'; side: Side }
   | { t: 'mark'; label: string }
   | { t: 'unmark'; label: string }
   | { t: 'marks' }
@@ -30,7 +33,17 @@ export type Command =
   | { t: 'unknown'; input: string };
 
 const DIRS: Record<string, Side> = { n: 'N', north: 'N', e: 'E', east: 'E', s: 'S', south: 'S', w: 'W', west: 'W' };
+/** Words for a length, in metres. */
+const LENGTHS: Record<string, number> = { m: 1, metre: 1, metres: 1, meter: 1, meters: 1, ft: 0.3048, foot: 0.3048, feet: 0.3048, yd: 0.9144, yard: 0.9144, yards: 0.9144, pace: 0.75, paces: 0.75, step: 0.75, steps: 0.75, mi: 1609.344, mile: 1609.344, miles: 1609.344, km: 1000, kilometre: 1000, kilometres: 1000 };
 const ARTICLES = new Set(['the', 'a', 'an', 'to', 'at', 'through', 'toward', 'towards', 'on', 'of', 'into', 'wall', 'door', 'doors', 'exit']);
+
+/** What "toward the ..." names: the water falling in the hall, the great stair, or the middle of the floor. */
+function towardWhat(rest: string[]): 'falls' | 'stairs' | 'middle' | null {
+  if (rest.some((w) => ['fall', 'falls', 'waterfall', 'waterfalls', 'water', 'stream', 'cascade'].includes(w))) return 'falls';
+  if (rest.some((w) => ['stair', 'stairs', 'stairway', 'staircase'].includes(w))) return 'stairs';
+  if (rest.some((w) => ['middle', 'centre', 'center'].includes(w))) return 'middle';
+  return null;
+}
 
 export function parse(input: string): Command {
   // "this is the Third Western Hall", "I think I am in the third western hall", "this is the Hall of Weeping": saying where you believe you are
@@ -75,7 +88,19 @@ export function parse(input: string): Command {
       return { t: 'look', full: true };
     case 'listen': case 'hear':
       return { t: 'listen' };
+    case 'face': case 'turn': {
+      const side = content.map((w) => DIRS[w]).find(Boolean);
+      return side ? { t: 'face', side } : { t: 'unknown', input };
+    }
     case 'go': case 'walk': case 'head': case 'move': case 'run': case 'enter': case 'leave': case 'exit': case 'door': {
+      // "walk north 100 feet": a distance across the open floor
+      const unit = rest.map((w) => LENGTHS[w]).find((v) => v !== undefined);
+      const amount = rest.map(Number).find((v) => Number.isFinite(v) && v > 0);
+      const heading = content.map((w) => DIRS[w]).find(Boolean);
+      if (heading && unit !== undefined && amount !== undefined) return { t: 'walkby', side: heading, meters: amount * unit };
+      // "walk toward the falls", "head for the stair", "go to the middle"
+      const aim = towardWhat(rest);
+      if (aim && (rest.includes('toward') || rest.includes('towards') || rest.includes('for') || rest.includes('to'))) return { t: 'toward', what: aim };
       // a named place always wins over a compass word inside its name ("...Hall, 2 rows north")
       if (content.some((w) => w === 'hall' || w === 'halls' || w === 'vestibule')) return { t: 'travel', place: content.join(' ') };
       const side = content.map((w) => DIRS[w]).find(Boolean);
@@ -100,6 +125,8 @@ export function parse(input: string): Command {
       return content.length ? { t: 'travel', place: content.join(' ') } : { t: 'unknown', input };
     }
     case 'approach': case 'toward': case 'towards': {
+      const aim = towardWhat(rest);
+      if (aim) return { t: 'toward', what: aim };
       const n = num(rest);
       return n !== undefined ? { t: 'approach', n } : { t: 'unknown', input };
     }

@@ -86,7 +86,9 @@ export function applySave(g: Game, raw: unknown): boolean {
   if (!isObj(raw) || raw.version !== SAVE_VERSION) return false;
   const p = isObj(raw.pos) ? raw.pos : null;
   if (!p || !isInt(p.x) || !isInt(p.y) || !isLevel(p.level)) return false;
-  g.pos = { x: p.x, y: p.y, level: p.level, wall: isSide(p.wall) ? p.wall : null, pos: isInt(p.pos, 0, 1000) ? p.pos : 500 };
+  const pa = isObj(p.at) ? p.at : null;
+  const at = pa && typeof pa.x === 'number' && typeof pa.y === 'number' && Number.isFinite(pa.x) && Number.isFinite(pa.y) && Math.abs(pa.x) < 1e5 && Math.abs(pa.y) < 1e5 ? { x: pa.x, y: pa.y } : undefined;
+  g.pos = { x: p.x, y: p.y, level: p.level, wall: at ? null : isSide(p.wall) ? p.wall : null, pos: isInt(p.pos, 0, 1000) ? p.pos : 500, ...(at ? { at } : {}), ...(typeof p.heading === 'number' && Number.isFinite(p.heading) ? { heading: p.heading } : {}) };
   if (isSide(raw.facing)) g.facing = raw.facing;
   const list = (v: unknown): unknown[] => (Array.isArray(v) ? v.slice(0, 200_000) : []);
   g.explored = new Set(list(raw.explored).filter((k): k is string => isStr(k, 30) && /^[012]:-?\d+,-?\d+$/.test(k)));

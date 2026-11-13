@@ -3,7 +3,7 @@
 // a pool under falls or a stream, the sea itself) this joins the ordinary rain, so it sounds like drops landing on water and not only
 // on stone. Each direction has its own noise and its own slow flutter, as in the sea.
 
-import { fillControl, fillPatter, makeBuffer } from './noise';
+import { waterBuffer } from './buffers';
 import { AROUND, polar, type Vec3 } from './spatial';
 
 export interface PatterDeps {
@@ -13,7 +13,6 @@ export interface PatterDeps {
   voices?: number;
 }
 
-const BUF_SEC = 12;
 const SPOT_DIST = 5;
 /** The patter's level at full: tuned to sit with the ordinary rain layer. */
 const LEVEL = 0.2;
@@ -29,8 +28,7 @@ export class Patter {
   constructor(deps: PatterDeps) {
     const ctx = (this.ctx = deps.ctx);
     const n = Math.max(2, Math.min(deps.voices ?? 6, AROUND.length));
-    const drops = makeBuffer(ctx, BUF_SEC, fillPatter, 0.25);
-    const ctl = makeBuffer(ctx, BUF_SEC, fillControl, 1);
+    const drops = waterBuffer(ctx, 'patter'), ctl = waterBuffer(ctx, 'ctl');
     for (let i = 0; i < n; i++) {
       const at = AROUND[i]!;
       const src = ctx.createBufferSource();

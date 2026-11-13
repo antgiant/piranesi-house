@@ -13,7 +13,8 @@
 //
 // The sea is driven by the same three numbers as before (gain, how muffled, how long a swell), so the director need not change.
 
-import { fillBrown, fillControl, fillFoam, fillPink, fillWhite, makeBuffer, randn } from './noise';
+import { waterBuffer } from './buffers';
+import { randn } from './noise';
 import { AROUND as SPOTS, polar, type Vec3 } from './spatial';
 
 export interface SeaScene { gain: number; lowpassHz: number; swellSec: number }
@@ -122,13 +123,7 @@ export class Sea {
 
   private build(): void {
     const ctx = this.ctx;
-    this.buffers = {
-      white: makeBuffer(ctx, BUF_SEC, fillWhite),
-      pink: makeBuffer(ctx, BUF_SEC, fillPink),
-      brown: makeBuffer(ctx, BUF_SEC, fillBrown),
-      crackle: makeBuffer(ctx, BUF_SEC, fillFoam, 0.3),
-      ctl: (() => { const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * BUF_SEC), ctx.sampleRate); fillControl(b.getChannelData(0), ctx.sampleRate); return b; })(),
-    };
+    this.buffers = { white: waterBuffer(ctx, 'white'), pink: waterBuffer(ctx, 'pink'), brown: waterBuffer(ctx, 'brown'), crackle: waterBuffer(ctx, 'foam'), ctl: waterBuffer(ctx, 'ctl') };
     const merger = this.track(ctx.createChannelMerger(2));
     this.lfOut = this.gain(1);
     merger.connect(this.lfOut).connect(this.out);

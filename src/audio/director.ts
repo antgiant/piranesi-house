@@ -9,7 +9,9 @@ import type { OutsideKind } from '../sim/outside';
 import { getHall } from '../world/hall';
 import { nearbyVestibules } from '../world/tidegeo';
 import type { World } from '../world/world';
-import { azimuthTo, bearingFromAz, distanceTo, nearestOnWall, proximity, sideOfHeading, wallPoint, type Pose } from './pose';
+import { hydrologyAt } from '../sim/hydrology';
+import { leaksOf } from '../world/leaks';
+import { azimuthTo, bearingFromAz, distanceTo, headingOf, nearestOnWall, proximity, sideOfHeading, wallPoint, type Pose } from './pose';
 
 export type Surface = 'marble' | 'wet' | 'shallow' | 'rubble';
 export type TideSound = 'none' | 'approach' | 'booming' | 'submerged';
@@ -63,6 +65,9 @@ export interface Bed {
   falls: number;
 }
 
+/** One leak, as heard: where it is from where you stand, how fast it drips, how loud it is for how far, and the pitch of its drops. */
+export interface Leak { key: string; az: number; el: number; perMin: number; gain: number; pitch: number }
+
 export interface AudioOpts {
   /** Where the visitor is in the hall and which way they head (see pose.ts): sounds then follow them through it, not only from hall to hall. */
   pose?: Pose;
@@ -94,6 +99,12 @@ export interface AudioScene {
   space: 'small' | 'large' | 'vast';
   /** Thunder, 0..1: how much of a storm's thunder reaches here (the upper halls, open to the sky, hear it most). */
   thunder: number;
+  /** The leaks that can be heard from where you stand: each a fixed point in the hall, dripping at its own pitch and rate (the weather sets the rate). */
+  leaks: Leak[];
+  /** Water running down the great stair (rain streams, or a tide draining back down it), and where the stair is from where you stand. */
+  stairs: { flow: number; cause: 'rain' | 'drain' | null; bearing: Bearing; az?: number };
+  /** The state of the water, from the weather so far: how much a fall carries, how often water drips, whether the stores overflow (for the engine). */
+  water: { flow: number; dripping: number; overflow: number; runoff: number; streams: number };
   /** What drifts in through the doorways from the neighbouring halls, loudest first. */
   portals: Portal[];
   /** The steady wash of sea and falling water from the neighbouring halls (for the engine only). */
@@ -118,6 +129,11 @@ const DOOR_REACH_M = 40;
 const FALLS_REACH_M = 30;
 /** The sea and tide come up the stairs: a little louder near them, a little softer across the floor. */
 const STAIR_REACH_M = 40;
+/** Water down the stair carries about as far across a hall as a fall does. */
+const STAIR_WATER_REACH_M = 35;
+/** A drip is quiet: heard at half its closest loudness 60 ft away, and the nearest few are all there is room to hear. */
+const LEAK_REACH_M = 18;
+const MAX_LEAKS = 4;
 const MAX_PORTALS = 10;
 
 function portalsFor(world: World, s: SceneState, facing: Side | null, ownSea: number, pose?: Pose): { portals: Portal[]; beds: Bed[] } {
@@ -232,8 +248,13 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   }
 
   // --- weather ---
-  const falls = !drowned && h.falls ? 0.3 : 0;
-  const streams = s.here.streams && !h.falls ? 0.18 : 0;
+  // The water follows the weather, but not at once: rain runs off in hours and fills the stores over days (see sim/hydrology.ts). A fall
+  // thins in a dry spell and swells after rain; rain streams run down the stairs and walls of the open halls while it runs off.
+  const hy = hydrologyAt(world, s.t);
+  const falls = !drowned && h.falls ? 0.3 * hy.flow : 0;
+  const openToRain = h.kind === 'vestibule' || h.level === 2 || h.regions.cloud;
+  const streamy = !dark && !h.falls && (s.here.streams || (openToRain && hy.streams > 0.12));
+  const streams = streamy && !drowned ? 0.18 * Math.max(0.5, Math.min(1.6, 0.5 + 1.3 * hy.streams)) : 0;
   // where the water is: a fall runs down a known wall (the hall says which, and where along it); a stream has no wall, so it gets a fixed one
   const fallWall = h.falls ? h.falls.wall : fallSide(h.x, h.y, h.level);
   const fallMid = h.falls ? (h.falls.from + h.falls.to) / 2 : 500;
@@ -267,6 +288,33 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const muffle = clamp((cloudy / 1000) * 0.35 + (s.here.fogHere / 1000) * 0.2 + (tideKind === 'submerged' ? 0.9 : 0) + snowing * 0.25, 0, 0.95);
   const surface: Surface = depth >= 4 ? 'shallow' : depth > 0 ? 'wet' : h.regions.derelict >= 60 ? 'rubble' : 'marble';
 
+  // --- water on the stair: rain streams (the open halls) and the drain of a tide, the two things that make it run ---
+  let stairsFlow = 0, stairsCause: 'rain' | 'drain' | null = null, stairAz: number | undefined, stairBearing: Bearing = 'ahead';
+  if (h.stairs.length > 0 && !drowned && !dark) {
+    const rain = hy.streams * (openToRain ? 1 : 0.35) * 0.8;
+    const drain = s.tide.depthDm > 0 && s.tide.trend === 'falling' ? Math.min(1.2, 0.5 + s.tide.depthDm / 40) : 0;
+    stairsFlow = Math.max(rain, drain);
+    stairsCause = stairsFlow < 0.05 ? null : drain > rain ? 'drain' : 'rain';
+    if (stairsCause === null) stairsFlow = 0;
+    const near = pose
+      ? h.stairs.map((st) => ({ st, p: wallPoint(h, st.wall, st.pos) })).sort((a, b) => distanceTo(pose, a.p) - distanceTo(pose, b.p))[0]!
+      : { st: h.stairs[0]!, p: null };
+    if (pose && near.p) {
+      stairAz = azimuthTo(pose, near.p);
+      stairBearing = bearingFromAz(stairAz);
+      stairsFlow *= proximity(distanceTo(pose, near.p), STAIR_WATER_REACH_M, 1.8, 0.25);
+    } else stairBearing = bearing(near.st.wall, facing);
+  }
+
+  // --- leaks: fixed points that drip; the stone drips more while it is wet (hydrology), hardly at all in the hushed halls ---
+  const listener = pose ?? { x: h.xExtent / 2, y: h.yExtent / 2, heading: opts.facing ? headingOf(opts.facing) : 0 };
+  const leakRate = drowned ? 0.1 : dark ? 0.6 : hy.dripping;
+  const leaks: Leak[] = leaksOf(world, h).map((l) => {
+    const dx = l.x - listener.x, dy = l.y - listener.y, horiz = Math.hypot(dx, dy), dz = l.z - 1.6;
+    const dist = Math.hypot(horiz, dz);
+    return { key: l.id, az: azimuthTo(listener, l), el: (Math.atan2(dz, Math.max(0.5, horiz)) * 180) / Math.PI, perMin: l.perMin * leakRate, gain: proximity(dist, LEAK_REACH_M, 1.5, 0), pitch: l.pitch };
+  }).filter((l) => l.gain > 0.08).sort((a, b) => b.gain * Math.sqrt(b.perMin) - a.gain * Math.sqrt(a.perMin)).slice(0, MAX_LEAKS);
+
   const through = opts.portals === false ? { portals: [] as Portal[], beds: [] as Bed[] } : portalsFor(world, s, facing, seaGain, pose);
   return {
     reverb,
@@ -282,6 +330,9 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     dark,
     surface,
     space,
+    leaks,
+    stairs: { flow: stairsFlow, cause: stairsCause, bearing: stairBearing, az: stairAz },
+    water: { flow: hy.flow, dripping: hy.dripping, overflow: hy.overflow, runoff: hy.runoff, streams: hy.streams },
     portals: through.portals,
     beds: through.beds,
     outside: s.outside ? { kind: s.outside.event.kind, gain: s.outside.gain, id: s.outside.id, bearing: bearing(s.outside.event.wall, facing) } : null,

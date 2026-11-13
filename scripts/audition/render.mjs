@@ -30,7 +30,7 @@ const r = await page.evaluate(async ([gain, low, swell, wet, secs, solo, extra])
   const OAC = window.OfflineAudioContext;
   window.AudioContext = class extends OAC { constructor() { super(2, SR * secs, SR); this.__t = 0; Object.defineProperty(this, 'currentTime', { get: () => this.__t }); Object.defineProperty(this, 'state', { get: () => 'running' }); } resume() { return Promise.resolve(); } };
   const e = new window.AudioEngine();
-  const base = { reverb: { decaySec: 4, wet, dampHz: 6000 }, sea: { gain, lowpassHz: low, swellSec: swell }, tide: { kind: 'none', gain: 0, character: null, strikeEverySec: 12 }, falls: { gain: 0 }, rain: { gain: 0, onWater: 0 }, wind: { gain: 0, whistle: 0 }, birds: { mode: 'none', perMinute: 0, loudness: 0.5, species: [], season: {} }, muffle: 0, hush: false, dark: false, surface: 'marble', space: 'large', thunder: 0, portals: [], beds: [], outside: null };
+  const base = { reverb: { decaySec: 4, wet, dampHz: 6000 }, sea: { gain, lowpassHz: low, swellSec: swell }, tide: { kind: 'none', gain: 0, character: null, strikeEverySec: 12 }, falls: { gain: 0 }, rain: { gain: 0, onWater: 0 }, wind: { gain: 0, whistle: 0 }, birds: { mode: 'none', perMinute: 0, loudness: 0.5, species: [], season: {} }, muffle: 0, hush: false, dark: false, surface: 'marble', space: 'large', thunder: 0, portals: [], beds: [], leaks: [], outside: null, stairs: { flow: 0, cause: null, bearing: 'ahead' }, water: { flow: 1, dripping: 1, overflow: 0, runoff: 0, streams: 0 } };
   const ov = extra ? JSON.parse(extra) : {}; delete ov._patterOnly; delete ov._drips;
   e.setScene({ ...base, ...ov });
   await e.start();
@@ -40,7 +40,8 @@ const r = await page.evaluate(async ([gain, low, swell, wet, secs, solo, extra])
   for (let i = 0; i < dripsN; i++) e.drip(1 + i * 1.6, 0.12);
   if (only) { e.rainGain.gain.cancelScheduledValues(0); e.rainGain.gain.setValueAtTime(0, 0); }
   if (solo && e.falls) { const keep = solo.split(','); for (const [k, g] of Object.entries(e.falls.layer)) if (!keep.includes(k)) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } if (!keep.includes('diffuse')) for (const g of e.falls.diffuse) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } }
-  if (solo && e.falls) { /* solo applies to the falls layers here */ } else if (solo) for (const [k, layer] of Object.entries(e.sea.layers)) if (!solo.split(',').includes(k)) for (const m of layer.master) { m.gain.cancelScheduledValues(0); m.gain.setValueAtTime(0, 0); }
+  if (solo && e.stairs) { const keep = solo.split(','); for (const [k, g] of Object.entries(e.stairs.g)) { const grp = k === 'steps' || k === 'plops' ? 'steps' : 'shaft'; if (!keep.includes(grp) && !keep.includes(k)) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } } }
+  if (solo && (e.falls || e.stairs)) { /* solo applied to the water voices above */ } else if (solo) for (const [k, layer] of Object.entries(e.sea.layers)) if (!solo.split(',').includes(k)) for (const m of layer.master) { m.gain.cancelScheduledValues(0); m.gain.setValueAtTime(0, 0); }
   for (let t = 0; t < secs - 0.01; t += 0.2) { ctx.__t = t; if (!only) e.tickEvents(); }
   ctx.__t = 0;
   const b = await ctx.startRendering();

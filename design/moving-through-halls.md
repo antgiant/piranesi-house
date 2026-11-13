@@ -9,7 +9,7 @@ A pose is a place in the hall (metres from its south-west corner) and a heading 
 * **Standing**: at the wall you arrived at (or walked to) and the position along it, or the middle of the floor; facing the way you last went.
 * **Walking**: between where you set out and the door, wall or stair you are going to, by how far along the walk is (the header's progress);
   heading the way you are moving. A stair walk goes to the hall's stair.
-* Not done: `stop` leaves you in the middle of the floor (the game's own rule), so the sound jumps there; the game's `Spot` has no free point.
+* `stop` now leaves you where the walk had taken you (a free point on the floor): see `design/water-more.md`, "The world keeps real places".
 
 ## What follows you (`audioFor(world, scene, { pose })`)
 | Sound | Where it comes from | How loud |

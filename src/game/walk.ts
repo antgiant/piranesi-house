@@ -37,10 +37,13 @@ export interface Spot {
   wall: Side | null;
   /** 0..1000 along the wall, low end (west or south) to high end. */
   pos: number;
+  /** A free point on the floor, in metres from the hall's south-west corner. When set it is where the visitor is (and `wall` is null). */
+  at?: { x: number; y: number };
 }
 
 /** A point on the floor, in metres from the hall's south-west corner. */
 export function hallPoint(h: Hall, s: Spot): { x: number; y: number } {
+  if (s.at) return s.at;
   const f = s.pos / 1000;
   switch (s.wall) {
     case 'N': return { x: f * h.xExtent, y: h.yExtent };
@@ -50,6 +53,27 @@ export function hallPoint(h: Hall, s: Spot): { x: number; y: number } {
     default: return { x: h.xExtent / 2, y: h.yExtent / 2 };
   }
 }
+
+/** Keep a point on the floor, at least `margin` metres inside the walls. */
+export function clampInside(h: Hall, p: { x: number; y: number }, margin = 1): { x: number; y: number } {
+  return { x: Math.max(margin, Math.min(h.xExtent - margin, p.x)), y: Math.max(margin, Math.min(h.yExtent - margin, p.y)) };
+}
+
+/** The walls of a hall nearest to a point on its floor, nearest first, each with its distance in metres. */
+export function wallsByDistance(h: Hall, p: { x: number; y: number }): { wall: Side; m: number }[] {
+  const all: { wall: Side; m: number }[] = [{ wall: 'W', m: p.x }, { wall: 'E', m: h.xExtent - p.x }, { wall: 'S', m: p.y }, { wall: 'N', m: h.yExtent - p.y }];
+  return all.sort((a, b) => a.m - b.m);
+}
+
+/** A point `d` metres short of `to`, on the line from `from`. */
+export function shortOf(from: { x: number; y: number }, to: { x: number; y: number }, d: number): { x: number; y: number } {
+  const vx = to.x - from.x, vy = to.y - from.y, len = Math.hypot(vx, vy);
+  if (len <= d) return { ...from };
+  return { x: to.x - (vx / len) * d, y: to.y - (vy / len) * d };
+}
+
+/** The unit step of a compass side, x to the east and y to the north. */
+export const SIDE_STEP: Record<Side, { dx: number; dy: number }> = { N: { dx: 0, dy: 1 }, E: { dx: 1, dy: 0 }, S: { dx: 0, dy: -1 }, W: { dx: -1, dy: 0 } };
 
 export function distanceM(h: Hall, a: Spot, b: Spot): number {
   const p = hallPoint(h, a);

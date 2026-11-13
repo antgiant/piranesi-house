@@ -9,8 +9,9 @@
 //   * DRIPS: live single drops (pitch 0.7-4.8 kHz) from near the fall, now and then.
 // The scene's falls gain (0.3 for a hall with falls, 0.18 for a stream) sets the level; "flow" (the share of falls over trickle) sets the mix.
 
-import { FINE, PLOPS, TRICKLE, CHIRP, bubbleDamping, dripPitch, fillSwarm } from './bubbles';
-import { fillControl, fillWhite, makeBuffer } from './noise';
+import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
+import { waterBuffer } from './buffers';
+import type { PlaceFactory } from './place';
 import { AROUND, polar, type Vec3 } from './spatial';
 
 export type Space = 'small' | 'large' | 'vast';
@@ -20,12 +21,11 @@ export interface FallsDeps {
   /** An input heard from a point around the listener (shared ring). */
   spot: (at: Vec3) => AudioNode;
   /** A panner of its own for the fall, which can be moved (the listener turns; the fall stays where it is in the hall). */
-  place: (at: Vec3) => { input: AudioNode; move: (at: Vec3, tc: number) => void; dispose: () => void };
+  place: PlaceFactory;
 }
 
-export interface FallsScene { gain: number; at: Vec3; space: Space }
+export interface FallsScene { gain: number; at: Vec3; space: Space; /** How often water drips, compared with an ordinary day (the weather). */ dripping?: number }
 
-const BUF_SEC = 10;
 /** The standing echo of the space, in seconds: the cave recording's resonances sat 23 Hz apart, an echo about 43 ms long. */
 const ROOM_DELAY: Record<Space, number> = { small: 0.03, large: 0.043, vast: 0.065 };
 /** The scene's gain at which the level is "one": a hall with falls. */
@@ -50,6 +50,7 @@ export class Falls {
   private dripIn: AudioNode;
   private nextDrip = 0;
   private level = 0;
+  private dripping = 1;
   private flow = 0;
   /** Live drips made so far (for tests). */
   drips = 0;
@@ -59,11 +60,7 @@ export class Falls {
     this.spot = deps.spot;
     this.place = deps.place({ x: 0, y: 0, z: -5 });
     this.dripIn = this.place.input;
-    const white = makeBuffer(ctx, BUF_SEC, fillWhite, 0.25);
-    const fine = makeBuffer(ctx, 8, (d, sr) => fillSwarm(d, sr, FINE), 0.25);
-    const plops = makeBuffer(ctx, BUF_SEC, (d, sr) => fillSwarm(d, sr, PLOPS), 0.25);
-    const trickle = makeBuffer(ctx, 8, (d, sr) => fillSwarm(d, sr, TRICKLE), 0.25);
-    const ctl = makeBuffer(ctx, BUF_SEC, fillControl, 1);
+    const white = waterBuffer(ctx, 'white'), fine = waterBuffer(ctx, 'fine'), plops = waterBuffer(ctx, 'plops'), trickle = waterBuffer(ctx, 'trickle'), ctl = waterBuffer(ctx, 'ctl');
 
     // --- the point source: layers summed, through the room's resonance, then placed ---
     const sum = this.g(1);
@@ -129,13 +126,15 @@ export class Falls {
   /** Follow the scene: how much water, where it is, and the size of the space it rings in. */
   set(s: FallsScene): void {
     const t = this.ctx.currentTime, tc = 1.2;
-    this.level = clamp(s.gain / REF_GAIN, 0, 1.4);
+    this.dripping = s.dripping ?? 1;
+    this.level = clamp(s.gain / REF_GAIN, 0, 1.9); // up to nearly twice an ordinary fall: the stores overflowing
     this.flow = clamp((s.gain - 0.08) / 0.22, 0, 1); // a stream is mostly trickle; a fall is mostly wash and fine bubbles
     const L = this.level, f = this.flow;
+    const heavy = clamp((L - 1) / 0.9, 0, 1); // in overflow it is not just louder: more roar and more big plops
     const to = (p: AudioParam, v: number): void => { p.setTargetAtTime(v, t, tc); };
-    to(this.layer.wash.gain, TRIM * LEVEL.wash * L * (0.4 + 0.6 * f));
+    to(this.layer.wash.gain, TRIM * LEVEL.wash * L * (0.4 + 0.6 * f) * (1 + 0.5 * heavy));
     to(this.layer.fine.gain, TRIM * LEVEL.fine * L * (0.3 + 0.7 * f));
-    to(this.layer.plops.gain, TRIM * LEVEL.plops * L * (0.5 + 0.5 * f));
+    to(this.layer.plops.gain, TRIM * LEVEL.plops * L * (0.5 + 0.5 * f) * (1 + 0.8 * heavy));
     to(this.layer.trickle.gain, TRIM * LEVEL.trickle * L * (1 - 0.8 * f));
     for (const d of this.diffuse) to(d.gain, TRIM * LEVEL.diffuse * L * (0.4 + 0.6 * f));
     this.delay.delayTime.setTargetAtTime(ROOM_DELAY[s.space], t, 0.5);
@@ -147,7 +146,7 @@ export class Falls {
     if (this.level < 0.05 || t < this.nextDrip) return;
     // a stream drips more, in the wetter, quieter way; a strong fall hides most of its drips
     this.drip(t + 0.02);
-    this.nextDrip = t + rand(1.5, 5) / (0.4 + this.level * (1.2 - 0.6 * this.flow));
+    this.nextDrip = t + rand(1.5, 5) / ((0.4 + this.level * (1.2 - 0.6 * this.flow)) * Math.max(0.2, this.dripping));
   }
 
   private drip(t: number): void {

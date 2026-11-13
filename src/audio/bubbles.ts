@@ -62,6 +62,8 @@ export function fillSwarm(d: Float32Array, sr: number, spec: SwarmSpec, rng: Rng
  */
 export const FINE: SwarmSpec = { perSec: 650, fMed: 3200, sigma: 0.55, power: 0.7, scatter: 0.45, cap: 4 };
 export const PLOPS: SwarmSpec = { perSec: 9, fMed: 2000, sigma: 0.5, power: 1.1, scatter: 0.35, cap: 6 };
+/** The deep gurgle of water running into a dark chamber: big, slow bubbles, low and sparse (the sinkhole recording). */
+export const GURGLE: SwarmSpec = { perSec: 14, fMed: 420, sigma: 0.55, power: 1.0, scatter: 0.5, cap: 5 };
 export const TRICKLE: SwarmSpec = { perSec: 40, fMed: 1500, sigma: 0.5, power: 1.0, scatter: 0.5, cap: 5 };
 
 /** The pitch of one falling drop's bubble, for a live drip: mostly 1 to 2 kHz, sometimes up to 4 (cave and drain recordings: 1.0-1.5 and 1.0-4.7 kHz). */

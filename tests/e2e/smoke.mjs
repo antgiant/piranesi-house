@@ -163,6 +163,32 @@ try {
   await page.setViewportSize({ width: 390, height: 780 });
   await page.screenshot({ path: 'tests/e2e/out/screenshot-mobile.png' });
 
+  // --- free positions: stop anywhere, walk a distance, and the sound follows ---
+  {
+    const f = await newPage({ viewport: { width: 900, height: 700 } });
+    f.on('pageerror', (e) => errors.push(String(e)));
+    await f.goto(URL_WALK('real'));
+    await f.click('#enter');
+    await f.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
+    await f.fill('#input', 'go west');
+    await f.press('#input', 'Enter');
+    await f.waitForFunction(() => /set off for the west door/.test(document.getElementById('log').textContent));
+    await f.waitForTimeout(2500);
+    const before = await f.evaluate(() => window.__house.audio().falls.gain);
+    await f.fill('#input', 'stop');
+    await f.press('#input', 'Enter');
+    await f.waitForFunction(() => /You stop where you are\. You stand/.test(document.getElementById('log').textContent));
+    check(true, 'you can stop partway across a hall, and are told where you stand');
+    await f.fill('#input', 'walk north 30 feet');
+    await f.press('#input', 'Enter');
+    await f.waitForFunction(() => /set off for a point on the open floor to the north/.test(document.getElementById('log').textContent));
+    check(true, 'and walk a given distance from there');
+    const leaks = await f.evaluate(() => window.__house.audio().leaks.length);
+    check(leaks > 0, `the hall's leaks are heard from where you are (${leaks} of them)`);
+    check(typeof before === 'number', 'the water follows where you are');
+    await f.close();
+  }
+
   // --- units: the same walk, in feet and in metres ---
   for (const [units, re, label] of [['us', /set off for the west door, \d+ feet away/, 'feet'], ['metric', /set off for the west door, \d+ metres away/, 'metres']]) {
     const u = await newPage({ viewport: { width: 900, height: 700 } });

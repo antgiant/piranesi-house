@@ -5,7 +5,7 @@ import { sceneAtWorldTime, type SceneState } from '../sim/scene';
 import { defaultSimConfig, worldTime, type SimConfig } from '../sim/time';
 import { tideAt } from '../sim/tides';
 import { getHall, wallGrids, type Hall } from '../world/hall';
-import { headingOf, headingOfMove, standingPoint, wallPoint, type Pose } from '../audio/pose';
+import { headingOf, headingOfMove, nearestOnWall, sideOfHeading, standingPoint, wallPoint, type Pose } from '../audio/pose';
 import { OPPOSITE, SIDES, exits as hallExits, type Exit, type Level, type Side } from '../world/layout';
 import { hallStatues } from '../world/slots';
 import { describeStatue, type Statue } from '../world/statues';
@@ -15,7 +15,7 @@ import { flourishesFor } from '../world/flourishes';
 import { framedInDoorway } from '../sim/stars';
 import { strollBeats } from './stroll';
 import { hashInts } from '../world/rng';
-import { DOORWAY_M, CORRIDOR_HALL_M, STAIR_DOWN_S, STAIR_UP_S, describeDistance, describeDuration, distanceM, gait, terrainFactor, walkSeconds } from './walk';
+import { DOORWAY_M, CORRIDOR_HALL_M, SIDE_STEP, STAIR_DOWN_S, STAIR_UP_S, clampInside, describeDistance, describeDuration, distanceM, gait, hallPoint, shortOf, terrainFactor, wallsByDistance, walkSeconds } from './walk';
 import { parse, type Command } from './parser';
 import { findRoute, nameOf, resolveName, straightRoute, vistaThrough, type Spot, type Step } from './travel';
 import { Rng } from '../world/rng';
@@ -58,6 +58,13 @@ export interface Position {
   wall: Side | null;
   /** 0..1000 along that wall, low end (west or south) to high end. */
   pos: number;
+  /**
+   * A free point on the floor, metres from the hall's south-west corner (x east, y north), when you have stopped out in the open. You can
+   * stop anywhere: the world keeps real places, not only walls. When set, `wall` is null. The floor is z = 0; your ears are about 1.6 m above it.
+   */
+  at?: { x: number; y: number };
+  /** Which way you face, in degrees clockwise from north (continuous: not only the four sides). Unset: the way of `facing`. */
+  heading?: number;
 }
 
 export interface Link {
@@ -135,7 +142,9 @@ export interface Journey {
 }
 
 export interface Walk {
-  kind: 'door' | 'wall' | 'stairs';
+  kind: 'door' | 'wall' | 'stairs' | 'point';
+  /** For a walk to a point on the open floor: where. */
+  target?: { x: number; y: number };
   startMs: number;
   endMs: number;
   meters: number;
@@ -318,20 +327,26 @@ function doorLabel(e: NamedExit, all: NamedExit[]): string {
 }
 
 /** Take in where you are without saying anything: what the exits, statues and relics are, and note the hall as explored. */
+/** Where the visitor stands, as the walk geometry wants it: at a wall, or at a free point on the floor, or in the middle. */
+function standing(g: Game): { wall: Side | null; pos: number; at?: { x: number; y: number } } {
+  return { wall: g.pos.wall, pos: g.pos.pos, at: g.pos.at };
+}
+
 /**
  * Where the visitor is in the hall, and which way they head, for the sound: standing, at the wall or in the middle; on a walk, somewhere between
  * where they set out and where they are going, by how far along the walk is. The halls are huge, so this matters: the sound follows you across.
  */
 export function listenerPose(g: Game, realNowMs: number): Pose {
   const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
-  const here = standingPoint(h, g.pos.wall, g.pos.pos);
-  const facing = headingOf(g.facing);
+  const here = g.pos.at ?? standingPoint(h, g.pos.wall, g.pos.pos);
+  const facing = g.pos.heading ?? headingOf(g.facing);
   const w = g.walk;
   if (!w) return { x: here.x, y: here.y, heading: facing };
   let target = here;
   if (w.kind === 'door' && w.exit) target = wallPoint(h, w.exit.side, w.exit.pos);
   else if (w.kind === 'wall' && w.wall) target = wallPoint(h, w.wall, w.pos ?? 500);
   else if (w.kind === 'stairs' && h.stairs[0]) target = wallPoint(h, h.stairs[0].wall, h.stairs[0].pos);
+  else if (w.kind === 'point' && w.target) target = w.target;
   const f = Math.max(0, Math.min(1, walkStatus(g, realNowMs)?.fraction ?? 0));
   return { x: here.x + (target.x - here.x) * f, y: here.y + (target.y - here.y) * f, heading: headingOfMove(here, target, facing) };
 }
@@ -428,8 +443,9 @@ function chooseExit(g: Game, side: Side | undefined, n: number | undefined): Nam
   if (n !== undefined) return onWall[n - 1] ?? `The ${sideWord(side as Side)} wall has only ${onWall.length} ${onWall.length === 1 ? 'door' : 'doors'}.`;
   if (onWall.length === 1) return onWall[0] as NamedExit;
   // several doors: the one nearest where you stand along that wall (or the middle one)
-  const target = g.pos.wall === side ? g.pos.pos : 500;
-  return onWall.slice().sort((a, b) => Math.abs(a.pos - target) - Math.abs(b.pos - target))[0] as NamedExit;
+  const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+  const d = (e: NamedExit): number => distanceM(h, standing(g), { wall: e.side, pos: e.pos });
+  return onWall.slice().sort((a, b) => d(a) - d(b))[0] as NamedExit;
 }
 
 function arrivalPosition(g: Game, from: Exit, level: Level): Position {
@@ -500,7 +516,7 @@ export function go(g: Game, e: NamedExit, realNowMs: number): Line[] {
   if (blocked) return blocked;
   const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
   const scene = sceneAtWorldTime(g.world, g.pos.x, g.pos.y, g.pos.level, worldNow(g, realNowMs), { outside: g.opts.outsideTraces });
-  const meters = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall: e.side, pos: e.pos }) + DOORWAY_M + e.corridor * CORRIDOR_HALL_M;
+  const meters = distanceM(h, standing(g), { wall: e.side, pos: e.pos }) + DOORWAY_M + e.corridor * CORRIDOR_HALL_M;
   const seconds = walkSeconds(meters, terrainFactor(h, scene.tide.depthDm));
   const dest = getHall(g.world, e.to.x, e.to.y, g.pos.level);
   g.facing = e.side;
@@ -519,7 +535,7 @@ export function go(g: Game, e: NamedExit, realNowMs: number): Line[] {
 function finishDoor(g: Game, e: NamedExit, realNowMs: number): Line[] {
   const blocked = blockedBy(g, e, realNowMs); // the water may have risen while you walked
   if (blocked) {
-    g.pos = { ...g.pos, wall: e.side, pos: e.pos };
+    g.pos = { x: g.pos.x, y: g.pos.y, level: g.pos.level, wall: e.side, pos: e.pos };
     return blocked;
   }
   const t = worldNow(g, realNowMs);
@@ -552,7 +568,7 @@ export function stairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
       return [text(g, 'You go down the great stair, step after enormous step, until black water laps the stone beneath your feet. You stop at the water\'s edge. The sea fills the halls below; you could not walk in them now. You climb back up.')];
     }
   }
-  const approach = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall: stair.wall, pos: stair.pos });
+  const approach = distanceM(h, standing(g), { wall: stair.wall, pos: stair.pos });
   const seconds = walkSeconds(approach) + (dir === 'up' ? STAIR_UP_S : STAIR_DOWN_S);
   const label = `the ${(['lower', 'middle', 'upper'] as const)[target]} halls`;
   const sbeats = g.opts.walkNarration && Number.isFinite(g.opts.walkPace) && seconds / g.opts.walkPace > 12
@@ -584,7 +600,7 @@ function finishStairs(g: Game, dir: 'up' | 'down', realNowMs: number): Line[] {
 
 export function walkTo(g: Game, wall: Side, realNowMs: number, pos = 500, note?: string, label?: string): Line[] {
   const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
-  const meters = distanceM(h, { wall: g.pos.wall, pos: g.pos.pos }, { wall, pos });
+  const meters = distanceM(h, standing(g), { wall, pos });
   const seconds = walkSeconds(meters);
   g.facing = wall;
   const scene = sceneNow(g, realNowMs);
@@ -596,7 +612,7 @@ export function walkTo(g: Game, wall: Side, realNowMs: number, pos = 500, note?:
 }
 
 function finishWall(g: Game, wall: Side, realNowMs: number, pos = 500, note?: string): Line[] {
-  g.pos = { ...g.pos, wall, pos };
+  g.pos = { x: g.pos.x, y: g.pos.y, level: g.pos.level, wall, pos, heading: headingOf(wall) };
   return [text(g, note ?? `You walk to the ${sideWord(wall)} wall.`), ...look(g, realNowMs)];
 }
 
@@ -605,6 +621,7 @@ function finishWalk(g: Game, w: Walk, realNowMs: number): Line[] {
   const before = g.journey?.idx ?? -1;
   const lines = w.kind === 'door' ? finishDoor(g, w.exit as NamedExit, realNowMs)
     : w.kind === 'stairs' ? finishStairs(g, w.dir as 'up' | 'down', realNowMs)
+    : w.kind === 'point' ? finishPoint(g, w.target as { x: number; y: number }, realNowMs)
     : finishWall(g, w.wall as Side, realNowMs, w.pos, w.note);
   return g.journey ? [...lines, ...continueJourney(g, before, realNowMs)] : lines;
 }
@@ -1147,10 +1164,76 @@ export function approach(g: Game, n: number, realNowMs: number): Line[] {
 
 function stopWalk(g: Game, realNowMs: number): Line[] {
   if (!g.walk) return [text(g, 'You are not going anywhere.')];
+  // you stop wherever the walk has taken you: the world keeps real places, so what you hear and what you can reach follow from here
+  const pose = listenerPose(g, realNowMs);
+  const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+  const at = clampInside(h, pose, 0.5);
   g.walk = null;
   g.journey = null;
-  g.pos = { ...g.pos, wall: null, pos: 500 };
-  return [text(g, 'You stop where you are, out in the open floor.'), ...look(g, realNowMs)];
+  g.pos = { x: g.pos.x, y: g.pos.y, level: g.pos.level, wall: null, pos: 500, at, heading: pose.heading };
+  g.facing = sideOfHeading(pose.heading);
+  return [text(g, `You stop where you are. ${standingNote(h, at)}`), ...look(g, realNowMs)];
+}
+
+/** Where you are on the open floor, by the two nearest walls. */
+export function standingNote(h: Hall, at: { x: number; y: number }): string {
+  const [a, b] = wallsByDistance(h, at) as [{ wall: Side; m: number }, { wall: Side; m: number }];
+  if (a.m < 4) return `You stand close against the ${sideWord(a.wall)} wall.`;
+  return `You stand out on the open floor, ${describeDistance(a.m)} from the ${sideWord(a.wall)} wall${b.m < 400 ? ` and ${describeDistance(b.m)} from the ${sideWord(b.wall)} wall` : ''}.`;
+}
+
+/** Walk to a point on the open floor. */
+function walkToPoint(g: Game, target: { x: number; y: number }, label: string, realNowMs: number, where?: string): Line[] {
+  const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+  const from = hallPoint(h, standing(g));
+  const to = clampInside(h, target);
+  const meters = Math.hypot(to.x - from.x, to.y - from.y);
+  if (meters < 1) return [text(g, where ?? 'You are already there.')];
+  const heading = headingOfMove(from, to, g.pos.heading ?? headingOf(g.facing));
+  const seconds = walkSeconds(meters * (1 / terrainFactor(h, sceneNow(g, realNowMs).tide.depthDm)));
+  g.facing = sideOfHeading(heading);
+  g.pos = { ...g.pos, heading };
+  const walk = startWalk(g, { kind: 'point', target: to, meters, seconds, beats: [], label }, realNowMs);
+  if (!walk) return finishPoint(g, to, realNowMs);
+  if (g.opts.walkNarration) return [text(g, `${startVerb(g)} ${label}.`)];
+  return [text(g, `${startVerb(g)} ${label}, ${describeDistance(meters)} away. It will take ${describeDuration(seconds / g.opts.walkPace)}.`)];
+}
+
+function finishPoint(g: Game, to: { x: number; y: number }, realNowMs: number): Line[] {
+  const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+  g.pos = { x: g.pos.x, y: g.pos.y, level: g.pos.level, wall: null, pos: 500, at: to, heading: g.pos.heading };
+  return [text(g, standingNote(h, to)), ...look(g, realNowMs)];
+}
+
+/** "walk north 100 feet": a given distance across the floor, as far as the hall allows. */
+function walkBy(g: Game, side: Side, meters: number, realNowMs: number): Line[] {
+  const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+  const from = hallPoint(h, standing(g));
+  const step = SIDE_STEP[side];
+  const to = clampInside(h, { x: from.x + step.dx * meters, y: from.y + step.dy * meters });
+  if (Math.hypot(to.x - from.x, to.y - from.y) < 1) return [text(g, `You are already against the ${sideWord(side)} wall; there is no room to walk further that way.`)];
+  return walkToPoint(g, to, `a point on the open floor to the ${sideWord(side)}`, realNowMs);
+}
+
+/** "walk toward the falls / the stair / the middle". */
+function walkToward(g: Game, what: 'falls' | 'stairs' | 'middle', realNowMs: number): Line[] {
+  const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
+  const from = hallPoint(h, standing(g));
+  if (what === 'middle') return walkToPoint(g, { x: h.xExtent / 2, y: h.yExtent / 2 }, 'the middle of the hall', realNowMs, 'You are already in the middle of the hall.');
+  if (what === 'falls') {
+    if (!h.falls) return [text(g, 'There is no fall of water in this hall to walk toward.')];
+    const n = nearestOnWall(h, h.falls.wall, h.falls.from, h.falls.to, from);
+    return walkToPoint(g, shortOf(from, n, 4), `the falling water on the ${sideWord(h.falls.wall)} wall`, realNowMs, 'You are already beside the falling water.');
+  }
+  if (h.stairs.length === 0) return [text(g, 'There is no stair in this hall to walk toward.')];
+  const near = h.stairs.map((st) => ({ st, p: wallPoint(h, st.wall, st.pos) })).sort((a, b) => Math.hypot(a.p.x - from.x, a.p.y - from.y) - Math.hypot(b.p.x - from.x, b.p.y - from.y))[0]!;
+  return walkToPoint(g, shortOf(from, near.p, 3), 'the great stair', realNowMs, 'You are already at the foot of the stair.');
+}
+
+function faceSide(g: Game, side: Side): Line[] {
+  g.facing = side;
+  g.pos = { ...g.pos, heading: headingOf(side) };
+  return [text(g, `You turn to face the ${sideWord(side)} wall.`)];
 }
 
 function walkingLine(g: Game, realNowMs: number): Line {
@@ -1220,7 +1303,7 @@ export const HELP = [
   'Your journal:  journal (opens it)  ·  write the sea was loud tonight (adds a line)  ·  it is yours alone and stays on your device',
   'Naming:  call this hall the Hall of Weeping  ·  call the minotaur Old Horns  ·  call the stair the Long Climb  ·  names (what you still remember you named). A name is a landmark: coming upon something you have named is the surest way to know where you are, if you still remember it. Names fade if you do not come back to them, and you cannot keep hold of many given at once.',
   'Statues:  examine 2  ·  approach 2 (walk up to it)  ·  found (what you have noticed)',
-  'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  up, down (in a vestibule)  ·  stop',
+  'Moving:  go north (or n)  ·  go 3 (way out number 3)  ·  go south 2 (the second south door)  ·  walk east (along a wall)  ·  walk north 100 feet  ·  walk toward the falls (or the stair, or the middle)  ·  face east  ·  up, down (in a vestibule)  ·  stop (wherever you are)',
   'Far places:  travel to the Ninth Vestibule  ·  travel west 40  ·  mark the fountain, then travel to the fountain  ·  marks',
   'Finding your way:  way back (or home), or travel to a hall by name: you go by what you remember, and may remember wrongly. A way you have never taken is a guess from the names; the more often you take it, the surer you are. Chalk (mark) makes a hall sure. If you think you know where you are, say so: this is the Third Western Hall.',
   'Keys (when you are not typing):  /  to type  ·  m map  ·  w wander  ·  r say it again  ·  s sound  ·  ?  help',
@@ -1248,7 +1331,7 @@ function closestVerb(input: string): string | null {
   return best;
 }
 
-const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs', 'travel', 'trek', 'approach', 'wayback']);
+const MOVING: ReadonlySet<Command['t']> = new Set(['go', 'walk', 'stairs', 'travel', 'trek', 'approach', 'wayback', 'walkby', 'toward', 'face']);
 
 export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
   if (g.walk && (cmd.t === 'empty' || (cmd.t === 'look' && !cmd.repeat) || cmd.t === 'where')) return [walkingLine(g, realNowMs)];
@@ -1282,6 +1365,9 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'wayback': return g.opts.knownOnly ? wayBack(g, realNowMs) : travelTo(g, 'first vestibule', realNowMs);
     case 'trek': return trek(g, cmd.side, cmd.n, realNowMs);
     case 'approach': return approach(g, cmd.n, realNowMs);
+    case 'walkby': return walkBy(g, cmd.side, cmd.meters, realNowMs);
+    case 'toward': return walkToward(g, cmd.what, realNowMs);
+    case 'face': return faceSide(g, cmd.side);
     case 'mark': {
       const label = cmd.label.toLowerCase();
       const h = getHall(g.world, g.pos.x, g.pos.y, g.pos.level);
@@ -1307,7 +1393,8 @@ export function run(g: Game, cmd: Command, realNowMs: number): Line[] {
     case 'where': {
       const s = sceneNow(g, realNowMs);
       void s;
-      return [text(g, g.belief?.kind === 'lost' ? `You do not know where you are. You are on the ${shownLevel(g)} level, you think.` : `You are in ${hallLabel(g)}, on the ${shownLevel(g)} level.`)];
+      const spot = g.pos.at && !g.walk ? ` ${standingNote(getHall(g.world, g.pos.x, g.pos.y, g.pos.level), g.pos.at)}` : '';
+      return [text(g, g.belief?.kind === 'lost' ? `You do not know where you are. You are on the ${shownLevel(g)} level, you think.` : `You are in ${hallLabel(g)}, on the ${shownLevel(g)} level.${spot}`)];
     }
     case 'help': return [system(HELP)];
     case 'unknown': {

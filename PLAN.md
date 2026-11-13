@@ -341,3 +341,10 @@ standing in the same hall hear the same ambience.
   intent is read as: the House's life is that place's life, with animals now and then straying in through the portal and seeds blown or carried in.
   Anything the book says to the contrary wins.
 * Order of work: wind, then the sound of steps, then animal life (birds first); echo/reverb of the halls may come early or first.
+
+## Backlog
+
+* **Phone sensors for facing and place.** Use the phone's compass and motion sensors (the device orientation and motion APIs) to set which way the player is
+  facing, so turning in real life turns the listener in the House and the sound stays put in the world as they turn, and perhaps GPS for where they are in
+  the world (for example, the weather and tides of the real place, or walking in the world by walking in life). Needs a permission prompt on iOS, a fallback
+  to tapping and typing, and care over privacy: nothing leaves the device.

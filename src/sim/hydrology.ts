@@ -27,8 +27,9 @@ export interface Hydrology {
 const RUNOFF_TAU_H = 10;
 const STORE_TAU_H = 84;
 /**
- * Steady rain at this strength (0..1) for a couple of weeks fills the stores. This world rains about a tenth of the time (showers of about five hours, and
- * three or four long rains of two to five days a year), a mean of about 0.06, so a wet fortnight is full and a long rain overflows them.
+ * Steady rain at this strength (0..1) for a couple of weeks fills the stores. The weather is fitted to an English coast: precipitation about 23% of the hours,
+ * a mean of about 0.07 (of 1), with a rainy episode of two days or more eight times a year and a long soaking rain about once a year. A wet fortnight is full;
+ * a long rain overflows them.
  */
 const FULL_AT = 0.10;
 /** How far back the history is taken, and how often it is sampled. */

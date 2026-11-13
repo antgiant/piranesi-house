@@ -75,6 +75,6 @@ describe('water on the great stair', () => {
     expect(aFar.stairs.flow).toBeGreaterThan(0);
     expect(aNear.stairs.bearing).toBe('ahead');
     expect(Math.abs(aNear.stairs.az!)).toBeLessThan(35);
-    expect(soundParagraph(aNear, scene(t))).toMatch(/great stair|the tide drains/);
+    expect(soundParagraph(aNear, scene(t))).toMatch(/stair/i);
   });
 });

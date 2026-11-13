@@ -6,15 +6,20 @@ import { MS } from '../src/sim/time';
 
 const w = createWorld('test-seed');
 
-/** The start of the first rain that lasts at least `hours` hours (or Infinity), searching from `from`. */
-function rainSpell(from: number, hours: number): { start: number; end: number } | null {
+/** The sum of the rain in a window of hours, in "full rain" hours (1 = an hour of the heaviest rain). */
+function rainIn(from: number, hours: number): number {
+  let sum = 0;
+  for (let k = 0; k < hours; k++) { const x = weatherAt(w, from + k * MS.hour); if (x.precip === 'rain') sum += x.rain / 1000; }
+  return sum;
+}
+
+/** The first rain event (a window of `hours` hours with at least `min` full-rain hours), with a dry day before it and a dry day and more after it. */
+function rainSpell(from: number, hours: number, min = 2.5): { start: number; end: number } | null {
   for (let t = from; t < from + 400 * MS.day; t += MS.hour) {
-    const rainy = (x: number) => { const k = weatherAt(w, x); return k.precip === 'rain' && k.rain > 300; };
-    if (!rainy(t) || (t > from && rainy(t - MS.hour))) continue;
-    let e = t;
-    while (rainy(e + MS.hour)) e += MS.hour;
-    const quiet = (from: number, h: number) => { for (let k = 0; k < h; k++) if (weatherAt(w, from + k * MS.hour).rain > 0) return false; return true; };
-    if (e - t >= hours * MS.hour && quiet(e + MS.hour, 36) && quiet(t - 36 * MS.hour, 36)) return { start: t, end: e + MS.hour }; // dry for a day and a half either side
+    if (rainIn(t, hours) < min) continue;
+    if (rainIn(t - 20 * MS.hour, 20) > 0.5) continue;
+    if (rainIn(t + hours * MS.hour, 78) > 1.0) continue; // and three quiet days after, so that nothing refills the stores
+    return { start: t, end: t + hours * MS.hour };
   }
   return null;
 }
@@ -40,14 +45,14 @@ describe('where the water comes from', () => {
     expect(max).toBeGreaterThan(1.6); // and wet ones that swell them well past an ordinary day
   });
   it('rain fills the stores and runs off at once; when it stops the runoff goes in about a day and the stores drain over days', () => {
-    const spell = rainSpell(30 * MS.day, 6);
+    const spell = rainSpell(30 * MS.day, 10);
     expect(spell).not.toBeNull();
     const { start, end } = spell!;
     const before = hydrologyAt(w, start - MS.hour);
     const during = hydrologyAt(w, start + (end - start) / 2);
     const atEnd = hydrologyAt(w, end);
     const dayAfter = hydrologyAt(w, end + MS.day);
-    const weekAfter = hydrologyAt(w, end + 7 * MS.day);
+    const weekAfter = hydrologyAt(w, end + 3 * MS.day); // (three days on: the stores are well down)
     expect(during.runoff).toBeGreaterThan(before.runoff + 0.05);
     expect(atEnd.fill).toBeGreaterThan(before.fill);
     expect(atEnd.flow).toBeGreaterThan(before.flow);
@@ -55,7 +60,8 @@ describe('where the water comes from', () => {
     expect(dayAfter.fill).toBeGreaterThan(weekAfter.fill);        // the stores drain more slowly...
     expect(dayAfter.fill).toBeGreaterThan(atEnd.fill * 0.6);      // ...than the runoff did
     expect(dayAfter.flow).toBeLessThan(atEnd.flow);               // so the falls ease back
-    expect(dayAfter.dripping).toBeGreaterThan(before.dripping * 0.8);
+    expect(dayAfter.dripping).toBeGreaterThan(0.25);       // the stone is still dripping a day after the rain has gone (a dry spell's floor is 0.25)...
+    expect(dayAfter.dripping).toBeLessThan(atEnd.dripping); // ...but less than at the end of the rain
   });
   it('a long wet spell takes the stores over their brims, and the falls overflow', () => {
     let over = 0, calm = 0;

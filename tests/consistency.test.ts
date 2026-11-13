@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/world/world';
 import { getHall } from '../src/world/hall';
+import { vestibuleCell } from '../src/world/layout';
 import { sceneAtWorldTime } from '../src/sim/scene';
 import { MS } from '../src/sim/time';
 import { audioFor } from '../src/audio/director';
@@ -38,6 +39,20 @@ describe('what you hear and what you read agree', () => {
           expect(text).not.toMatch(/a drop falls/);                                // and nothing is said that cannot be heard
         }
         if (a.thunder > 0.2) expect(text).toMatch(/thunder/i);
+      }
+    }
+    // and the stair, which needs a tide draining through the shallows: look for one in each of the vestibules
+    for (let k = 1; k <= 24; k++) {
+      const v = vestibuleCell(w, k);
+      if (!v) continue;
+      const h = getHall(w, v.x, v.y, 1);
+      if (!h.stairs.length) continue;
+      for (let t = MS.hour; t < 40 * MS.day; t += 30 * MS.min) {
+        const sc = sceneAtWorldTime(w, v.x, v.y, 1, t, { forecast: false });
+        if (!(sc.tide.depthDm > 0 && sc.tide.depthDm < 16 && sc.tide.trend === 'falling')) continue;
+        const a = audioFor(w, sc, { pose: { x: h.xExtent / 2, y: h.yExtent / 2, heading: 0 }, portals: false });
+        if (a.stairs.flow > 0.2) { expect(soundParagraph(a, sc)).toMatch(/stair/i); seen.stairs++; n++; }
+        break;
       }
     }
     expect(n).toBeGreaterThan(700);

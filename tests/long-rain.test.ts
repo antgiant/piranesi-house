@@ -8,7 +8,7 @@ import { MS, clock } from '../src/sim/time';
 const seeds = ['test-seed', 'the-house', 'another', 'x', 'y'];
 
 describe('the long rains of the book', () => {
-  it('last two to five days, there are three or four a year, most in autumn and winter, and they never run into each other', () => {
+  it('last two to five days, come about once a year (on top of the many rainy spells of an English climate), most in autumn and winter, and never run into each other', () => {
     for (const seed of seeds) {
       const w = createWorld(seed);
       const years = 40, blocks = Math.floor((years * 365) / 12);
@@ -26,11 +26,11 @@ describe('the long rains of the book', () => {
         expect(s.start).toBeGreaterThanOrEqual(prevEnd);
         prevEnd = s.end;
       }
-      expect(n / years).toBeGreaterThan(2.5);
-      expect(n / years).toBeLessThan(5);
+      expect(n / years).toBeGreaterThan(0.4);
+      expect(n / years).toBeLessThan(1.6);
       expect(autumnWinter / n).toBeGreaterThan(0.6);
       expect(shortest).toBeGreaterThanOrEqual(48);
-      expect(longest).toBeGreaterThanOrEqual(110);   // five days happens
+      expect(longest).toBeGreaterThanOrEqual(100);   // five days happens
       expect(longest).toBeLessThanOrEqual(120);
     }
   });

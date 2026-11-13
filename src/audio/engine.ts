@@ -90,8 +90,7 @@ interface BedVoice {
 }
 
 export class AudioEngine {
-  /** Which sea to make. The new one is built from measured recordings (sea.ts) and is the default; the old one is kept for comparison. */
-  seaModel: 'old' | 'new' = 'new';
+  /** The sea, built from measured recordings (sea.ts). */
   private sea: Sea | null = null;
   private patter: Patter | null = null;
   /** Two high-passes in a row, so the cut for small speakers is steep (24 dB an octave). */
@@ -126,9 +125,6 @@ export class AudioEngine {
   private volume = 0.8;
   private muted = false;
 
-  private seaGain!: GainNode;
-  private seaFilter!: BiquadFilterNode;
-  private seaLfo!: GainNode;
   private rumbleGain!: GainNode;
   private fallsGain!: GainNode;
   private rainGain!: GainNode;
@@ -136,11 +132,6 @@ export class AudioEngine {
   /** The wind: three bands of noise, each gusting on its own. */
   private gusts: { g: GainNode; flt: BiquadFilterNode; base: number; w: number }[] = [];
   private nextGust = 0;
-  /** The surf: noise whose brightness and loudness rise to a crest and wash back, once every swell. */
-  private surfEnv!: GainNode;
-  private surfFilter!: BiquadFilterNode;
-  private nextWave = 0;
-  private nextLap = 0;
   private nextBubbles = 0;
   /** Sea and falling water heard through the doorways and walls. */
   private beds: BedVoice[] = [];
@@ -247,7 +238,8 @@ export class AudioEngine {
     this.noise = this.makeNoise(4, 'white');
     this.brown = this.makeNoise(8, 'brown');
     this.buildBeds();
-    if (this.seaModel === 'new') { this.sea = new Sea({ ctx, out: this.bus, spot: (at) => this.spot(at) }); this.sea.setThump(DEEP_BASS.thump); }
+    this.sea = new Sea({ ctx, out: this.bus, spot: (at) => this.spot(at) });
+    this.sea.setThump(DEEP_BASS.thump);
     this.timer = setInterval(() => this.tickEvents(), 200);
     if (this.scene) this.apply(this.scene);
     if (ctx.state === 'suspended') await ctx.resume();
@@ -439,32 +431,6 @@ export class AudioEngine {
 
   private buildBeds(): void {
     const ctx = this.ctx as AudioContext;
-    // the sea: brown noise, low-passed, with a slow swell
-    this.seaFilter = ctx.createBiquadFilter();
-    this.seaFilter.type = 'lowpass';
-    this.seaFilter.frequency.value = 700;
-    this.seaGain = ctx.createGain();
-    this.seaGain.gain.value = 0;
-    // The swell must SCALE the sea, not add to its level: a separate stage swings between 0.5 and 1.0 of whatever the
-    // scene's sea gain is, so a silent sea stays silent.
-    const swell = ctx.createGain();
-    swell.gain.value = 0.75;
-    this.loop(this.brown).connect(this.seaFilter).connect(swell).connect(this.seaGain).connect(this.bus);
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 1 / 11;
-    this.seaLfo = ctx.createGain();
-    this.seaLfo.gain.value = 0.25;
-    lfo.connect(this.seaLfo).connect(swell.gain);
-    lfo.start();
-
-    // the surf: a swell comes in, brightens and crests with a hiss, and washes back (see wave())
-    this.surfFilter = ctx.createBiquadFilter();
-    this.surfFilter.type = 'lowpass';
-    this.surfFilter.frequency.value = 300;
-    this.surfEnv = ctx.createGain();
-    this.surfEnv.gain.value = 0.05;
-    this.loop(this.noise).connect(this.surfFilter).connect(this.surfEnv).connect(this.seaGain);
-
     // a deep rumble for tides (felt more than heard)
     const rumbleFilter = ctx.createBiquadFilter();
     rumbleFilter.type = 'lowpass';
@@ -720,15 +686,11 @@ export class AudioEngine {
     ease(this.wet.gain, a.reverb.wet);
     ease(this.dry.gain, 0.85 - a.reverb.wet * 0.5);
     ease(this.lowpass.frequency, 20000 - a.muffle * 19400, 0.6);
-    ease(this.seaGain.gain, this.sea ? 0 : a.sea.gain * 0.55);
     this.sea?.set(a.sea);
-    if (this.seaModel === 'new') {
-      // rain that lands on water has its own patter (made the first time it is needed)
-      const onWater = (a.rain.gain / 0.75) * (a.rain.onWater ?? 0);
-      if (onWater > 0.02 && !this.patter) this.patter = new Patter({ ctx, spot: (at) => this.spot(at) });
-      this.patter?.set(onWater);
-    }
-    ease(this.seaFilter.frequency, a.sea.lowpassHz, 1.5);
+    // rain that lands on water has its own patter (made the first time it is needed)
+    const onWater = (a.rain.gain / 0.75) * (a.rain.onWater ?? 0);
+    if (onWater > 0.02 && !this.patter) this.patter = new Patter({ ctx, spot: (at) => this.spot(at) });
+    this.patter?.set(onWater);
     // a tide booming next door is felt through the floor before it reaches you
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
     ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));
@@ -812,24 +774,6 @@ export class AudioEngine {
     this.nextGust = t + rand(0.7, 2.6) / (0.6 + a.wind.gain * 2);
   }
 
-  /** One wave: in, to a crest with a hiss, and back out. The same wave is heard, softer and later, through the doorways. */
-  private wave(t: number, a: AudioScene): void {
-    const D = a.sea.swellSec * rand(0.75, 1.3);
-    const rise = D * 0.38;
-    const crest = rand(0.45, 0.85);
-    this.surfEnv.gain.cancelScheduledValues(t);
-    this.surfEnv.gain.setValueAtTime(0.04, t);
-    this.surfEnv.gain.linearRampToValueAtTime(crest, t + rise);
-    this.surfEnv.gain.setTargetAtTime(0.05, t + rise, D * 0.22);
-    this.surfFilter.frequency.cancelScheduledValues(t);
-    this.surfFilter.frequency.setValueAtTime(260, t);
-    this.surfFilter.frequency.exponentialRampToValueAtTime(Math.min(4000, Math.max(500, a.sea.lowpassHz * 1.4)), t + rise);
-    this.surfFilter.frequency.setTargetAtTime(300, t + rise, D * 0.25);
-    this.burst(t + rise * 0.9, D * 0.35, 'highpass', 3200, 0.7, 0.05 * a.sea.gain * crest, 0, rise * 0.3);
-    this.pulseBeds(t, crest, rise, D);
-    this.nextWave = t + D * rand(0.8, 1.1);
-  }
-
   /** The sea behind the walls swells and falls with each wave, a little later for each opening. */
   private pulseBeds(t: number, crest: number, rise: number, D: number): void {
     let i = 0;
@@ -842,18 +786,11 @@ export class AudioEngine {
     }
   }
 
-  /** The water: waves and laps for the sea, bubbles for falling water, and gusts for the wind. */
+  /** The water: waves for the sea, bubbles for falling water, and gusts for the wind. */
   private waterEvents(t: number, a: AudioScene): void {
-    if (this.sea) {
-      const w = this.sea.tick(t, a.sea);
-      if (w) this.pulseBeds(w.t, Math.min(0.9, w.crest * 0.8 + 0.1), w.rise, w.dur);
-    } else if (a.sea.gain > 0.03 && t >= this.nextWave) this.wave(t + 0.05, a);
-    // the lap and slosh of water against stone, with a few bubbles
-    if (!this.sea && a.sea.gain > 0.03 && t >= this.nextLap) {
-      this.burst(t + 0.02, rand(0.3, 0.8), 'bandpass', rand(200, 650), 1.2, 0.06 * a.sea.gain, rand(-0.7, 0.7), rand(0.05, 0.2));
-      for (let i = 0; i < 1 + Math.floor(Math.random() * 3); i++) this.bubble(t + 0.05 + rand(0, 0.5), 0.02 * a.sea.gain + 0.005, undefined, rand(-0.7, 0.7));
-      this.nextLap = t + rand(1.2, 4);
-    }
+    // the sea starts its own waves; the sea behind the walls swells with them
+    const w = this.sea?.tick(t, a.sea);
+    if (w) this.pulseBeds(w.t, Math.min(0.9, w.crest * 0.8 + 0.1), w.rise, w.dur);
     // falling and running water is a thick scatter of bubbles (each water-drop's ring is a tiny air bubble, which rises in pitch as it
     // shrinks): a few a second for a trickle, a dozen for a fall
     if (a.falls.gain > 0.02 && t >= this.nextBubbles) {

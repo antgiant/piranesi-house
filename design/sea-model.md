@@ -2,7 +2,7 @@
 
 Built from measurements of real recordings of surf in sea caves (reference clips from Freesound, kept out of the repository and used only to
 measure; nothing is copied or shipped). Everything is still procedural. Code: `src/audio/sea.ts`, `patter.ts`, `noise.ts`, `bass.ts`.
-This is the default sea (`engine.seaModel = 'new'`); the old sea is kept behind `seaModel = 'old'` for comparison.
+This is the sea. (The first, noise-and-LFO sea was removed once the owner had heard both and preferred this one.)
 
 ## What the recordings said
 | | Real caves | Old sea | Now |

@@ -41,7 +41,7 @@ The layer table below describes the original, procedural-noise design; the sea, 
 ## Layers
 | Layer | Made from | Driven by |
 |---|---|---|
-| Sea | brown noise, low-passed, slow swell | distance to the nearest vestibule; loud in lower halls; silent in Drowned Halls |
+| Sea | six directions of roar, hiss and foam, stereo sub and cave resonances, travelling waves (see `design/sea-model.md`) | distance to the nearest vestibule; loud in lower halls; silent in Drowned Halls |
 | Tide rumble and strikes | deep noise plus low thumps | tide approaching, booming (depth), or submerged (muffled hush) |
 | Fresh water | band-passed noise and "plink" drips | falls of water, streams, rain; rare drips in the hushed halls |
 | Rain | high-passed noise | rain in vestibules |

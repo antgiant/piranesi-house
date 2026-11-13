@@ -461,6 +461,10 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
   else if (a.rain.gain > 0) bits.push(v(['A fine rain patters.', 'Rain whispers somewhere outside the windows.']));
   if (a.wind.whistle > 0.1) bits.push(v(['Wind sings through hollows in the statues, a thin shifting whistle.', 'A thin whistling comes and goes among the statues as the wind finds its hollows.']));
   else if (a.wind.gain > 0.25) bits.push(v(['Wind moans through the vestibule.', 'The wind moves through the great room with a low moan.']));
+  if (a.rattle && a.rattle.level > 0.25) {
+    const where = { ahead: 'ahead of you', left: 'to your left', right: 'to your right', behind: 'behind you' }[a.rattle.bearing];
+    bits.push(v([`A door rattles in its frame ${where}, shaken by the wind.`, `Somewhere ${where} a shutter knocks and rattles as the wind gets at it.`]));
+  }
   const b = a.birds;
   if (b.perMinute > 0) {
     if (b.mode === 'nesting') bits.push(b.season.chicks ? 'Gulls scream and clatter, and beneath it runs the thin, endless peeping of chicks.' : b.season.fledglings ? 'Gulls scream and clatter, and young ones answer with cracked, wavering cries.' : 'Gulls scream and clatter.');

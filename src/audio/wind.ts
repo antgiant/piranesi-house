@@ -39,6 +39,8 @@ export class Wind {
   private moans: { g: GainNode; bp: BiquadFilterNode }[] = [];
   private gustDepth: GainNode[] = [];
   private howl: GainNode | null = null;
+  /** The common gust itself (slow, centred on zero), for things the gusts push about: the rain driven against the glass. */
+  tap!: GainNode;
   private whistles: { osc: OscillatorNode[]; g: GainNode; f10: number }[] = [];
 
   constructor(deps: { ctx: BaseAudioContext; spot: (at: Vec3) => AudioNode }) {
@@ -58,6 +60,7 @@ export class Wind {
     for (let i = 0; i < 257; i++) { const v = (i / 256) * 2 - 1; sharpCurve[i] = 1.6 * Math.pow(clamp(v * 0.5 + 0.5 - 0.15, 0, 1), 3.2); }
     const sharp = (): WaveShaperNode => { const w = ctx.createWaveShaper(); w.curve = sharpCurve; this.nodes.push(w); return w; };
     const shared = gain(1); // one gust, felt everywhere
+    this.tap = shared;
     const sharedDepth = gain(0.3); this.gustDepth.push(sharedDepth);
     loop('ctl', 0.012).connect(sharedDepth).connect(shared);      // a gust lasts seconds, and the next remembers it (real wind: correlation 0.5-0.7 after 2 s)
     loop('ctl', 0.04).connect(gain(0.2)).connect(shared);

@@ -129,6 +129,10 @@ export class AudioEngine {
 
   private rumbleGain!: GainNode;
   private rainGain!: GainNode;
+  private rainMod!: GainNode;
+  private rainCouple!: GainNode;
+  private rainCoupled = false;
+  private nextRattle = 0;
   /** Sea and falling water heard through the doorways and walls. */
   private beds: BedVoice[] = [];
   private outBus!: GainNode;
@@ -455,7 +459,10 @@ export class AudioEngine {
       const spray = ctx.createGain(); spray.gain.value = 0.6;
       this.loop(waterBuffer(ctx, 'pink')).connect(bq('highpass', 260)).connect(bq('lowpass', 9500)).connect(this.rainGain);
       this.loop(waterBuffer(ctx, 'foam')).connect(bq('highpass', 1800)).connect(spray).connect(this.rainGain);
-      this.rainGain.connect(this.bus);
+      // driven rain: the gusts push it (in recordings of wind and rain together, the rain's loudness follows the wind's gusts with a correlation of about 0.4)
+      const mod = ctx.createGain(); mod.gain.value = 1;
+      this.rainMod = mod; this.rainCouple = ctx.createGain(); this.rainCouple.gain.value = 0; this.rainCouple.connect(mod.gain);
+      this.rainGain.connect(mod).connect(this.bus);
     }
 
     // hints of a world outside: always heard muffled and indistinct, as if through a wall
@@ -695,6 +702,8 @@ export class AudioEngine {
     this.applyOutside(a);
     ease(this.rainGain.gain, a.rain.gain * 0.2);
     if (a.wind.gain > 0.01 && !this.wind) this.wind = new Wind({ ctx, spot: (at) => this.spot(at) });
+    if (this.wind && !this.rainCoupled) { this.wind.tap.connect(this.rainCouple); this.rainCoupled = true; }
+    ease(this.rainCouple.gain, Math.min(1, (a.wind.mps ?? a.wind.gain * 30) / 16) * 1.3);
     this.wind?.set({ gain: a.wind.gain, mps: a.wind.mps ?? a.wind.gain * 30, whistle: a.wind.whistle });
   }
 
@@ -721,6 +730,17 @@ export class AudioEngine {
     if (a.tide.kind !== 'none' && a.tide.kind !== 'submerged' && t >= this.nextBoom) {
       this.boom(t + 0.02, a.tide.kind === 'approach' ? 0.18 * a.tide.gain * 2 : 0.5 * a.tide.gain);
       this.nextBoom = t + a.tide.strikeEverySec * rand(0.75, 1.3);
+    }
+    // doors and windows rattling against the wind: a burst of impacts every so often, at the wall it blows against
+    if (a.rattle && a.rattle.level > 0.02) {
+      if (this.nextRattle === 0) this.nextRattle = t + rand(1, 6);
+      if (t >= this.nextRattle) {
+        const at = a.rattle.az !== undefined ? polar(a.rattle.az, rand(0, 10), 7) : bearingPosition(a.rattle.bearing, 0, 7);
+        const f1 = rand(650, 1300);
+        let tt = t + 0.02;
+        for (let i = 0, n = 3 + Math.floor(Math.random() * 7); i < n; i++) { this.clatter(tt, a.rattle.level * rand(0.4, 1), f1, at); tt += rand(0.07, 0.45) * (Math.random() < 0.45 ? 0.4 : 1); }
+        this.nextRattle = tt + rand(3, 11) / (0.4 + a.rattle.level * 1.6);
+      }
     }
     // almost-voices: short bursts of near-speech while the event lasts
     if (a.outside?.kind === 'voices' && a.outside.gain > 0.1 && t >= this.nextVoice) {
@@ -809,6 +829,19 @@ export class AudioEngine {
     g.gain.linearRampToValueAtTime(peak, t + attack);
     g.gain.setValueAtTime(peak, t + attack + hold);
     g.gain.exponentialRampToValueAtTime(0.0001, t + attack + hold + release);
+  }
+
+  /** One impact of a loose door or window in its frame: a click, and a few ringing modes of the wood, glass or iron, dying in a tenth of a second. */
+  private clatter(t: number, peak: number, f1: number, at: Vec3): void {
+    const ctx = this.ctx as AudioContext;
+    const out = this.spot(at);
+    this.burst(t, 0.02, 'bandpass', rand(2500, 5000), 0.8, peak * 0.3, 0, 0.001, out);
+    for (const [k, d, g] of [[1, 0.09, 1], [2.3, 0.05, 0.6], [3.9, 0.03, 0.45]] as const) {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f1 * k * rand(0.97, 1.03);
+      const e = ctx.createGain();
+      e.gain.setValueAtTime(0.0001, t); e.gain.linearRampToValueAtTime(peak * 0.22 * g, t + 0.002); e.gain.setTargetAtTime(0.0001, t + 0.002, d / 4);
+      o.connect(e).connect(out); o.start(t); o.stop(t + d * 2 + 0.05);
+    }
   }
 
   private burst(t: number, dur: number, type: BiquadFilterType, freq: number, q: number, peak: number, at: Place = 0, attack = 0.004, out?: AudioNode): void {

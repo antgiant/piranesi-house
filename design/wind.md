@@ -21,4 +21,12 @@ Freesound 483479, "Wind blowing, gusting through a French castle tower" (Astound
 * **Stereo** of this recording is nearly mono (L/R correlation 0.98), so it says nothing about the beds around the listener; those stay as designed (correlation about 0.6).
 New wind (gale / fresh): spectrum within a few dB of that shape, gusts 15 dB deep, 34% / 28% tonal frames at 150-300 Hz. `scripts/audition/wind.py` measures both alike.
 
+### Four more recordings (measurement only; Freesound IDs 47704, 27756, 558664, 30444)
+A highrise's windows in a gale (indoors), an open window in a 30-50 mph windstorm, a forest in a 40 mph blizzard (first five minutes), and a binaural howl heard indoors. What they added:
+* **Gusts last longer outdoors**: the envelope's correlation after 2 s is 0.66 (windstorm) and 0.74 (blizzard), and still 0.46 / 0.59 after 4 s; the castle's gusts were quicker (0.42 / 0.13). The wind now gusts in two scales, a slow one that lasts seconds and a quicker one, giving 0.77 / 0.62 / 0.44 / 0.30 after 0.5 / 1 / 2 / 4 s and a depth of 12-14 dB.
+* **Stone and window tones come in bursts**: in the highrise and the windstorm the tonal peaks last a tenth to a second, at fixed pitches (about 350 and 2850 Hz in the highrise; 150-330 Hz in the windstorm), and their level follows the gusts (correlation 0.5-0.8) but their pitch does not (correlation 0). The moans are now gated by the gusts' peaks, at fixed pitches, with a faint tone near 2.8 kHz.
+* **A howl is a different thing**: indoors, a held note 27 dB above the floor that wanders slowly between about 260 and 650 Hz (median 410; glides about 30 Hz a second). The wind now has one, which comes in only in a strong wind (about 330-560 Hz in the render).
+* **Spectrum by place**: outdoors the highs stay up (forest: 4 kHz is only 8 dB below 500 Hz, from the trees and ice; an open window: 2 kHz is 3.5 dB below), and indoors they fall away (the howling building: 1 kHz is 13 dB below its 500 Hz hump). The House is stone, so the castle's shape stays; a wooded courtyard would be the place for the forest's.
+* **Stereo**: outdoors the two ears are far less alike (correlation 0.23 forest, 0.56 open window) than indoors (0.82-0.98). The beds sit at 0.57-0.6, in range.
+
 Not done: wind direction as a cue (the gust coming through the door that faces it), wind in the stair shaft, snow-hush.

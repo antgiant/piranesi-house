@@ -26,7 +26,7 @@ const WHISTLES: readonly { at: number; f10: number }[] = [
   { at: 2, f10: 420 }, { at: 5, f10: 700 }, { at: 7, f10: 1500 },
 ];
 /** The stone's own low notes, and where they come from. */
-const MOANS: readonly { at: number; f: number; q: number }[] = [{ at: 3, f: 195, q: 9 }, { at: 4, f: 305, q: 8 }];
+const MOANS: readonly { at: number; f: number; q: number; k: number }[] = [{ at: 3, f: 195, q: 9, k: 1 }, { at: 4, f: 305, q: 8, k: 1 }, { at: 0, f: 2850, q: 22, k: 0.18 }];
 const BEDS = [0, 1, 4, 5, 6];
 const TRIM = 0.28;
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
@@ -38,6 +38,7 @@ export class Wind {
   private bed: { out: GainNode; body: BiquadFilterNode; bodyG: GainNode; mid: BiquadFilterNode; midG: GainNode; hissG: GainNode }[] = [];
   private moans: { g: GainNode; bp: BiquadFilterNode }[] = [];
   private gustDepth: GainNode[] = [];
+  private howl: GainNode | null = null;
   private whistles: { osc: OscillatorNode[]; g: GainNode; f10: number }[] = [];
 
   constructor(deps: { ctx: BaseAudioContext; spot: (at: Vec3) => AudioNode }) {
@@ -53,9 +54,13 @@ export class Wind {
     const curve = new Float32Array(257);
     for (let i = 0; i < 257; i++) { const v = (i / 256) * 2 - 1; curve[i] = 0.03 + 1.25 * Math.pow(clamp(v * 0.5 + 0.5, 0, 1), 1.7); }
     const shape = (): WaveShaperNode => { const w = ctx.createWaveShaper(); w.curve = curve; this.nodes.push(w); return w; };
+    const sharpCurve = new Float32Array(257);
+    for (let i = 0; i < 257; i++) { const v = (i / 256) * 2 - 1; sharpCurve[i] = 1.6 * Math.pow(clamp(v * 0.5 + 0.5 - 0.15, 0, 1), 3.2); }
+    const sharp = (): WaveShaperNode => { const w = ctx.createWaveShaper(); w.curve = sharpCurve; this.nodes.push(w); return w; };
     const shared = gain(1); // one gust, felt everywhere
-    const sharedDepth = gain(0.36); this.gustDepth.push(sharedDepth);
-    loop('ctl', 0.035).connect(sharedDepth).connect(shared);
+    const sharedDepth = gain(0.3); this.gustDepth.push(sharedDepth);
+    loop('ctl', 0.012).connect(sharedDepth).connect(shared);      // a gust lasts seconds, and the next remembers it (real wind: correlation 0.5-0.7 after 2 s)
+    loop('ctl', 0.04).connect(gain(0.2)).connect(shared);
     for (const i of BEDS) {
       const at = AROUND[i]!;
       const out = gain(0), wob = gain(0);
@@ -71,12 +76,22 @@ export class Wind {
     for (const mo of MOANS) {
       const at = AROUND[mo.at]!;
       const g = gain(0), wob = gain(0), mixc = gain(1);
-      shared.connect(mixc); loop('ctl', 0.1).connect(gain(0.35)).connect(mixc); mixc.connect(shape()).connect(wob.gain);
-      const bp = filt('bandpass', mo.f, mo.q);
-      loop('ctl', 0.09).connect(gain(mo.f * 0.05)).connect(bp.frequency); // the note leans with the gust
-      loop('pink').connect(bp).connect(gain(2.2)).connect(wob);
+      shared.connect(mixc); loop('ctl', 0.1).connect(gain(0.35)).connect(mixc); mixc.connect(sharp()).connect(wob.gain); // only the gusts' peaks bring it on, and it goes again within a second
+      const bp = filt('bandpass', mo.f, mo.q); // the pitch is the stone's: it does not follow the wind (measured: no correlation)
+      loop('pink').connect(bp).connect(gain(2.2 * mo.k)).connect(wob);
       wob.connect(g).connect(deps.spot(polar(at.az, at.el, 6)));
       this.moans.push({ g, bp });
+    }
+    {
+      // the howl: a held note that wanders slowly between about 260 and 650 Hz (measured in a recording of wind howling through a building)
+      const at = AROUND[2]!;
+      const g = gain(0), wob = gain(0), mixc = gain(1);
+      shared.connect(mixc); mixc.connect(shape()).connect(wob.gain);
+      const bp = filt('bandpass', 430, 28);
+      loop('ctl', 0.014).connect(gain(170)).connect(bp.frequency);
+      loop('pink').connect(bp).connect(gain(5)).connect(wob);
+      wob.connect(g).connect(deps.spot(polar(at.az, at.el, 6)));
+      this.howl = g;
     }
     for (const w of WHISTLES) {
       const at = AROUND[w.at]!;
@@ -108,7 +123,8 @@ export class Wind {
       to(b.midG.gain, 0.4 + 0.5 * u * u);
       to(b.hissG.gain, 0.12 * Math.pow(Math.max(0, u - 0.35), 1.2));
     }
-    for (const m of this.moans) to(m.g.gain, 1.2 * Math.pow(clamp((u - 0.15) / 0.85, 0, 1), 1.3) * TRIM);
+    for (const m of this.moans) to(m.g.gain, 1.8 * Math.pow(clamp((u - 0.15) / 0.85, 0, 1), 1.3) * TRIM);
+    if (this.howl) to(this.howl.gain, 1.1 * Math.pow(clamp((u - 0.5) / 0.5, 0, 1), 1.5) * TRIM);
     const f = clamp(s.mps, 2, 22) / 10;
     for (const w of this.whistles) {
       w.osc.forEach((o, i) => to(o.frequency, w.f10 * f * (i ? 1.004 : 1)));
@@ -119,6 +135,6 @@ export class Wind {
   dispose(): void {
     for (const x of this.sources) { try { x.stop(); } catch { /* already */ } }
     for (const n of this.nodes) { try { n.disconnect(); } catch { /* already */ } }
-    this.sources = []; this.nodes = []; this.bed = []; this.whistles = []; this.moans = []; this.gustDepth = [];
+    this.sources = []; this.nodes = []; this.bed = []; this.whistles = []; this.moans = []; this.gustDepth = []; this.howl = null;
   }
 }

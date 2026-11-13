@@ -59,7 +59,7 @@ describe('the sea in the lower halls, and the birds everywhere', () => {
       if (sceneAtWorldTime(w, -14, -6, 1, t).birds.mode === 'foraging') middle++;
     }
     expect(upper).toBeGreaterThan(30);
-    expect(lower).toBeGreaterThan(20);
+    expect(lower).toBeGreaterThan(10); // the real, wetter and windier weather keeps more of them in
     expect(middle).toBeGreaterThan(60);
     const s = at(2, 12);
     if (s.birds.mode === 'soaring') expect(birdLines(getHall(w, -14, -6, 2), s, r0).length).toBeGreaterThan(0);

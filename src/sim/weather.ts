@@ -40,10 +40,10 @@ function noise(world: World, channel: number, t: number, nodeMs: number): number
 const clamp = (v: number, lo = 0, hi = 1000): number => Math.max(lo, Math.min(hi, v));
 
 const WIND_BY_SEASON: Record<Season, readonly (readonly [Ray, number])[]> = {
-  winter: [['S', 22], ['SW', 14], ['W', 20], ['NW', 10], ['N', 12], ['NE', 6], ['E', 8], ['SE', 8]],
-  spring: [['S', 12], ['SW', 14], ['W', 16], ['NW', 12], ['N', 12], ['NE', 12], ['E', 11], ['SE', 11]],
-  summer: [['S', 12], ['SW', 16], ['W', 18], ['NW', 14], ['N', 10], ['NE', 10], ['E', 10], ['SE', 10]],
-  autumn: [['S', 14], ['SW', 16], ['W', 18], ['NW', 12], ['N', 10], ['NE', 10], ['E', 10], ['SE', 10]],
+  winter: [['S', 14], ['SW', 28], ['W', 22], ['NW', 9], ['N', 6], ['NE', 8], ['E', 6], ['SE', 7]],
+  spring: [['S', 9], ['SW', 20], ['W', 19], ['NW', 11], ['N', 8], ['NE', 15], ['E', 9], ['SE', 9]],
+  summer: [['S', 9], ['SW', 24], ['W', 22], ['NW', 14], ['N', 7], ['NE', 9], ['E', 8], ['SE', 7]],
+  autumn: [['S', 11], ['SW', 27], ['W', 21], ['NW', 10], ['N', 6], ['NE', 10], ['E', 7], ['SE', 8]],
 };
 
 function windDirAt(world: World, t: number): Ray {
@@ -107,8 +107,14 @@ export function weatherAt(world: World, t: number): Weather {
   // under a long rain the showers die away into one steady fall (eased in and out with the spell)
   const rain = Math.max(Math.floor((showers * (1000 - spell)) / 1000), cloud >= 600 ? steady : 0);
   const windDir = windDirAt(world, t);
-  const n = noise(world, 3, t, 8 * MS.hour);
-  const windRaw = clamp(Math.floor((n * n) / 1000) + (c.season === 'winter' ? 60 : c.month >= 10 ? 40 : 0));
+  // Wind, fitted to ten years of real hourly records for Derbyshire and the English coasts (design/wind.md): 1000 is a 36 mph hourly mean, the typical hour is
+  // 9 mph and one in a hundred is over 23 mph; it comes in spells (a system lasts a day or two, with fronts and gusts within), is a fifth stronger in winter, and
+  // most often from the south-west and west. A skewed curve of three noises of different pace gives that spread and persistence.
+  const x = Math.floor((noise(world, 3, t, 60 * MS.hour) * 50 + noise(world, 31, t, 7 * MS.hour) * 30 + noise(world, 32, t, 70 * MS.min) * 20) / 100);
+  const u = Math.floor(Math.sqrt(x * 1000)); // 1000 * sqrt(x / 1000): the 1.5 power below without pow(), so every machine agrees
+  const seasonal = c.season === 'winter' ? 120 : c.season === 'autumn' ? 105 : c.season === 'summer' ? 92 : 100;
+  const bluster = Math.max(0, noise(world, 33, t, 16 * MS.hour) - 790); // now and then a blow on top: the tail of real winds is longer than a bell's
+  const windRaw = clamp(Math.floor((((690 * x * u) / 1000000 + bluster * 1.5) * seasonal) / 100));
   const windSpeed = spell > 0 ? Math.floor((windRaw * (1000 - Math.floor((spell * 400) / 1000))) / 1000) : windRaw; // the wind drops under a long rain
   const storm = windSpeed >= 750 && (windDir === 'W' || windDir === 'SW' || windDir === 'NW');
   const tempTenths = seasonalTempTenths(c.dayOfYear) + Math.floor(((noise(world, 4, t, 24 * MS.hour) - 500) * 40) / 500) + dailyTempSwing(c.minuteOfDay, c.season);

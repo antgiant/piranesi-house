@@ -45,3 +45,25 @@ describe('the rain matches an English coast', () => {
     });
   }
 });
+
+describe('the wind matches Derbyshire and the English coasts', () => {
+  it('blows at about 10 mph in an ordinary hour, hard in one hour in a hundred, from the south-west and west, and in spells', () => {
+    const w = createWorld('test-seed');
+    const sp: number[] = []; const dir: Record<string, number> = {}; const winter: number[] = [], summer: number[] = [];
+    for (let t = 0; t < 10 * 365 * MS.day; t += MS.hour) {
+      const k = weatherAt(w, t); sp.push(k.windSpeed); dir[k.windDir] = (dir[k.windDir] ?? 0) + 1;
+      const d = Math.floor((t / MS.day) % 365); if (d < 59 || d >= 335) winter.push(k.windSpeed); else if (d >= 151 && d < 243) summer.push(k.windSpeed);
+    }
+    const mph = (v: number): number => (v / 1000) * 36;
+    const s = [...sp].sort((a, b) => a - b); const q = (p: number): number => mph(s[Math.floor(p * s.length)]!);
+    expect(q(0.5)).toBeGreaterThan(8); expect(q(0.5)).toBeLessThan(11);     // real 9.1-9.9
+    expect(q(0.9)).toBeGreaterThan(15); expect(q(0.9)).toBeLessThan(19);    // 16.4-18.3
+    expect(q(0.99)).toBeGreaterThan(21); expect(q(0.99)).toBeLessThan(27);  // 23.4-26.5
+    const mean = (a: number[]): number => a.reduce((x, y) => x + y, 0) / a.length;
+    expect(mean(winter) / mean(summer)).toBeGreaterThan(1.1); expect(mean(winter) / mean(summer)).toBeLessThan(1.5);
+    const swW = ((dir.SW ?? 0) + (dir.W ?? 0)) / sp.length; expect(swW).toBeGreaterThan(0.38); expect(swW).toBeLessThan(0.55); // real 38-46%
+    const m = mean(sp); let v = 0, c6 = 0, c24 = 0;
+    for (let i = 0; i < sp.length - 24; i++) { const a = sp[i]! - m; v += a * a; c6 += a * (sp[i + 6]! - m); c24 += a * (sp[i + 24]! - m); }
+    expect(c6 / v).toBeGreaterThan(0.6); expect(c24 / v).toBeGreaterThan(0.3); // real 0.72, 0.40: wind lasts
+  });
+});

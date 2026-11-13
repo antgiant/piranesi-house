@@ -88,7 +88,7 @@ export interface AudioScene {
   falls: { gain: number; /** The water itself, before distance: how much falls (0.3 an ordinary day). The sound's character follows this. */ amount: number; /** How near it is, as a loudness factor (1 at the foot, down to 0.3 across a huge floor), and how far, in metres. */ near: number; dist: number; bearing: Bearing; /** -1..1 along the wall when it is ahead, as for doors. */ pan: number; /** From where you stand, in degrees from straight ahead (+ right), when your place in the hall is known. */ az?: number };
   /** Rain, and how much of it lands on water (a hall the tide has flooded, falls or a stream, the lower halls by the sea): 0..1. */
   rain: { gain: number; onWater: number };
-  wind: { gain: number; whistle: number };
+  wind: { gain: number; whistle: number; /** Metres a second at 10 m (1000 of the weather's scale is 36 mph): the character and the whistles' pitch follow it. */ mps?: number };
   birds: { mode: BirdMode; perMinute: number; loudness: number; species: string[]; season: BirdSeason };
   /** 0..1: how much high frequency is taken away (cloud, water over the head). */
   muffle: number;
@@ -337,7 +337,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     stream: streamFlow > 0.02 ? { flow: streamFlow, solo: !h.falls, near: fallNear, dist: fallDist, bearing: fallBearing, pan: fallBearing === 'ahead' && !pose ? (fallMid - 500) / 1500 + 0.4 : 0, az: fallAz !== undefined ? fallAz + (h.falls ? 40 : 0) : undefined } : undefined,
     falls: { gain: (falls + streams) * fallNear, amount: falls + streams, near: fallNear, dist: fallDist, bearing: fallBearing, pan: fallBearing === 'ahead' && !pose ? (fallMid - 500) / 1500 : 0, az: fallAz },
     rain: { gain: rain, onWater: depth > 0 ? 1 : h.level === 0 ? 0.7 : h.falls || s.here.streams ? 0.6 : 0 },
-    wind: { gain: windGain * (1 - snowing * 0.4), whistle },
+    wind: { gain: windGain * (1 - snowing * 0.4), whistle, mps: (s.weather.windSpeed / 1000) * 16.1 },
     thunder,
     birds,
     muffle,

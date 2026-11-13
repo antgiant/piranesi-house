@@ -9,6 +9,7 @@ import { babblePlan, type BabbleEvent } from './babble';
 import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
 import { Stream } from './stream';
+import { Wind } from './wind';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
 import { waterBuffer } from './buffers';
@@ -92,6 +93,7 @@ export class AudioEngine {
   private patter: Patter | null = null;
   private falls: Falls | null = null;
   private stream: Stream | null = null;
+  private wind: Wind | null = null;
   private stairs: StairsWater | null = null;
   private leakVoices: LeakVoice[] = [];
   /** Two high-passes in a row, so the cut for small speakers is steep (24 dB an octave). */
@@ -127,14 +129,8 @@ export class AudioEngine {
 
   private rumbleGain!: GainNode;
   private rainGain!: GainNode;
-  private windGain!: GainNode;
-  /** The wind: three bands of noise, each gusting on its own. */
-  private gusts: { g: GainNode; flt: BiquadFilterNode; base: number; w: number }[] = [];
-  private nextGust = 0;
   /** Sea and falling water heard through the doorways and walls. */
   private beds: BedVoice[] = [];
-  private whistleGain!: GainNode;
-  private whistleOsc: OscillatorNode[] = [];
   private outBus!: GainNode;
   private outLp!: BiquadFilterNode;
   private outPan!: PannerNode;
@@ -256,6 +252,8 @@ export class AudioEngine {
     this.falls = null;
     this.stream?.dispose();
     this.stream = null;
+    this.wind?.dispose();
+    this.wind = null;
     this.stairs?.dispose();
     this.stairs = null;
     for (const b of this.beds) b.v.dispose();
@@ -459,39 +457,6 @@ export class AudioEngine {
       this.loop(waterBuffer(ctx, 'foam')).connect(bq('highpass', 1800)).connect(spray).connect(this.rainGain);
       this.rainGain.connect(this.bus);
     }
-
-    // wind and the whistling statues. Air does not blow at one steady pitch: a low body, a middle rush and a high hiss, each swelling and
-    // dying on its own schedule (see gust()), so it comes in gusts and lulls.
-    this.windGain = ctx.createGain();
-    this.windGain.gain.value = 0;
-    this.windGain.connect(this.bus);
-    for (const [type, base, q, w, src] of [['lowpass', 170, 0.7, 0.55, this.brown], ['bandpass', 520, 0.9, 1, this.noise], ['bandpass', 1500, 0.8, 0.4, this.noise]] as const) {
-      const flt = ctx.createBiquadFilter();
-      flt.type = type;
-      flt.frequency.value = base;
-      flt.Q.value = q;
-      const g = ctx.createGain();
-      g.gain.value = 0.3 * w;
-      this.loop(src).connect(flt).connect(g).connect(this.windGain);
-      this.gusts.push({ g, flt, base, w });
-    }
-    this.whistleGain = ctx.createGain();
-    this.whistleGain.gain.value = 0;
-    for (const f of [640, 953]) {
-      const o = ctx.createOscillator();
-      o.type = 'sine';
-      o.frequency.value = f;
-      const m = ctx.createOscillator();
-      m.frequency.value = rand(0.05, 0.12);
-      const md = ctx.createGain();
-      md.gain.value = f * 0.05;
-      m.connect(md).connect(o.frequency);
-      m.start();
-      o.connect(this.whistleGain);
-      o.start();
-      this.whistleOsc.push(o);
-    }
-    this.whistleGain.connect(this.bus);
 
     // hints of a world outside: always heard muffled and indistinct, as if through a wall
     this.outLp = ctx.createBiquadFilter();
@@ -729,8 +694,8 @@ export class AudioEngine {
     this.syncLeaks(a.leaks ?? []);
     this.applyOutside(a);
     ease(this.rainGain.gain, a.rain.gain * 0.2);
-    ease(this.windGain.gain, a.wind.gain * 0.3);
-    ease(this.whistleGain.gain, a.wind.whistle * 0.05);
+    if (a.wind.gain > 0.01 && !this.wind) this.wind = new Wind({ ctx, spot: (at) => this.spot(at) });
+    this.wind?.set({ gain: a.wind.gain, mps: a.wind.mps ?? a.wind.gain * 30, whistle: a.wind.whistle });
   }
 
   // -------------------------------------------------------------------------------------------------------------
@@ -796,18 +761,6 @@ export class AudioEngine {
     }
   }
 
-  /** A little gust of wind: the three bands drift to new levels, at their own rates. */
-  private gust(t: number, a: AudioScene): void {
-    const shared = Math.pow(Math.random(), 2);
-    for (const b of this.gusts) {
-      const level = b.w * (0.18 + 0.82 * (0.55 * shared + 0.45 * Math.pow(Math.random(), 2)));
-      b.g.gain.setTargetAtTime(level, t, rand(0.5, 1.5));
-      if (b.base > 300) b.flt.frequency.setTargetAtTime(b.base * rand(0.7, 1.45), t, rand(0.8, 2));
-    }
-    // gustier in a strong wind
-    this.nextGust = t + rand(0.7, 2.6) / (0.6 + a.wind.gain * 2);
-  }
-
   /** The sea behind the walls swells and falls with each wave, a little later for each opening. */
   private pulseBeds(t: number, crest: number, rise: number, D: number): void {
     let i = 0;
@@ -819,7 +772,6 @@ export class AudioEngine {
     // the sea starts its own waves; the sea behind the walls swells with them
     const w = this.sea?.tick(t, a.sea);
     if (w) this.pulseBeds(w.t, Math.min(0.9, w.crest * 0.8 + 0.1), w.rise, w.dur);
-    if (a.wind.gain > 0.01 && t >= this.nextGust) this.gust(t, a);
   }
 
   /** Thunder: a crack that only the nearest storms have, then a long low rumble that rolls and dies away. */

@@ -35,8 +35,8 @@ context: a source at the left is about 3.5x louder in the left ear, right likewi
 from left to right moves the level between the ears and glides pitch from about +6% to -6%.
 
 ## Water, rain on water and deep bass
-The sea has been rebuilt from measurements of real recordings (off by default until approved), with rain-on-water and a deep-bass setting:
-see `design/sea-model.md`.
+The sea has been rebuilt from measurements of real recordings, with rain on water and an always-on deep end: see `design/sea-model.md`.
+The layer table below describes the original, procedural-noise design; the sea, rain-on-water and bass rows are superseded by that file.
 
 ## Layers
 | Layer | Made from | Driven by |

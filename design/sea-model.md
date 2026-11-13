@@ -2,7 +2,7 @@
 
 Built from measurements of real recordings of surf in sea caves (reference clips from Freesound, kept out of the repository and used only to
 measure; nothing is copied or shipped). Everything is still procedural. Code: `src/audio/sea.ts`, `patter.ts`, `noise.ts`, `bass.ts`.
-Off by default until approved: `engine.seaModel = 'new'` (the old sea remains the default).
+This is the default sea (`engine.seaModel = 'new'`); the old sea is kept behind `seaModel = 'old'` for comparison.
 
 ## What the recordings said
 | | Real caves | Old sea | Now |
@@ -33,14 +33,15 @@ The original pops, softened (no very loud ones), are the sound of drops landing 
 on water: a hall the tide has flooded (all of it), the lower halls by the sea (70%), a hall with falls or a stream (60%). The director says
 how much (`rain.onWater`), and "listen" says so ("Rain patters on the water all around you").
 
-## Deep bass (`bass.ts`, a setting)
-Small speakers cannot play below about 70 Hz, and a web page cannot tell what it is playing through, so it is a setting:
-* **Small speakers**: a steep (24 dB/octave) cut at 70 Hz on the whole mix, and no impact thump. Measured on the new sea: 16-32 Hz -34 dB,
-  32-64 Hz -13 dB, nothing above 125 Hz changed. It protects small drivers from buzzing; it does *not* give more headroom, because the
-  sea's loudest peaks are not made of sub-bass (measured: the peak is the same in all three modes).
-* **Standard**: as built; only inaudible rumble below 12 Hz is removed.
-* **Full range**: +4 dB low shelf below 60 Hz, a harder thump, and -1.5 dB overall so the peaks stay put. Measured: +2.4 / +1.5 dB at 16-32 /
-  32-64 Hz, mids -1.5 dB.
+## Deep bass (`bass.ts`: always on, full range)
+The mix always carries its deep end: a +4 dB low shelf below 60 Hz, a harder impact thump (x1.4), and -1.5 dB overall so the peaks stay put;
+only rumble under 12 Hz is removed. Measured on the new sea: +2.4 / +1.5 dB at 16-32 / 32-64 Hz, mids -1.5 dB, peak unchanged.
+
+A three-way setting (small speakers / standard / full) was built and then dropped at the owner's request. Its premise, "more headroom on
+small speakers", was measured and is false: the sea's loudest peaks are not made of sub-bass (the peak was the same in all three modes).
+Its one remaining use was keeping tiny drivers from buzzing on notes they cannot play, which could not be measured here. If a phone speaker
+ever sounds rattly, a steep 70 Hz high-pass (two 2nd-order sections, 24 dB/octave) cut 16-32 Hz by 34 dB and 32-64 Hz by 13 dB, with nothing
+above 125 Hz changed; it is easy to bring back.
 Web Audio quirk, learned here: a high-pass's `Q` is in dB, so the flat (Butterworth) value is -3.01, not 0.707.
 
 ## Not done

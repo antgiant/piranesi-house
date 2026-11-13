@@ -1,27 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { BASS_MODES, bassShape, parseBass } from '../src/audio/bass';
+import { DEEP_BASS } from '../src/audio/bass';
 
-describe('deep bass setting', () => {
-  it('small speakers cut what they cannot play and strike no thump; full range adds weight; standard is the baseline', () => {
-    const small = bassShape('small'), std = bassShape('standard'), full = bassShape('full');
-    expect(small.highpassHz).toBeGreaterThanOrEqual(60);
-    expect(small.thump).toBe(0);
-    expect(std.highpassHz).toBeLessThan(20); // only inaudible rumble is removed
-    expect(std.shelfDb).toBe(0);
-    expect(std.trim).toBe(1);
-    expect(std.thump).toBe(1);
-    expect(full.shelfDb).toBeGreaterThan(0);
-    expect(full.thump).toBeGreaterThan(std.thump);
+describe('deep bass', () => {
+  it('only keeps out inaudible rumble, adds weight to the lowest octaves, and strikes the thump harder', () => {
+    expect(DEEP_BASS.highpassHz).toBeLessThan(20);
+    expect(DEEP_BASS.shelfDb).toBeGreaterThan(0);
+    expect(DEEP_BASS.thump).toBeGreaterThan(1);
   });
-  it('full range does not make the loudest peaks louder: the boost is paid for with a trim', () => {
-    const f = bassShape('full');
-    expect(f.trim).toBeLessThan(1);
-    // a low shelf of +4 dB can raise a bass-heavy peak by at most 4 dB; the trim takes back at least a third of that
-    expect(20 * Math.log10(f.trim)).toBeLessThanOrEqual(-1);
-  });
-  it('knows its modes, and falls back to standard for anything else (an old, blank or damaged saved setting)', () => {
-    expect([...BASS_MODES]).toEqual(['small', 'standard', 'full']);
-    for (const m of BASS_MODES) expect(parseBass(m)).toBe(m);
-    for (const bad of [undefined, null, '', 'huge', 3, {}, 'FULL']) expect(parseBass(bad)).toBe('standard');
+  it('does not make the loudest peaks louder: the boost is paid for with a trim', () => {
+    expect(DEEP_BASS.trim).toBeLessThan(1);
+    // a +4 dB low shelf can raise a bass-heavy peak by at most 4 dB; the trim takes back at least a quarter of that
+    expect(20 * Math.log10(DEEP_BASS.trim)).toBeLessThanOrEqual(-1);
   });
 });

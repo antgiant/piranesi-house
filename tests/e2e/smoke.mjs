@@ -142,28 +142,6 @@ try {
   await page.waitForTimeout(300);
   check((await page.locator('#log').textContent()).includes('First Vestibule'), 'changing a world setting restarts at the First Vestibule');
 
-  // --- the deep-bass setting: defaults to Standard, is kept, and reaches the sound engine ---
-  {
-    await page.click('#open-settings');
-    check((await page.locator('#s-bass').inputValue()) === 'standard', 'deep bass is Standard by default');
-    check((await page.evaluate(() => window.__house.engine.bass)) === 'standard', 'and the engine is on Standard');
-    await page.selectOption('#s-bass', 'small');
-    await page.click('#s-save');
-    await page.waitForTimeout(300);
-    check((await page.evaluate(() => window.__house.engine.bass)) === 'small', 'choosing small speakers reaches the engine');
-    check((await page.evaluate(() => JSON.parse(localStorage.getItem('the-house.settings.v1')).bass)) === 'small', 'and is saved with the other settings');
-    const d = await browser.newPage({ viewport: { width: 900, height: 700 } });
-    d.on('pageerror', (e) => errors.push(String(e)));
-    await d.addInitScript(() => { try { localStorage.setItem('the-house.settings.v1', JSON.stringify({ map: true, narrate: 'off', bass: 'enormous' })); } catch { /* ignore */ } });
-    await d.goto(URL);
-    await d.click('#enter');
-    await d.waitForFunction(() => document.getElementById('log').textContent.includes('First Vestibule'));
-    await d.click('#open-settings');
-    check((await d.locator('#s-bass').inputValue()) === 'standard', 'a damaged saved value falls back to Standard');
-    check((await d.evaluate(() => window.__house.engine.bass)) === 'standard', 'and the engine is on Standard');
-    await d.close();
-  }
-
   mkdirSync('tests/e2e/out', { recursive: true });
   await page.evaluate(() => window.__house.teleport(0, 0, 1));
   await page.screenshot({ path: 'tests/e2e/out/screenshot.png' });

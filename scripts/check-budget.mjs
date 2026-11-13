@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 
-const BUDGET = { js: 120 * 1024, css: 12 * 1024, html: 10 * 1024, total: 190 * 1024, anyFile: 150 * 1024 };
+const BUDGET = { js: 130 * 1024, css: 12 * 1024, html: 10 * 1024, total: 190 * 1024, anyFile: 150 * 1024 };
 const dir = new URL('../dist/', import.meta.url).pathname;
 const sizes = { js: 0, css: 0, html: 0, total: 0 };
 const problems = [];

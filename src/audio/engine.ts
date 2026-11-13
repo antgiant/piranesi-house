@@ -6,7 +6,7 @@
 // Randomness here (bird timing, drips) is cosmetic and deliberately not part of the deterministic world.
 
 import { babblePlan, type BabbleEvent } from './babble';
-import { bassShape, type BassMode } from './bass';
+import { DEEP_BASS } from './bass';
 import { Patter } from './patter';
 import { Sea } from './sea';
 import type { AudioScene, Bed, Portal, Surface } from './director';
@@ -90,12 +90,10 @@ interface BedVoice {
 }
 
 export class AudioEngine {
-  /** Which sea to make. The new one is built from measured recordings (sea.ts); the old stays the default until it is approved. */
-  seaModel: 'old' | 'new' = 'old';
+  /** Which sea to make. The new one is built from measured recordings (sea.ts) and is the default; the old one is kept for comparison. */
+  seaModel: 'old' | 'new' = 'new';
   private sea: Sea | null = null;
   private patter: Patter | null = null;
-  /** The deep-bass setting (see bass.ts). */
-  private bass: BassMode = 'standard';
   /** Two high-passes in a row, so the cut for small speakers is steep (24 dB an octave). */
   private bassHp!: BiquadFilterNode;
   private bassHp2!: BiquadFilterNode;
@@ -233,20 +231,23 @@ export class AudioEngine {
     this.wet.gain.value = 0.34;
     this.bus.connect(this.dry).connect(this.lowpass);
     this.wet.connect(this.lowpass);
-    // the deep-bass stage: after the muffle, before the volume
+    // the deep-bass stage (see bass.ts): after the muffle, before the volume
     // (for a high-pass, Web Audio's Q is in dB: -3 is the flat, Butterworth response; 0.707 would be a small resonance)
     this.bassHp = ctx.createBiquadFilter(); this.bassHp.type = 'highpass'; this.bassHp.Q.value = -3.0103;
     this.bassHp2 = ctx.createBiquadFilter(); this.bassHp2.type = 'highpass'; this.bassHp2.Q.value = -3.0103;
     this.bassShelf = ctx.createBiquadFilter(); this.bassShelf.type = 'lowshelf'; this.bassShelf.frequency.value = 60;
     this.bassTrim = ctx.createGain();
+    this.bassHp.frequency.value = DEEP_BASS.highpassHz;
+    this.bassHp2.frequency.value = DEEP_BASS.highpassHz;
+    this.bassShelf.gain.value = DEEP_BASS.shelfDb;
+    this.bassTrim.gain.value = DEEP_BASS.trim;
     this.lowpass.connect(this.bassHp).connect(this.bassHp2).connect(this.bassShelf).connect(this.bassTrim).connect(this.master);
-    this.pushBass(true);
     this.master.connect(this.analyser);
     this.analyser.connect(ctx.destination);
     this.noise = this.makeNoise(4, 'white');
     this.brown = this.makeNoise(8, 'brown');
     this.buildBeds();
-    if (this.seaModel === 'new') { this.sea = new Sea({ ctx, out: this.bus, spot: (at) => this.spot(at) }); this.sea.setThump(bassShape(this.bass).thump); }
+    if (this.seaModel === 'new') { this.sea = new Sea({ ctx, out: this.bus, spot: (at) => this.spot(at) }); this.sea.setThump(DEEP_BASS.thump); }
     this.timer = setInterval(() => this.tickEvents(), 200);
     if (this.scene) this.apply(this.scene);
     if (ctx.state === 'suspended') await ctx.resume();
@@ -262,21 +263,6 @@ export class AudioEngine {
     this.patter?.dispose();
     this.patter = null;
     this.stage.clear();
-  }
-
-  /** Deep bass: for small speakers, standard, or full range (headphones or a subwoofer). Eases, so changing it mid-sound does not click. */
-  setBass(mode: BassMode): void {
-    this.bass = mode;
-    this.pushBass(false);
-  }
-  private pushBass(now: boolean): void {
-    if (!this.ctx) return;
-    const s = bassShape(this.bass), t = this.ctx.currentTime, tc = now ? 0.001 : 0.15;
-    this.bassHp.frequency.setTargetAtTime(s.highpassHz, t, tc);
-    this.bassHp2.frequency.setTargetAtTime(s.highpassHz, t, tc);
-    this.bassShelf.gain.setTargetAtTime(s.shelfDb, t, tc);
-    this.bassTrim.gain.setTargetAtTime(s.trim, t, tc);
-    this.sea?.setThump(s.thump);
   }
 
   setVolume(v: number): void {

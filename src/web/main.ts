@@ -19,12 +19,9 @@ import { ScreenWake } from './wakelock';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
 import { Playlist } from './playlist';
-import { parseBass, type BassMode } from '../audio/bass';
 
 interface Settings {
   volume: number;
-  /** Deep bass: cut it for small speakers, as is, or full range for headphones or a subwoofer. */
-  bass: BassMode;
   muted: boolean;
   timeScale: number;
   showDead: boolean;
@@ -56,7 +53,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, bass: 'standard', muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -76,7 +73,6 @@ function loadSettings(): Settings {
       if (n === true) s.narrate = 'always';
       else if (n === false) s.narrate = 'play';
       else if (n !== 'off' && n !== 'play' && n !== 'always') s.narrate = DEFAULTS.narrate;
-      s.bass = parseBass(s.bass);
       return s;
     }
   } catch { /* storage can be blocked; carry on with defaults */ }
@@ -342,7 +338,6 @@ async function enter(): Promise<void> {
   $('bar').hidden = false;
   $('cmd').hidden = false;
   engine.setVolume(settings.volume / 100);
-  engine.setBass(settings.bass);
   applyMute();
   startGame(true);
   // ask the browser not to clear the saved journey when it is short of space (it may say no, or ask nothing of you)
@@ -636,7 +631,6 @@ $('s-about').addEventListener('click', openAbout);
 $('about-close').addEventListener('click', (e) => { e.preventDefault(); closeDialog(aboutDlg); });
 function fillSettings(): void {
   $<HTMLInputElement>('s-volume').value = String(settings.volume);
-  $<HTMLSelectElement>('s-bass').value = settings.bass;
   $<HTMLInputElement>('s-dead').checked = settings.showDead;
   $<HTMLInputElement>('s-diary').checked = settings.diary;
   $<HTMLInputElement>('s-relics').checked = settings.relics;
@@ -674,7 +668,6 @@ $('s-save').addEventListener('click', (e) => {
   e.preventDefault();
   const next: Settings = {
     volume: Number($<HTMLInputElement>('s-volume').value),
-    bass: parseBass($<HTMLSelectElement>('s-bass').value),
     muted: settings.muted,
     showDead: $<HTMLInputElement>('s-dead').checked,
     diary: $<HTMLInputElement>('s-diary').checked,
@@ -703,7 +696,6 @@ $('s-save').addEventListener('click', (e) => {
   settings = next;
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
-  engine.setBass(settings.bass);
   applyMute();
   paintMute();
   applyNarration();

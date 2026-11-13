@@ -39,7 +39,7 @@ export class Wind {
   private moans: { g: GainNode; bp: BiquadFilterNode }[] = [];
   private gustDepth: GainNode[] = [];
   private howl: GainNode | null = null;
-  /** The common gust itself (slow, centred on zero), for things the gusts push about: the rain driven against the glass. */
+  /** The common gust itself (slow, centred on zero), for things the gusts push about: the rain driven in through the windows. */
   tap!: GainNode;
   private whistles: { osc: OscillatorNode[]; g: GainNode; f10: number }[] = [];
 

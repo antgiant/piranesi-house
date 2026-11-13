@@ -39,7 +39,7 @@ export function skyLines(h: Hall, s: SceneState, rand: Rand): string[] {
     out.push('A bank of cloud lies along the floor and rises as you watch, taking the lower tiers of statues into itself, one by one.');
   }
   if (w.lightning) out.push('Lightning shivers behind the cloud, and for an instant every statue stands out white and flat, as if cut from paper.');
-  if (w.storm) out.push('Black cloud tears across the gap overhead, fast and low, and the roof timbers creak.');
+  if (w.storm) out.push('Black cloud tears across the gap overhead, fast and low, and the broken vault groans.');
   if (w.precip === 'rain') out.push(pick(rand, ['Rain falls through the open roof in long grey threads, and the statues shine with it.', 'Rain comes down through the broken roof and runs off every outstretched arm in a thread.', 'The roof is open, and the rain simply comes in, as if the hall were a courtyard.']));
   if (w.precip === 'snow') out.push(pick(rand, ['Snow comes down through the open roof in big slow flakes, and lies on every shoulder.', 'Snow turns in the air above the hall, and settles, and the hall grows quieter with each minute.']));
   if (inCloud) return out;

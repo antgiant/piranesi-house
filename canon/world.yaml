@@ -16,6 +16,8 @@ structure:
   - {id: W-012, fact: "Halls have a deep cornice or shelf running the length of the wall, around 7 m above the floor in the First Western Hall; pediments top niches.", src: 3057, confidence: stated}
   - {id: W-013, fact: "Very few places are dark. Even at night stars shine in the windows. A rare windowless hall is truly dark.", src: 849, confidence: stated}
   - {id: W-014, fact: "Drops of fresh water fall in most halls (rain through cracks); some statues are partly worn through by long splashing.", src: 483, confidence: stated}
+  - {id: W-015, fact: "Doorways are openings with frames and jambs (chalk marks are made on them, low down) and a width greater than an albatross's wingspan; the book never gives them leaves, hinges, handles, locks or a way to close them. 'The Door' of a hall is the opening itself, and a hall's doors are the passages onward. Nothing is ever said to open, shut, creak or slam.", src: [94, 419, 851, 1883, 1969], confidence: stated}
+  - {id: W-016, fact: "Windows are tall openings onto the courtyards through which light, weather and stars come; the sea's spatter and the clouds reach them. The book never mentions glass, panes, shutters or bars in the House (the sky is seen reflected in some, which is all), so they are treated as open apertures. A door that opens and shuts, and a smashed window, belong only to the other world.", src: [102, 106, 108, 409, 849, 2189], confidence: inferred}
 
 dimensions:
   - {id: D-001, fact: "A typical hall: about 200 m long by 120 m wide; neighbouring halls tend to share these dimensions.", src: 499, confidence: stated}

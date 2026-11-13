@@ -8,7 +8,7 @@ import type { AudioScene } from '../audio/director';
 export const CORPUS: readonly string[] = [
   'the water is late today',
   'north and then north again',
-  'someone left this door open',
+  'someone has been through this doorway',
   'I counted the halls and lost count',
   'the stairs are wet again',
   'the sea came up higher than before',

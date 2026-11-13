@@ -71,7 +71,7 @@ The sound also follows you through a hall, not just from hall to hall, and what 
 |---|---|---|---|---|
 | Upper halls (half-open roof) | all of it, loudest | none; a soft hush (muffle) | loud, whistling in the cornices | loudest |
 | Vestibules | all of it | hush | loud | loud (80%) |
-| Ordinary middle halls | on the windows (30%), more near falls | none | soft | about half |
+| Ordinary middle halls | in at the windows (30%), more near falls | none | soft | about half |
 | Lower halls | a faint hiss through the sea (15%) | none | very soft | a quarter, far off |
 | Drowned Halls, the dark hall | almost none / none | none | almost none | none |
 

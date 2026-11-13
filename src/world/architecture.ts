@@ -97,19 +97,19 @@ export const DEFS: readonly Def[] = [
   ]),
   d('door-too-high', 'opening', 6, 0.65, [
     ['A handsome doorway with a carved lintel opens in the {w} wall {y} above the floor, with no stair, ledge or ladder to it.', 'a doorway high in the wall with no way up to it'],
-    ['High in the {w} wall is a pair of tall doors, closed, with worn steps beneath them that stop ten metres short of the floor.', 'tall doors far above the floor, with steps that stop short'],
+    ['High in the {w} wall is a pair of tall doorways side by side, with worn steps beneath them that stop ten metres short of the floor.', 'tall doorways far above the floor, with steps that stop short'],
   ]),
   d('oculi', 'opening', 6, 0.8, [
     ['A row of round windows runs along the top of the {w} wall, each the width of a cart, each with a different pattern of stone bars.', 'a row of round windows high in the wall, no two barred alike'],
   ]),
   d('blind-doors', 'opening', 6, 0.1, [
-    ['Doors are carved in the {w} wall that open on nothing: handles, hinges and keyholes cut in the solid stone, and the door itself a shallow panel.', 'carved doors in the stone that open on nothing'],
+    ['Door shapes are carved in the {w} wall that lead nowhere: frames, panels, handles and hinges all cut in the solid stone, so that the door is only the picture of a door.', 'carved doors in the stone that open on nothing'],
   ]),
   d('small-door', 'opening', 6, 0.05, [
-    ['Between two great piers a small plain door, no higher than your chest, is set at floor level in the {w} wall, half hidden by a drift of old leaves of stone.', 'a very small door at floor level, half hidden'],
+    ['Between two great piers a small plain doorway, no higher than your chest, opens at floor level in the {w} wall, half hidden by a drift of old leaves of stone.', 'a very small doorway at floor level, half hidden'],
   ]),
   d('giant-doors', 'opening', 5, 0.3, [
-    ['A pair of doors three times the height of a statue stands shut in the {w} wall, bound in iron, with rings on them that no hand could circle.', 'a pair of vast shut doors bound in iron'],
+    ['A doorway three times the height of a statue opens in the {w} wall, its lintel carved with a procession and its jambs set with iron rings that no hand could circle.', 'a doorway three times the height of a statue'],
   ], { minH: 30 }),
   d('serliana', 'opening', 4, 0.4, [
     ['A tall window in the {w} wall is divided into three: a wide arched light between two narrow square ones, set in a frame of fluted pilasters.', 'a triple window in the wall, its middle light arched'],
@@ -349,13 +349,13 @@ export const DEFS: readonly Def[] = [
     ['Through a break in the vault, a shaft of light as straight as a pillar comes down onto one square of the floor and leaves the rest in shadow.', 'a column of light from a break in the vault'],
   ]),
   d('window-patches', 'light', 6, 0.1, [
-    ['The tall windows throw their shapes onto the floor, great slanting panes of light with the bars of the windows laid across them, and they creep as the hours go.', 'tall panes of window light creeping across the floor'],
+    ['The tall windows throw their shapes onto the floor, great slanting slabs of light with the mullions of the windows laid across them, and they creep as the hours go.', 'tall slabs of window light creeping across the floor'],
   ]),
   d('rose-window', 'light', 4, 0.8, [
-    ['A rose window of many petals fills the upper part of the {w} wall; most of its glass is gone, but a few coloured pieces remain and throw a spot of red and a spot of blue onto the floor.', 'a rose window with a few pieces of coloured glass left'],
+    ['A rose window of many petals fills the upper part of the {w} wall; much of its stone tracery has fallen, and what is left throws a lattice of light, thin and sharp, onto the floor.', 'a rose window with only part of its stone tracery left'],
   ]),
   d('hanging-lamps', 'light', 5, 0.6, [
-    ['Lamps as big as barrels hang from the vault on long chains, in rows, unlit, their glass dull; their chains are so long that they hang within reach.', 'rows of huge unlit lamps on long chains'],
+    ['Lamps as big as barrels hang from the vault on long chains, in rows, unlit, their bronze dull; their chains are so long that they hang within reach.', 'rows of huge unlit lamps on long chains'],
   ]),
   d('braziers-cold', 'light', 4, 0.1, [
     ['Bronze bowls on tripods stand down the middle of the hall, each wider than a bed, filled with old grey ash and a few charred ends of something.', 'big bronze bowls of cold ash on tripods'],

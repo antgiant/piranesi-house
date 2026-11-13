@@ -123,7 +123,7 @@ export function fallSide(x: number, y: number, level: number): Side {
   return (['N', 'E', 'S', 'W'] as const)[(h >>> 7) % 4] as Side;
 }
 
-/** A neighbouring hall heard through one open door: a fraction of its level. */
+/** A neighbouring hall heard through one doorway: a fraction of its level. */
 const DOOR_ATTEN = 0.45;
 /** At this distance (metres, about 130 ft) a doorway is heard at half its closest loudness. */
 const DOOR_REACH_M = 40;
@@ -276,7 +276,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const fallBearing = fallAz !== undefined ? bearingFromAz(fallAz) : bearing(fallWall, facing);
   // The Drowned Halls are cut off: windows half-submerged or choked with rubble, so little weather reaches them.
   // How much of the rain outside is heard, by where you are: the upper halls have half a roof, so they hear all of it; a
-  // vestibule is open to the courtyards and hears it all; an ordinary hall hears it on its windows; the lower halls hear
+  // vestibule is open to the courtyards and hears it all; an ordinary hall hears it through its windows; the lower halls hear
   // only a hiss, through the sea; the Drowned Halls are mostly cut off. Snow makes none, only a soft hush.
   const w = s.weather;
   const raining = w.precip === 'rain' ? w.rain / 1000 : 0;

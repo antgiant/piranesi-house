@@ -10,6 +10,7 @@
 // The scene's falls gain (0.3 for a hall with falls, 0.18 for a stream) sets the level; "flow" (the share of falls over trickle) sets the mix.
 
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
+import { airCutoffHz } from './spatial';
 import { waterBuffer } from './buffers';
 import type { PlaceFactory } from './place';
 import { AROUND, polar, type Vec3 } from './spatial';
@@ -24,14 +25,14 @@ export interface FallsDeps {
   place: PlaceFactory;
 }
 
-export interface FallsScene { gain: number; at: Vec3; space: Space; /** How often water drips, compared with an ordinary day (the weather). */ dripping?: number }
+export interface FallsScene { gain: number; /** How near, as a loudness factor, and how far in metres: distance changes the level and takes the highs off; it does not change how much water there is. */ near?: number; dist?: number; at: Vec3; space: Space; /** How often water drips, compared with an ordinary day (the weather). */ dripping?: number }
 
 /** The standing echo of the space, in seconds: the cave recording's resonances sat 23 Hz apart, an echo about 43 ms long. */
 const ROOM_DELAY: Record<Space, number> = { small: 0.03, large: 0.043, vast: 0.065 };
 /** The scene's gain at which the level is "one": a hall with falls. */
 const REF_GAIN = 0.3;
 /** Level of each layer at one, tuned against the measured recordings. */
-const LEVEL = { wash: 0.22, fine: 0.26, plops: 0.24, trickle: 0.1, diffuse: 0.45, resonance: 0.22 };
+const LEVEL = { wash: 0.22, fine: 0.26, plops: 0.24, trickle: 0.1, rumble: 0.035, spray: 0.22, diffuse: 0.45, resonance: 0.22 };
 /** Overall trim: falling water is a presence in the hall, not the loudest thing in it. */
 const TRIM = 0.25;
 
@@ -44,7 +45,14 @@ export class Falls {
   private readonly place: ReturnType<FallsDeps['place']>;
   private sources: AudioScheduledSourceNode[] = [];
   private nodes: AudioNode[] = [];
-  private layer: Record<'wash' | 'fine' | 'plops' | 'trickle', GainNode> = {} as never;
+  private layer: Record<'wash' | 'fine' | 'plops' | 'trickle' | 'rumble' | 'spray', GainNode> = {} as never;
+  /** What changes with the amount of water besides how loud it is: the wash's body and top, and the size (so the pitch) of the bubbles. */
+  private washHp: BiquadFilterNode[] = [];
+  private washLp: BiquadFilterNode[] = [];
+  private washAir: BiquadFilterNode[] = [];
+  private trickleSrc: AudioBufferSourceNode | null = null;
+  private fineSrc: AudioBufferSourceNode[] = [];
+  private plopsSrc: AudioBufferSourceNode | null = null;
   private diffuse: GainNode[] = [];
   private delay!: DelayNode;
   private dripIn: AudioNode;
@@ -52,6 +60,7 @@ export class Falls {
   private level = 0;
   private dripping = 1;
   private flow = 0;
+  private air!: BiquadFilterNode;
   /** Live drips made so far (for tests). */
   drips = 0;
 
@@ -60,7 +69,7 @@ export class Falls {
     this.spot = deps.spot;
     this.place = deps.place({ x: 0, y: 0, z: -5 });
     this.dripIn = this.place.input;
-    const white = waterBuffer(ctx, 'white'), fine = waterBuffer(ctx, 'fine'), plops = waterBuffer(ctx, 'plops'), trickle = waterBuffer(ctx, 'trickle'), ctl = waterBuffer(ctx, 'ctl');
+    const white = waterBuffer(ctx, 'white'), fine = waterBuffer(ctx, 'fine'), plops = waterBuffer(ctx, 'plops'), trickle = waterBuffer(ctx, 'trickle'), ctl = waterBuffer(ctx, 'ctl'), brown = waterBuffer(ctx, 'brown');
 
     // --- the point source: layers summed, through the room's resonance, then placed ---
     const sum = this.g(1);
@@ -75,6 +84,7 @@ export class Falls {
       // turbulent wash: white noise from 380 Hz up to about 14 kHz, brightened above 4.5 kHz, with a body bump near 650 Hz
       const hp = this.f('highpass', 380, -3.01), body = this.f('peaking', 650, 1.2, 1), lp = this.f('lowpass', 12000, -3.01), air = this.f('highshelf', 4500, 0.7, 5), top = this.f('lowpass', 14500, -3.01);
       mk(white).connect(hp).connect(body).connect(lp).connect(air).connect(top);
+      this.washHp.push(hp); this.washLp.push(lp); this.washAir.push(air);
       return top;
     };
     const flutter = (node: AudioNode, depth: number, speed: number): AudioNode => {
@@ -83,8 +93,11 @@ export class Falls {
       node.connect(wob);
       return wob;
     };
-    const layers = { wash: washShaped(), fine: mk(fine), plops: mk(plops), trickle: mk(trickle) };
-    for (const k of ['wash', 'fine', 'plops', 'trickle'] as const) {
+    const layers = { wash: washShaped(), fine: mk(fine), plops: mk(plops), trickle: mk(trickle), rumble: mk(brown).connect(this.f('lowpass', 170, -3.01)), spray: mk(waterBuffer(ctx, 'foam')).connect(this.f('highpass', 3800, -3.01)) };
+    this.fineSrc.push(layers.fine);
+    this.plopsSrc = layers.plops;
+    this.trickleSrc = layers.trickle;
+    for (const k of ['wash', 'fine', 'plops', 'trickle', 'rumble', 'spray'] as const) {
       const g = this.g(0);
       (k === 'wash' ? flutter(layers[k], 0.22, 0.5) : layers[k]).connect(g).connect(sum);
       this.layer[k] = g;
@@ -100,13 +113,15 @@ export class Falls {
     const mix = this.g(1);
     sum.connect(mix);
     tap.connect(mix);
-    mix.connect(this.place.input);
+    this.air = this.f('lowpass', 18000, -3.01); // distance takes the highs off
+    mix.connect(this.air).connect(this.place.input);
 
     // --- the diffuse surround: independent copies, quieter, in four directions around ---
     for (const i of [0, 1, 4, 5]) {
       const at = AROUND[i]!;
       const out = this.g(0);
       const w = washShaped(), f = mk(fine);
+      this.fineSrc.push(f);
       const wg = this.g(LEVEL.wash), fg = this.g(LEVEL.fine), mixd = this.g(1);
       flutter(w, 0.25, 0.5).connect(wg).connect(mixd);
       f.connect(fg).connect(mixd);
@@ -123,20 +138,41 @@ export class Falls {
     return b;
   }
 
-  /** Follow the scene: how much water, where it is, and the size of the space it rings in. */
+  /**
+   * Follow the scene: how much water, where it is, and the size of the space it rings in.
+   *
+   * More water is not the same as nearer water. Nearer is louder and brighter; MORE is louder and *deeper*: a body of roar, bigger bubbles that ring lower,
+   * a dense wash that hides the single drops, and the thud and rumble of the mass of it. Less is quieter but *brighter and sparser*: single small drops, a
+   * thread, hardly any roar. So the level moves only a little (about 7 dB from a thread to a torrent) and the character does the telling. Measured against
+   * the recordings: thin falls and splashes have centroids of 3.7-4.3 kHz; the heavy cascade down steps, 1.6 kHz.
+   */
   set(s: FallsScene): void {
     const t = this.ctx.currentTime, tc = 1.2;
     this.dripping = s.dripping ?? 1;
-    this.level = clamp(s.gain / REF_GAIN, 0, 1.9); // up to nearly twice an ordinary fall: the stores overflowing
-    this.flow = clamp((s.gain - 0.08) / 0.22, 0, 1); // a stream is mostly trickle; a fall is mostly wash and fine bubbles
-    const L = this.level, f = this.flow;
-    const heavy = clamp((L - 1) / 0.9, 0, 1); // in overflow it is not just louder: more roar and more big plops
+    this.level = clamp(s.gain / REF_GAIN, 0, 1.9); // 0.48 in a dry spell, 0.85 ordinary, up to 1.9 in overflow
+    this.flow = clamp((s.gain - 0.08) / 0.22, 0, 1);
+    const L = this.level;
+    const m = clamp((L - 0.4) / 1.3, 0, 1);          // how much water: 0 a thread .. 1 a torrent
+    const near = s.near ?? 1;                         // distance: louder at the foot of it, a murmur across the floor...
+    const lv = Math.pow(Math.max(L, 0.05), 0.5) * near; // loudness moves by the square root of the flow (6-7 dB over the whole range), and by how near you are
     const to = (p: AudioParam, v: number): void => { p.setTargetAtTime(v, t, tc); };
-    to(this.layer.wash.gain, TRIM * LEVEL.wash * L * (0.4 + 0.6 * f) * (1 + 0.5 * heavy));
-    to(this.layer.fine.gain, TRIM * LEVEL.fine * L * (0.3 + 0.7 * f));
-    to(this.layer.plops.gain, TRIM * LEVEL.plops * L * (0.5 + 0.5 * f) * (1 + 0.8 * heavy));
-    to(this.layer.trickle.gain, TRIM * LEVEL.trickle * L * (1 - 0.8 * f));
-    for (const d of this.diffuse) to(d.gain, TRIM * LEVEL.diffuse * L * (0.4 + 0.6 * f));
+    to(this.air.frequency, airCutoffHz(s.dist ?? 5));   // ...and darker, the farther it is: what distance does, and more water does not
+    const w = (lo: number, hi: number, k: number): number => lo + (hi - lo) * Math.pow(m, k);
+    to(this.layer.wash.gain, TRIM * LEVEL.wash * lv * w(0.1, 1.05, 1.6));             // the roar: almost none in a thread, most of it in a torrent
+    to(this.layer.fine.gain, TRIM * LEVEL.fine * lv * w(0.9, 0.8, 1));               // the sparkle of small bubbles: always there, but no more for more water
+    to(this.layer.plops.gain, TRIM * LEVEL.plops * lv * w(1.1, 1.2, 1));           // big plops: more, and bigger, with more water
+    to(this.layer.trickle.gain, TRIM * LEVEL.trickle * lv * w(2.0, 0.05, 1));        // single drops and threads: a thread is made of them
+    to(this.layer.rumble.gain, TRIM * LEVEL.rumble * lv * w(0, 1, 1.5) * clamp((m - 0.25) / 0.75, 0, 1)); // the mass of the water: only a real flow has it
+    to(this.layer.spray.gain, TRIM * LEVEL.spray * lv * w(1.0, 0.45, 1));              // a fine spray: the top of a thin fall
+    for (const d of this.diffuse) to(d.gain, TRIM * LEVEL.diffuse * lv * w(0.35, 0.8, 1));
+    // the wash gains body as it grows (the cut moves from 600 Hz down to 230) and loses a little of its top
+    for (const h of this.washHp) to(h.frequency, w(850, 230, 1));
+    for (const a of this.washAir) to(a.gain, w(9, 3, 1));                              // and the top is brighter the thinner it is
+    for (const l of this.washLp) to(l.frequency, w(12500, 8500, 1));
+    // bigger bubbles ring lower: the swarms play slower as the water grows (a fall of a thread's size is high and small)
+    for (const src of this.fineSrc) to(src.playbackRate, w(1.35, 0.82, 1));
+    if (this.plopsSrc) to(this.plopsSrc.playbackRate, w(1.3, 0.68, 1));
+    if (this.trickleSrc) to(this.trickleSrc.playbackRate, w(1.4, 0.9, 1));
     this.delay.delayTime.setTargetAtTime(ROOM_DELAY[s.space], t, 0.5);
     this.place.move(s.at, 0.3);
   }

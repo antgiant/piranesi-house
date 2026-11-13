@@ -79,6 +79,23 @@ describe('the sound follows you across a hall', () => {
     expect(turned.falls.gain).toBeCloseTo(aNear.falls.gain, 9); // turning the head changes where, not how loud
   });
 
+  it('how far you are changes how loud and how dull a fall is, never how much water there is', () => {
+    let spot: { x: number; y: number; level: 1 } | null = null;
+    for (let x = -12; x < 12 && !spot; x++) for (let y = -12; y < 12 && !spot; y++) if (getHall(w, x, y, 1).falls) spot = { x, y, level: 1 };
+    const p = spot!, h = getHall(w, p.x, p.y, 1), f = h.falls!;
+    const onWall = wallPoint(h, f.wall, (f.from + f.to) / 2);
+    const cx = h.xExtent / 2, cy = h.yExtent / 2, vx = cx - onWall.x, vy = cy - onWall.y, len = Math.hypot(vx, vy) || 1;
+    const at = (d: number) => ({ x: onWall.x + (vx / len) * d, y: onWall.y + (vy / len) * d, heading: 0 });
+    const near = audioFor(w, scene(p, MS.hour), { portals: false, pose: at(4) });
+    const far = audioFor(w, scene(p, MS.hour), { portals: false, pose: at(Math.min(150, len * 1.8)) });
+    expect(near.falls.amount).toBeGreaterThan(0);
+    expect(far.falls.amount).toBe(near.falls.amount);                    // the same water
+    expect(far.falls.near).toBeLessThan(near.falls.near);                // heard from farther
+    expect(far.falls.dist).toBeGreaterThan(near.falls.dist);
+    expect(far.falls.gain).toBeCloseTo(far.falls.amount * far.falls.near, 9);
+    expect(audioFor(w, scene(p, MS.hour), { portals: false }).falls.near).toBe(1); // no place known: as before
+  });
+
   it('a doorway you walk toward grows louder and is ahead; across the hall it is fainter', () => {
     // find a hall and a moment where something is heard through a doorway
     let found: { p: { x: number; y: number; level: 1 }; t: number } | null = null;

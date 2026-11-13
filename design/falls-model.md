@@ -32,6 +32,18 @@ the sea, no rivers. Each hall's `falls` knows its wall and its extent along it.
 * **Live drips**: single drops from near the fall, now and then; also used by rain and the hushed halls (`engine.drip`).
 * **Flow**: the scene's falls gain (0.3 a fall, 0.18 a stream) sets the level; the share of falls to trickle follows it.
 
+## More water is not nearer water
+First version: flow scaled the whole fall's level (a 19 dB range) and nothing else, which sounded like three distances from the same fall, not three
+volumes of water. Now the two are separate in the scene: `falls.amount` (the water itself) and `falls.near` / `falls.dist` (how far you are).
+* **Amount** changes the character: the wash's body (the cut falls from 850 to 230 Hz as the water grows, and a rumble of the mass of it joins above about
+  half flow), the size of the bubbles (the swarms play slower, so lower, with more water), the roar (almost none in a thread, most of it in a torrent) and
+  the density (single drops stand out in a thread: 2.8 a second; a torrent hides them: 0.7). A thin fall has a fine spray on top and is brighter. Loudness
+  moves only by the square root of the flow: 6.8 dB from a thread to a torrent (was 19).
+* **Distance** changes only the loudness (down to 0.3 across a huge floor) and takes the highs off (`airCutoffHz`).
+Measured: from a thread to a torrent the low energy (60-250 Hz) rises 10.7 dB and the high (2-10 kHz) only 3 dB, the centroid falls from 2.2 to 1.3 kHz;
+from near to far everything falls together (low -10 dB, high -12 dB). The real recordings agree: thin falls and splashes have centroids of 3.7-4.3 kHz, the
+heavy cascade down steps 1.6 kHz. `tests/pose-sound.test.ts` keeps the amount independent of distance.
+
 ## Where the water is
 A hall with falls: its own wall, and its position along that wall (`h.falls`), so it stays put as you turn (`audioFor` gives the
 bearing relative to your facing, like doors). A stream has no wall: `fallSide` picks a fixed one per hall.

@@ -83,7 +83,7 @@ export interface AudioScene {
   sea: { gain: number; lowpassHz: number; swellSec: number };
   tide: { kind: TideSound; gain: number; character: string | null; strikeEverySec: number };
   /** Falling and running fresh water here, and which way it is from where you face (it has a place in the hall: it stays put as you turn). */
-  falls: { gain: number; bearing: Bearing; /** -1..1 along the wall when it is ahead, as for doors. */ pan: number; /** From where you stand, in degrees from straight ahead (+ right), when your place in the hall is known. */ az?: number };
+  falls: { gain: number; /** The water itself, before distance: how much falls (0.3 an ordinary day). The sound's character follows this. */ amount: number; /** How near it is, as a loudness factor (1 at the foot, down to 0.3 across a huge floor), and how far, in metres. */ near: number; dist: number; bearing: Bearing; /** -1..1 along the wall when it is ahead, as for doors. */ pan: number; /** From where you stand, in degrees from straight ahead (+ right), when your place in the hall is known. */ az?: number };
   /** Rain, and how much of it lands on water (a hall the tide has flooded, falls or a stream, the lower halls by the sea): 0..1. */
   rain: { gain: number; onWater: number };
   wind: { gain: number; whistle: number };
@@ -262,10 +262,12 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const fallMid = h.falls ? (h.falls.from + h.falls.to) / 2 : 500;
   let fallAz: number | undefined;
   let fallNear = 1; // louder near the wall the water runs down, a far murmur across a huge floor
+  let fallDist = 5;
   if (pose) {
     const pt = nearestOnWall(h, fallWall, h.falls ? h.falls.from : 400, h.falls ? h.falls.to : 600, pose);
     fallAz = azimuthTo(pose, pt);
-    fallNear = proximity(distanceTo(pose, pt), FALLS_REACH_M, 1.7, 0.3);
+    fallDist = distanceTo(pose, pt);
+    fallNear = proximity(fallDist, FALLS_REACH_M, 1.7, 0.3);
   }
   const fallBearing = fallAz !== undefined ? bearingFromAz(fallAz) : bearing(fallWall, facing);
   // The Drowned Halls are cut off: windows half-submerged or choked with rubble, so little weather reaches them.
@@ -324,7 +326,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     reverb,
     sea: { gain: seaGain, lowpassHz: seaLow, swellSec: h.level === 0 ? 7 : 11 },
     tide: { kind: tideKind, gain: tideGain, character: s.tide.character?.sound ?? null, strikeEverySec: strike },
-    falls: { gain: (falls + streams) * fallNear, bearing: fallBearing, pan: fallBearing === 'ahead' && !pose ? (fallMid - 500) / 1500 : 0, az: fallAz },
+    falls: { gain: (falls + streams) * fallNear, amount: falls + streams, near: fallNear, dist: fallDist, bearing: fallBearing, pan: fallBearing === 'ahead' && !pose ? (fallMid - 500) / 1500 : 0, az: fallAz },
     rain: { gain: rain, onWater: depth > 0 ? 1 : h.level === 0 ? 0.7 : h.falls || s.here.streams ? 0.6 : 0 },
     wind: { gain: windGain * (1 - snowing * 0.4), whistle },
     thunder,

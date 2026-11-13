@@ -707,7 +707,7 @@ export class AudioEngine {
     // water running down the great stair, and into the shaft beneath it
     if (a.stairs.flow > 0.02 && !this.stairs) this.stairs = new StairsWater({ ctx, place: (at) => this.placeHandle(at) });
     this.stairs?.set({ flow: a.stairs.flow, az: a.stairs.az ?? toPolar(bearingPosition(a.stairs.bearing, 0)).az });
-    this.falls?.set({ dripping: a.water.dripping, gain: a.falls.gain, at: a.falls.az !== undefined ? polar(a.falls.az, 0, 5) : bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
+    this.falls?.set({ dripping: a.water.dripping, gain: a.falls.amount, near: a.falls.near, dist: a.falls.dist, at: a.falls.az !== undefined ? polar(a.falls.az, 0, 5) : bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
     // a tide booming next door is felt through the floor before it reaches you
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
     ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));

@@ -88,8 +88,6 @@ export interface AudioScene {
   falls: { gain: number; /** The water itself, before distance: how much falls (0.3 an ordinary day). The sound's character follows this. */ amount: number; /** How near it is, as a loudness factor (1 at the foot, down to 0.3 across a huge floor), and how far, in metres. */ near: number; dist: number; bearing: Bearing; /** -1..1 along the wall when it is ahead, as for doors. */ pan: number; /** From where you stand, in degrees from straight ahead (+ right), when your place in the hall is known. */ az?: number };
   /** Rain, and how much of it lands on water (a hall the tide has flooded, falls or a stream, the lower halls by the sea): 0..1. */
   rain: { gain: number; onWater: number };
-  /** Doors and windows rattling in the wind, on the wall it blows against (measured: bursts of impacts at gusts, about two a second while it lasts). */
-  rattle?: { level: number; bearing: Bearing; az?: number };
   wind: { gain: number; whistle: number; /** Metres a second at 10 m (1000 of the weather's scale is 36 mph): the character and the whistles' pitch follow it. */ mps?: number };
   birds: { mode: BirdMode; perMinute: number; loudness: number; species: string[]; season: BirdSeason };
   /** 0..1: how much high frequency is taken away (cloud, water over the head). */
@@ -291,19 +289,6 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const windGain = exposed ? clamp(0.04 + (s.weather.windSpeed / 1000) * 0.5, 0, 0.55) : clamp((s.weather.windSpeed / 1000) * (drowned ? 0.02 : 0.08), 0, 0.1);
   const whistle = exposed && s.weather.windSpeed > 400 ? clamp((s.weather.windSpeed - 400) / 1000, 0, 0.5) : 0;
 
-  // --- rattles: the wind shakes the doors and windows of the wall it blows against ---
-  const WINDWARD: Record<string, Side[]> = { N: ['N'], NE: ['N', 'E'], E: ['E'], SE: ['S', 'E'], S: ['S'], SW: ['S', 'W'], W: ['W'], NW: ['N', 'W'] };
-  const openings = (sd: Side): number => h.windows[sd] + h.doors[sd].length;
-  const windSide = (WINDWARD[w.windDir] ?? []).filter((sd) => openings(sd) > 0).sort((a, b) => openings(b) - openings(a))[0];
-  const rattleStrength = drowned || dark || !windSide ? 0 : clamp((s.weather.windSpeed / 1000 - 0.36) / 0.42, 0, 1) * (exposed ? 1 : 0.55);
-  let rattle: AudioScene['rattle'];
-  if (rattleStrength > 0.02 && windSide) {
-    const pt = pose ? wallPoint(h, windSide, 500) : null;
-    const az = pose && pt ? azimuthTo(pose, pt) : undefined;
-    const near = pose && pt ? proximity(distanceTo(pose, pt), 45, 1.6, 0.2) : 1;
-    if (rattleStrength * near > 0.02) rattle = { level: rattleStrength * near, bearing: az !== undefined ? bearingFromAz(az) : bearing(windSide, facing), az };
-  }
-
   // --- birds ---
   const b = s.birds;
   const birds = { mode: b.mode, perMinute: b.mode === 'silent' || b.mode === 'none' ? 0 : Math.round((b.loudness / 1000) * 24), loudness: b.loudness / 1000, species: b.species, season: b.season };
@@ -354,7 +339,6 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     rain: { gain: rain, onWater: depth > 0 ? 1 : h.level === 0 ? 0.7 : h.falls || s.here.streams ? 0.6 : 0 },
     wind: { gain: windGain * (1 - snowing * 0.4), whistle, mps: (s.weather.windSpeed / 1000) * 16.1 },
     thunder,
-    rattle,
     birds,
     muffle,
     hush: drowned,

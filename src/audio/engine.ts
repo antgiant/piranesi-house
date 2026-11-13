@@ -8,6 +8,7 @@
 import { babblePlan, type BabbleEvent } from './babble';
 import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
+import { Stream } from './stream';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
 import { waterBuffer } from './buffers';
@@ -90,6 +91,7 @@ export class AudioEngine {
   private sea: Sea | null = null;
   private patter: Patter | null = null;
   private falls: Falls | null = null;
+  private stream: Stream | null = null;
   private stairs: StairsWater | null = null;
   private leakVoices: LeakVoice[] = [];
   /** Two high-passes in a row, so the cut for small speakers is steep (24 dB an octave). */
@@ -252,6 +254,8 @@ export class AudioEngine {
     this.patter = null;
     this.falls?.dispose();
     this.falls = null;
+    this.stream?.dispose();
+    this.stream = null;
     this.stairs?.dispose();
     this.stairs = null;
     for (const b of this.beds) b.v.dispose();
@@ -704,7 +708,8 @@ export class AudioEngine {
     if (onWater > 0.02 && !this.patter) this.patter = new Patter({ ctx, spot: (at) => this.spot(at) });
     this.patter?.set(onWater);
     // falling and running water: made the first time there is any, then follows the scene
-    if (a.falls.gain > 0.02 && !this.falls) {
+    const solo = a.stream?.solo ?? false;
+    if (a.falls.gain > 0.02 && !solo && !this.falls) {
       this.falls = new Falls({
         ctx, spot: (at) => this.spot(at),
         place: (at) => this.placeHandle(at),
@@ -713,7 +718,9 @@ export class AudioEngine {
     // water running down the great stair, and into the shaft beneath it
     if (a.stairs.flow > 0.02 && !this.stairs) this.stairs = new StairsWater({ ctx, place: (at) => this.placeHandle(at) });
     this.stairs?.set({ flow: a.stairs.flow, az: a.stairs.az ?? toPolar(bearingPosition(a.stairs.bearing, 0)).az });
-    this.falls?.set({ dripping: a.water.dripping, gain: a.falls.amount, near: a.falls.near, dist: a.falls.dist, at: a.falls.az !== undefined ? polar(a.falls.az, 0, 5) : bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
+    if (a.stream && !this.stream) this.stream = new Stream({ ctx, place: (at) => this.placeHandle(at) });
+    this.stream?.set({ flow: a.stream?.flow ?? 0, near: a.stream?.near ?? 0, dist: a.stream?.dist ?? 5, at: a.stream ? (a.stream.az !== undefined ? polar(a.stream.az, 0, 6) : bearingPosition(a.stream.bearing, a.stream.pan, 6)) : { x: 0, y: 0, z: -6 } });
+    this.falls?.set({ dripping: a.water.dripping, gain: solo ? 0 : a.falls.amount, near: a.falls.near, dist: a.falls.dist, at: a.falls.az !== undefined ? polar(a.falls.az, 0, 5) : bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
     // a tide booming next door is felt through the floor before it reaches you
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
     ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));

@@ -43,7 +43,7 @@ The layer table below describes the original, procedural-noise design; the sea, 
 |---|---|---|
 | Sea | six directions of roar, hiss and foam, stereo sub and cave resonances, travelling waves (see `design/sea-model.md`) | distance to the nearest vestibule; loud in lower halls; silent in Drowned Halls |
 | Tide rumble and strikes | deep noise plus low thumps | tide approaching, booming (depth), or submerged (muffled hush) |
-| Fresh water | band-passed noise and "plink" drips | falls of water, streams, rain; rare drips in the hushed halls |
+| Fresh water | bubble physics: wash, fine bubbles, plops and drips, placed on the fall's wall (see `design/falls-model.md`) | falls of water, streams, rain; rare drips in the hushed halls |
 | Rain | high-passed noise | rain in vestibules |
 | Wind | band-passed noise with a drifting centre, plus whistling tones | wind in exposed places; the statues "sing" |
 | Birds | short synthesised calls per species (sparrow, gull, rook, albatross, flock, rustle) | the bird scene: nesting, murmuration, roosting, sheltering |

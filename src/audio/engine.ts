@@ -7,6 +7,8 @@
 
 import { babblePlan, type BabbleEvent } from './babble';
 import { DEEP_BASS } from './bass';
+import { Falls } from './falls';
+import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
 import { Sea } from './sea';
 import type { AudioScene, Bed, Portal, Surface } from './director';
@@ -93,6 +95,7 @@ export class AudioEngine {
   /** The sea, built from measured recordings (sea.ts). */
   private sea: Sea | null = null;
   private patter: Patter | null = null;
+  private falls: Falls | null = null;
   /** Two high-passes in a row, so the cut for small speakers is steep (24 dB an octave). */
   private bassHp!: BiquadFilterNode;
   private bassHp2!: BiquadFilterNode;
@@ -126,13 +129,11 @@ export class AudioEngine {
   private muted = false;
 
   private rumbleGain!: GainNode;
-  private fallsGain!: GainNode;
   private rainGain!: GainNode;
   private windGain!: GainNode;
   /** The wind: three bands of noise, each gusting on its own. */
   private gusts: { g: GainNode; flt: BiquadFilterNode; base: number; w: number }[] = [];
   private nextGust = 0;
-  private nextBubbles = 0;
   /** Sea and falling water heard through the doorways and walls. */
   private beds: BedVoice[] = [];
   private whistleGain!: GainNode;
@@ -254,6 +255,8 @@ export class AudioEngine {
     this.sea = null;
     this.patter?.dispose();
     this.patter = null;
+    this.falls?.dispose();
+    this.falls = null;
     this.stage.clear();
   }
 
@@ -438,15 +441,6 @@ export class AudioEngine {
     this.rumbleGain = ctx.createGain();
     this.rumbleGain.gain.value = 0;
     this.loop(this.brown).connect(rumbleFilter).connect(this.rumbleGain).connect(this.bus);
-
-    // falling and running fresh water
-    const fallsFilter = ctx.createBiquadFilter();
-    fallsFilter.type = 'bandpass';
-    fallsFilter.frequency.value = 2800;
-    fallsFilter.Q.value = 0.6;
-    this.fallsGain = ctx.createGain();
-    this.fallsGain.gain.value = 0;
-    this.loop(this.noise).connect(fallsFilter).connect(this.fallsGain).connect(this.bus);
 
     // rain
     const rainFilter = ctx.createBiquadFilter();
@@ -691,13 +685,20 @@ export class AudioEngine {
     const onWater = (a.rain.gain / 0.75) * (a.rain.onWater ?? 0);
     if (onWater > 0.02 && !this.patter) this.patter = new Patter({ ctx, spot: (at) => this.spot(at) });
     this.patter?.set(onWater);
+    // falling and running water: made the first time there is any, then follows the scene
+    if (a.falls.gain > 0.02 && !this.falls) {
+      this.falls = new Falls({
+        ctx, spot: (at) => this.spot(at),
+        place: (at) => { const p = this.makePanner(at); p.connect(this.bus); return { input: p, move: (to, tc) => this.placeAt(p, to, tc), dispose: () => p.disconnect() }; },
+      });
+    }
+    this.falls?.set({ gain: a.falls.gain, at: bearingPosition(a.falls.bearing, a.falls.pan, 5), space: a.space });
     // a tide booming next door is felt through the floor before it reaches you
     const farTide = a.portals.reduce((m, p) => Math.max(m, p.tide.kind === 'booming' ? p.tide.gain : 0), 0);
     ease(this.rumbleGain.gain, Math.max(a.tide.kind === 'none' ? 0 : a.tide.gain * 0.5, farTide * 0.35));
     this.syncPortals(a.portals);
     this.syncBeds(a.beds);
     this.applyOutside(a);
-    ease(this.fallsGain.gain, a.falls.gain * 0.22);
     ease(this.rainGain.gain, a.rain.gain * 0.3);
     ease(this.windGain.gain, a.wind.gain * 0.3);
     ease(this.whistleGain.gain, a.wind.whistle * 0.05);
@@ -713,11 +714,12 @@ export class AudioEngine {
     if (!ctx || !a || !this.usable()) return;
     const t = ctx.currentTime;
     // drips: from falls and rain, and (rarely) in the hushed halls
-    const dripRate = a.hush ? 0.12 : a.falls.gain * 3 + a.rain.gain * 4;
+    const dripRate = a.hush ? 0.12 : a.rain.gain * 4; // (falling water makes its own drips: see falls.ts)
     if (dripRate > 0 && t >= this.nextDrip) {
       this.drip(t + 0.02, a.hush ? 0.14 : 0.1);
       this.nextDrip = t + rand(0.4, 1.4) / Math.max(0.05, dripRate);
     }
+    this.falls?.tick(t);
     this.waterEvents(t, a);
     // tide strikes
     if (a.tide.kind !== 'none' && a.tide.kind !== 'submerged' && t >= this.nextBoom) {
@@ -791,13 +793,6 @@ export class AudioEngine {
     // the sea starts its own waves; the sea behind the walls swells with them
     const w = this.sea?.tick(t, a.sea);
     if (w) this.pulseBeds(w.t, Math.min(0.9, w.crest * 0.8 + 0.1), w.rise, w.dur);
-    // falling and running water is a thick scatter of bubbles (each water-drop's ring is a tiny air bubble, which rises in pitch as it
-    // shrinks): a few a second for a trickle, a dozen for a fall
-    if (a.falls.gain > 0.02 && t >= this.nextBubbles) {
-      const n = Math.min(7, Math.round(a.falls.gain * 45 * 0.2 + Math.random()));
-      for (let i = 0; i < n; i++) this.bubble(t + rand(0, 0.2), 0.012 + Math.random() * 0.03, undefined, rand(-0.6, 0.6));
-      this.nextBubbles = t + 0.2;
-    }
     for (const b of this.beds) if (b.falls > 0.03 && t >= b.nextBubble) {
       this.bubble(t + rand(0, 0.15), 0.01 + Math.random() * 0.02 * b.falls * 3, b.bus);
       b.nextBubble = t + 0.12;
@@ -877,9 +872,12 @@ export class AudioEngine {
     o.stop(t + dur + attack + 0.05);
   }
 
+  /** One drop's bubble ringing (see bubbles.ts): a pitch of 0.7 to 4.8 kHz that rises a little as it dies, higher ones dying faster. */
   private drip(t: number, peak: number, out?: AudioNode): void {
-    this.tone(t, rand(900, 2200), rand(500, 1100), 0.12, 'sine', peak, out ? 0 : rand(-0.8, 0.8), 0.005, out);
+    const f0 = dripPitch(), d = bubbleDamping(f0), dur = 9.2 / d; // 9.2 time constants: down by 80 dB
+    this.tone(t, f0, f0 * (1 + CHIRP * d * dur * 0.35), dur, 'sine', peak * Math.pow(1450 / f0, 0.7), out ? 0 : polar(rand(-180, 180), rand(5, 40), 5), 0.001, out);
   }
+
 
   private boom(t: number, peak: number, out?: AudioNode): void {
     this.tone(t, 90, 38, 0.9, 'sine', peak, 0, 0.005, out);

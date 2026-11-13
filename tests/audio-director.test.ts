@@ -5,7 +5,7 @@ import { parseCellName, vestibuleCell } from '../src/world/layout';
 import { sceneAtWorldTime } from '../src/sim/scene';
 import { nextJoin } from '../src/sim/tides';
 import { MS } from '../src/sim/time';
-import { audioFor } from '../src/audio/director';
+import { audioFor, bearing, fallSide } from '../src/audio/director';
 
 const w = createWorld('test-seed');
 const here = (name: string, level: 0 | 1 | 2 = 1) => {
@@ -114,5 +114,33 @@ describe('rain on water', () => {
     expect(flooded).toBeGreaterThan(0);
     expect(lower).toBeGreaterThan(0);
     expect(dry).toBeGreaterThan(0);
+  });
+});
+
+describe('where the water is', () => {
+  const fallHall = (() => {
+    for (let x = -12; x < 12; x++) for (let y = -12; y < 12; y++) { const h = getHall(w, x, y, 1); if (h.falls) return { x, y, level: 1 as const, wall: h.falls.wall }; }
+    throw new Error('no hall with falls near the origin');
+  })();
+  it('a fall is on its own wall, and stays put in the hall as you turn: it is ahead, right, behind or left, each once over a full turn', () => {
+    const seen = new Set<string>();
+    for (const facing of ['N', 'E', 'S', 'W'] as const) {
+      const a = audioFor(w, scene(fallHall, MS.hour), { facing, portals: false });
+      expect(a.falls.gain).toBeGreaterThan(0);
+      expect(a.falls.bearing).toBe(bearing(fallHall.wall, facing));
+      seen.add(a.falls.bearing);
+    }
+    expect(seen.size).toBe(4);
+  });
+  it('a fall on the wall you face is ahead, and its position along the wall nudges it to one side', () => {
+    const a = audioFor(w, scene(fallHall, MS.hour), { facing: fallHall.wall, portals: false });
+    expect(a.falls.bearing).toBe('ahead');
+    expect(Math.abs(a.falls.pan)).toBeLessThanOrEqual(0.34);
+  });
+  it('a stream, which has no wall of its own, keeps one fixed side for each hall', () => {
+    expect(fallSide(3, -4, 1)).toBe(fallSide(3, -4, 1));
+    const sides = new Set<string>();
+    for (let x = 0; x < 40; x++) sides.add(fallSide(x, x * 3 % 17, 1));
+    expect(sides.size).toBe(4);
   });
 });

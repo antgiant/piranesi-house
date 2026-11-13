@@ -71,7 +71,8 @@ export interface AudioScene {
   /** The sea heard through the floor. */
   sea: { gain: number; lowpassHz: number; swellSec: number };
   tide: { kind: TideSound; gain: number; character: string | null; strikeEverySec: number };
-  falls: { gain: number };
+  /** Falling and running fresh water here, and which way it is from where you face (it has a place in the hall: it stays put as you turn). */
+  falls: { gain: number; bearing: Bearing; /** -1..1 along the wall when it is ahead, as for doors. */ pan: number };
   /** Rain, and how much of it lands on water (a hall the tide has flooded, falls or a stream, the lower halls by the sea): 0..1. */
   rain: { gain: number; onWater: number };
   wind: { gain: number; whistle: number };
@@ -96,6 +97,12 @@ export interface AudioScene {
 }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+
+/** Which wall a stream runs down (streams have no wall of their own): a fixed choice for each hall, so it stays put as you turn. */
+export function fallSide(x: number, y: number, level: number): Side {
+  const h = (Math.imul(x, 73856093) ^ Math.imul(y, 19349663) ^ Math.imul(level + 1, 83492791)) >>> 0;
+  return (['N', 'E', 'S', 'W'] as const)[(h >>> 7) % 4] as Side;
+}
 
 /** A neighbouring hall heard through one open door: a fraction of its level. */
 const DOOR_ATTEN = 0.45;
@@ -199,6 +206,9 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   // --- weather ---
   const falls = !drowned && h.falls ? 0.3 : 0;
   const streams = s.here.streams && !h.falls ? 0.18 : 0;
+  // where the water is: a fall runs down a known wall (the hall says which, and where along it); a stream has no wall, so it gets a fixed one
+  const fallBearing = bearing(h.falls ? h.falls.wall : fallSide(h.x, h.y, h.level), opts.facing ?? null);
+  const fallMid = h.falls ? (h.falls.from + h.falls.to) / 2 : 500;
   // The Drowned Halls are cut off: windows half-submerged or choked with rubble, so little weather reaches them.
   // How much of the rain outside is heard, by where you are: the upper halls have half a roof, so they hear all of it; a
   // vestibule is open to the courtyards and hears it all; an ordinary hall hears it on its windows; the lower halls hear
@@ -226,7 +236,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     reverb,
     sea: { gain: seaGain, lowpassHz: seaLow, swellSec: h.level === 0 ? 7 : 11 },
     tide: { kind: tideKind, gain: tideGain, character: s.tide.character?.sound ?? null, strikeEverySec: strike },
-    falls: { gain: falls + streams },
+    falls: { gain: falls + streams, bearing: fallBearing, pan: fallBearing === 'ahead' ? (fallMid - 500) / 1500 : 0 },
     rain: { gain: rain, onWater: depth > 0 ? 1 : h.level === 0 ? 0.7 : h.falls || s.here.streams ? 0.6 : 0 },
     wind: { gain: windGain * (1 - snowing * 0.4), whistle },
     thunder,

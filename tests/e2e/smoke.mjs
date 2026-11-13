@@ -142,6 +142,21 @@ try {
   await page.waitForTimeout(300);
   check((await page.locator('#log').textContent()).includes('First Vestibule'), 'changing a world setting restarts at the First Vestibule');
 
+  // --- falling water: a hall with falls makes the falls voice and it is heard ---
+  {
+    const found = await page.evaluate(() => {
+      for (let x = -12; x < 12; x++) for (let y = -12; y < 12; y++) { window.__house.teleport(x, y, 1); if (window.__house.audio().falls.gain > 0.2) return [x, y]; }
+      return null;
+    });
+    check(found !== null, 'there are halls with falls near the start');
+    if (found) {
+      await page.waitForTimeout(2500);
+      const r = await page.evaluate(() => ({ voice: !!window.__house.engine.falls, level: window.__house.engine.level(), bearing: window.__house.audio().falls.bearing }));
+      check(r.voice, `a hall with falls makes the falling-water voice (water on the ${r.bearing})`);
+      check(r.level > 0.001, `and it is heard (level ${r.level.toFixed(4)})`);
+    }
+  }
+
   mkdirSync('tests/e2e/out', { recursive: true });
   await page.evaluate(() => window.__house.teleport(0, 0, 1));
   await page.screenshot({ path: 'tests/e2e/out/screenshot.png' });

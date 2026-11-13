@@ -10,7 +10,7 @@ const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.m
 export const smooth = (x: number, lo: number, hi: number): number => { const u = clamp((x - lo) / (hi - lo), 0, 1); return u * u * (3 - 2 * u); };
 
 /** Flow (1 = an ordinary day for this water) at which a stream's surface starts to break up, and at which it is fully white. */
-export const STREAM_TURBULENCE: readonly [number, number] = [0.45, 1.7];
+export const STREAM_TURBULENCE: readonly [number, number] = [0.4, 2.0];
 /** The same for a fall: its jet breaks up, and the plunge pool churns. */
 export const FALL_TURBULENCE: readonly [number, number] = [0.45, 1.3];
 
@@ -32,3 +32,6 @@ export function loudness(flow: number): number {
   const f = Math.max(flow, 0.05), knee = 1.2;
   return f <= knee ? Math.pow(f, 0.8) : Math.pow(knee, 0.8) * Math.pow(f / knee, 0.25);
 }
+
+/** What makes a river and not just whitewater: depth and breadth. 0 below a flow of about 1.2, 1 from about 2.4 (a fast stream is broken water; a river is deep as well). */
+export function depth(flow: number): number { return smooth(flow, 1.2, 2.4); }

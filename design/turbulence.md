@@ -18,4 +18,4 @@ turbulence threshold above which sound levels change distinctly; stream measurem
 loudness rising with bubble size and flattening past a critical discharge (Galbrun et al.). No published curve gives the spectrum by Reynolds or Froude number, so the
 thresholds and levels are fitted by ear and by measurement (`scripts/audition/compare.py`) to the recordings, and are the numbers to change when it sounds wrong.
 
-Measured (stream, 6 m, one scale): trickle -49.6 dB with 2.5 audible clinks a second; stream -48.5 dB, 0.06; fast -42.2 dB, 0; river -41.0 dB, 0 and the most low energy.
+Measured (stream, 6 m, one scale): trickle -49.6 dB; stream -48.3; fast -44.8 (bright whitewater, centroid 2.9 kHz); river -40.0 (deep and broad, centroid 1.0 kHz, 12 dB more below 250 Hz than fast). Fast and a river must not sound alike: depth (flow 1.2 to 2.4) adds the low roar, the rush and darker, lower bubbles.

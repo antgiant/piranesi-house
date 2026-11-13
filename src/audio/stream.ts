@@ -6,7 +6,7 @@
 
 import { waterBuffer } from './buffers';
 import { airCutoffHz, polar, type Vec3 } from './spatial';
-import { discreteShare, loudness, smooth, turbulence } from './turbulence';
+import { depth, discreteShare, loudness, smooth, turbulence } from './turbulence';
 import type { PlaceFactory, PlaceHandle } from './place';
 
 export interface StreamScene {
@@ -72,6 +72,7 @@ export class Stream {
     const to = (p: AudioParam, v: number): void => { p.setTargetAtTime(v, t, tc); };
     const T = turbulence(s.flow, 'stream');
     const near = s.near;
+    const D = depth(s.flow); // a river: deep and broad, not only white
     const lv = loudness(s.flow) * near;
     // single events: the loudness they have in a small flow (they do not grow), then buried
     const pool = loudness(0.5) * near * discreteShare(T);
@@ -79,13 +80,13 @@ export class Stream {
     to(this.g.trickle.gain, TRIM * LEVEL.trickle * pool * 1.4);
     to(this.g.fine.gain, TRIM * LEVEL.fine * pool);
     // the roar: surface white from about the knee, the wide rush of a deep channel, the mass of it below
-    to(this.g.wash.gain, TRIM * LEVEL.wash * lv * (0.04 + 1.5 * smooth(T, 0, 0.55)));
-    to(this.g.rush.gain, TRIM * LEVEL.rush * lv * (0.02 + 1.6 * smooth(T, 0.1, 1)));
-    to(this.g.rumble.gain, TRIM * LEVEL.rumble * lv * smooth(T, 0.4, 1) * 2.2);
-    to(this.washHp.frequency, 800 - 500 * smooth(T, 0, 1));          // a bigger flow is deeper
-    to(this.washLp.frequency, 9000 - 3500 * smooth(T, 0, 1));
-    to(this.rushLp.frequency, 2200 - 900 * smooth(T, 0, 1));
-    for (const r of this.rate) to(r.playbackRate, 1.25 - 0.45 * smooth(T, 0, 1)); // bigger bubbles ring lower
+    to(this.g.wash.gain, TRIM * LEVEL.wash * lv * (0.04 + 1.5 * Math.sqrt(T)));
+    to(this.g.rush.gain, TRIM * LEVEL.rush * lv * (0.02 + 0.9 * smooth(T, 0.1, 1) + 1.6 * D));
+    to(this.g.rumble.gain, TRIM * LEVEL.rumble * lv * (0.4 * smooth(T, 0.4, 1) + 3.2 * D));
+    to(this.washHp.frequency, 800 - 350 * smooth(T, 0, 1) - 250 * D);          // a bigger flow is deeper
+    to(this.washLp.frequency, 9000 - 2500 * smooth(T, 0, 1) - 3000 * D);
+    to(this.rushLp.frequency, 2200 - 600 * smooth(T, 0, 1) - 700 * D);
+    for (const r of this.rate) to(r.playbackRate, 1.25 - 0.3 * smooth(T, 0, 1) - 0.15 * D); // bigger bubbles ring lower
     to(this.air.frequency, airCutoffHz(s.dist));
     this.place.move(s.at, 0.3);
   }

@@ -56,7 +56,7 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
       }
       return r() < 0.88 ? [{ dt: 0, call: mew, pitch: bird, gain: 1 }] : series(r, mew, 2, (i) => 1 - i * 0.2, () => bird);
     }
-    case 'chick': return series(r, 'gullBeg', 2 + Math.floor(r() * 4), (i) => 0.55 - i * 0.04, () => between(r, 0.95, 1.05));
+    case 'chick': return series(r, 'gullBeg', countOf(r, 'gullBeg', 2, 7), (i) => 0.8 - i * 0.04, () => between(r, 0.95, 1.05));
     case 'rook': {
       const n = pick(r, [1, 2, 3, 4] as const, [0.45, 0.28, 0.17, 0.1]);
       const notes: PlannedNote[] = []; let t = 0;

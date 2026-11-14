@@ -149,3 +149,13 @@ the Robin Hood's Bay colony recording's 94, 27 and 8.5).
   rate (about 130 onsets a minute, 8 dB, 64%, against 120, 10 dB and 57% in an Essex flock, XC861758). Nothing in the world yet makes this mode: where it occurs is a decision.
 - Chick: a pulsing (14 a second) rather than a pure arch, half the length, a quieter series of two to five calls.
 - Sparrows: eight individual birds (XC1082700, 791782, 1152146, 1145371, 1092252, 1089317, 1152144, 1145322), 2.7 to 6 kHz and 0.09 to 0.2 s, one picked for each bout, so no two sparrows are the same sweep.
+
+### Version 9: corrections after listening
+- Every synthesised call used to start and stop at full level (a 4 ms fade): heard as a thump at the start of some calls (the lowest ones, and the long call's low mew) and as cut off at the end. Each call now rises
+  over 6 to 15 ms and dies away over 12 to 60 ms, as the recordings do.
+- The low murmur: recordings of colonies and flocks hold 200 to 800 Hz at 20 to 30 dB below the main band (our calls start near 900 Hz and leave nothing there). `colonybed.ts` adds a quiet band of noise with soft
+  humps near 400, 560 and 740 Hz, from three places, swelling slowly, in nesting and feeding modes. Measured on a render: -21 and -22 dB (XC1086854: -30 and -24, XC599932: -21 and -18).
+- Chicks: clips of begging chicks (XC1187910, XC1162581) show short calls (0.2 to 0.35 s), rich in harmonics from 1.5 to 5 kHz and pulsed about 45 times a second: a rough buzz, shrill and high, so a likeness to a dentist's drill is
+  partly true to life. The previous version was a pure 5 kHz arch, a different (cleaner) sound. Now: fundamental 1.5 to 2.1 kHz, 45 Hz pulsing, rough (`hnr` 20), a bout of three to six.
+- Sparrows: the four individuals whose chirps rendered as a bare block of noise or a pure whistle (1145371, 1145322, 1089317, 1092252) are dropped; the noise of the rest is 18 dB lower. The long steady "whistle" tails seen in a
+  spectrogram after a chirp are the hall's own echo (a pure tone through a four-second hall comes back as a steady narrow band of noise at the same pitch), not part of the call.

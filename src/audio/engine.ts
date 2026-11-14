@@ -9,6 +9,7 @@ import { babblePlan, type BabbleEvent } from './babble';
 import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
 import { Stream } from './stream';
+import { ColonyBed } from './colonybed';
 import { Wind } from './wind';
 import { allOn, maskScene, type Elements } from './elements';
 import { buildImpulse } from './room';
@@ -264,6 +265,8 @@ export class AudioEngine {
     this.stream = null;
     this.wind?.dispose();
     this.wind = null;
+    this.colonyBed?.dispose();
+    this.colonyBed = null;
     this.stairs?.dispose();
     this.stairs = null;
     for (const b of this.beds) b.v.dispose();
@@ -743,6 +746,10 @@ export class AudioEngine {
     if (this.wind && !this.rainCoupled) { this.wind.tap.connect(this.rainCouple); this.rainCoupled = true; }
     ease(this.rainCouple.gain, Math.min(1, (a.wind.mps ?? a.wind.gain * 30) / 16) * 1.3);
     this.wind?.set({ gain: a.wind.gain, mps: a.wind.mps ?? a.wind.gain * 30, whistle: a.wind.whistle });
+    // the low murmur of a colony or a flock (colonybed.ts)
+    const crowd = (a.birds.mode === 'nesting' || a.birds.mode === 'feeding') && a.birds.perMinute > 0 ? a.birds.loudness : 0;
+    if (crowd > 0 && !this.colonyBed) this.colonyBed = new ColonyBed({ ctx, spot: (at) => this.spot(at) });
+    this.colonyBed?.set(crowd);
   }
 
   // -------------------------------------------------------------------------------------------------------------
@@ -907,6 +914,7 @@ export class AudioEngine {
    * its own: perched somewhere around and above you, or, with `where` = 'fly' (and a species that flies), crossing the sky on a
    * random path, or on the path or point given. The flock is the exception: it is scattered over the sky, burst by burst.
    */
+  private colonyBed: ColonyBed | null = null;
   private answerDepth = 0;
   private bird(sp: Species, t: number, loud: number, out?: AudioNode, where?: 'fly' | Vec3 | Flyby, mode?: AudioScene['birds']['mode']): void {
     this.calls++;

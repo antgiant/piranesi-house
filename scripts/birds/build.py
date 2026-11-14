@@ -23,9 +23,10 @@ MODS = {'albatrossWhirr': (1500, 4000, 0.8, 3.0, ['730154:9.7:2.4'], 12, 0.6)}
 SPECS.update({k: v for k, v in MODS.items()})
 # Individual gulls: one template for each recording (a different bird each), so a colony is made of birds that do not all sound alike.
 # Dropped after listening to each in turn: 1032698 and 284200 (a flat, hoarse call), 1093407, 528591 and 896886 (rough and low: a hoarse gull among the others).
+# Sparrows dropped after looking at each: 1145371, 1145322, 1089317, 1092252 rendered as a bare block of noise (a hiss) or a pure whistle.
 # Each bird's mews measured on its own: pitch, length, roughness, spectrum differ from bird to bird (pitch 950 to 1700 Hz, length 0.16 to 0.5 s, roughness 13 to 43 dB).
 INDIVIDUALS = {'gullMew': (900, 2500, 0.15, 0.7, ['1005243', '1093406', '1102859', '1157890', '1157891', '1182702', '1193631', '744909', '798407', '990704', '483105', '804205'], 24.0),
-               'sparrowChirp': (2200, 7000, 0.03, 0.3, ['1082700', '791782', '1152146', '1145371', '1092252', '1089317', '1152144', '1145322'], 28.0)}
+               'sparrowChirp': (2200, 7000, 0.03, 0.3, ['1082700', '791782', '1152146', '1152144'], 28.0)}
 out = {}
 for name, spans in CLICKS.items():
     tpl = T.build_click(name, [W + s_.split(':')[0] + '.wav:' + ':'.join(s_.split(':')[1:]) for s_ in spans])

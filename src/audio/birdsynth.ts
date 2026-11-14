@@ -164,9 +164,15 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
   const out = new Float32Array(n);
   for (let i = 0; i < n; i++) out[i] = (tone[i]! + noise[i]! * kNoise) * env[i]!;
   // a short fade at each end so nothing clicks, then normalise
-  const fade = Math.min(n >> 2, Math.floor(0.004 * sr));
+  // a smooth start and end: a call that starts or stops at full level is heard as a thump at its start and as cut off at its end (the recordings rise over some 10 ms and die away over a few tens)
+  const fadeIn = Math.min(n >> 2, Math.max(Math.floor(0.006 * sr), Math.min(Math.floor(0.015 * sr), Math.floor(0.12 * n))));
+  const fadeOut = Math.min(n >> 1, Math.max(Math.floor(0.012 * sr), Math.min(Math.floor(0.06 * sr), Math.floor(0.3 * n))));
   let peak = 0;
-  for (let i = 0; i < n; i++) { if (i < fade) out[i] = out[i]! * (i / fade); else if (i >= n - fade) out[i] = out[i]! * ((n - 1 - i) / fade); peak = Math.max(peak, Math.abs(out[i]!)); }
+  for (let i = 0; i < n; i++) {
+    if (i < fadeIn) out[i] = out[i]! * 0.5 * (1 - Math.cos((Math.PI * i) / fadeIn));
+    if (i >= n - fadeOut) out[i] = out[i]! * 0.5 * (1 - Math.cos((Math.PI * (n - 1 - i)) / fadeOut));
+    peak = Math.max(peak, Math.abs(out[i]!));
+  }
   if (peak > 0) for (let i = 0; i < n; i++) out[i] = out[i]! / peak;
   return out;
 }

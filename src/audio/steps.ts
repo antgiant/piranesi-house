@@ -32,7 +32,7 @@ export interface Hit {
 }
 
 /** The level of a foot on a hard floor, so that a step on stone is as present as one in water or on gravel (their sounds are spread over more time, so carry more energy for the same peak). */
-const LOUD = 3;
+const LOUD = 0.9;
 const between = (r: Rng, lo: number, hi: number): number => lo + r() * (hi - lo);
 const logBetween = (r: Rng, lo: number, hi: number): number => lo * Math.pow(hi / lo, r());
 /** A level that varies from step to step: about ±spread/2 dB, as a gain. */

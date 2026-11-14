@@ -62,3 +62,24 @@ and the measurements are kept). Freesound is not reachable from the working envi
 3. Build the behaviour: a schedule for each species (when, how often, in what company) from the research, by month and by time from sunrise, and by place and weather.
 4. Group sounds: a flock as many voices with their own timing and distance, not one loud bird; chorus by the measured order and onsets.
 5. Check by measurement against the recordings (spectrograms of the real call and the synthetic one side by side, as for the footsteps) and tests on the schedule.
+
+## Built: calls made from measured templates (version 1)
+Pipeline (all in `scripts/birds/`, nothing downloaded is kept or shipped):
+1. `xc.py` fetches Creative Commons recordings from xeno-canto for measurement. Recording numbers used: gull 1184281, 483105, 804205, 1029296, 845875, 1002938; rook 949915, 1100510, 840813 (colony levels:
+   832307, 899575); house sparrow 791783, 459144; buzzard 1002995, 1156614; barn owl 1098022, 1182233; blackbird 904743; Laysan albatross 730154, 862222 (bill clapping, calls), black-browed 952602 (a pulsed whirr).
+2. `template.py`/`build.py` find each clear call in a recording, track its pitch (a harmonic-sum tracker with a smoothness constraint, checked by eye against the spectrograms), measure the loudness along it, the spectrum of its
+   tonal part and of its noisy part (with the recording's background taken away), the amplitude modulation of a whirr, and the gaps and bout sizes between calls; then take the median over the calls
+   (`scripts/birds/templates.json`). `gen_ts.py` writes the numbers to `src/audio/birdcalls.ts` (about 7 KB).
+3. `birdsynth.ts` makes a call from a template: a harmonic series along the pitch contour, each harmonic as loud as the tonal spectrum says at its own frequency, plus noise with the noise spectrum, under the
+   loudness contour, a little different every time. `birdsong.ts` makes an episode of calling from the measured gaps and counts (a gull colony's alarm run of three to six mews about 1.3 s apart, its laughing long call
+   of ten to fourteen short notes a quarter of a second apart, a rook's one to four caws, a sparrow's chirps and ticks in a bout of about five, a blackbird's rattle of tinks, the albatross's clacking of the bill seven to
+   eleven times about 0.4 s apart and then a whirr at about 9 a second). The engine plays them (`playPlan`) with a few rendered variants of each call kept and pitched a little differently.
+4. Checked by spectrogram: the synthetic gull mew (f0 from about 1.5 kHz falling to 1.1 kHz over 0.3 s, three strong harmonics) has the shape of the real one; the sparrow chirp and the buzzard's plateau and fall match in
+   shape; the rook's comb of harmonics now sits in its measured band (1.2-3.2 kHz) with noise on it. The call rates a colony makes: gulls about 55-85 calls a minute near a nesting colony, rooks 6-21 a minute in a colony
+   within earshot, sparrows about 100-125 a minute in a flock; the scene's rates (loudness 800 gulls, 600 rooks) give about 57 and 27 notes a minute.
+
+Known gaps (the next work, and where the owner's ears or recordings are needed):
+* Blackbird: only the alarm rattle (tinks); the song and the soft 'chook' are not done. The owl: one screech measured from two recordings (a barn owl); the book's owl is "pale". The gull chick's begging is measured, the albatross chick's is not.
+* The murmuration's wing rush and the rustle are still the old synthesised noise; there are recordings of wing beats (xeno-canto 1054490, rook) to measure.
+* A single template is a median: real birds vary more, and an individual has its own voice. More recordings per call type would give a better spread.
+* Whether any of it sounds like the real bird, to an ear. The measurements make it close in the spectrogram; only listening can say whether it is right.

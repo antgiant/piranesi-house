@@ -20,6 +20,10 @@ const SIZE_DM: Record<SizeClass, readonly [number, number]> = {
   small: [12, 15], life: [17, 19], large: [34, 56], huge: [60, 90], colossal: [150, 200],
 };
 
+/** How rare the book's bird halls are: one hall in this many, one vestibule in this many (see the tags in getHall). */
+export const BIRD_HALLS = 25000;
+export const BIRD_VESTIBULES = 45;
+
 export type HallTag =
   | 'first-vestibule' | 'ninth-vestibule' | 'dark-hall' | 'gull-colony' | 'rook-flock' | 'albatross-nest'
   | 'mussel-stair' | 'pebble-bank' | 'golden-wall' | 'murmuration' | 'bird-shelter' | 'horned-giants' | 'minotaurs'
@@ -237,6 +241,15 @@ function buildHall(world: World, x: number, y: number, level: Level, id: string)
   if (name === 'Sixth North-Western Hall') tags.push('rook-flock');
   if (name === 'Sixth Western Hall') tags.push('bird-shelter');
   if (name === 'Fifty-Second Western Hall') tags.push('golden-wall');
+  // More colonies than the book names, at the book's own density. Within the stretch of the House the book walks (the first forty-five vestibules, and the halls out
+  // to the Eighty-Eighth Western, about 25,000 halls of the middle level) it names one of each: one gull colony, one flock of rooks, one hall where the birds gather
+  // in cloud, and among the vestibules one with the albatrosses, one with the murmuration. So each of those occurs in about one hall in 25,000 and one vestibule in 45.
+  const roll = (salt: number, n: number): boolean => hashInts(world.seed, 0xb1d5, salt, x, y) % n === 0;
+  const add = (t: HallTag): void => { if (!tags.includes(t)) tags.push(t); };
+  if (!isDark) {
+    if (kind === 'vestibule') { if (roll(1, BIRD_VESTIBULES)) add('albatross-nest'); if (roll(2, BIRD_VESTIBULES)) add('murmuration'); }
+    else { if (roll(3, BIRD_HALLS)) add('gull-colony'); if (roll(4, BIRD_HALLS)) add('rook-flock'); if (roll(5, BIRD_HALLS)) add('bird-shelter'); }
+  }
   if (regions.drowned && level === 1) tags.push('drowned');
   if (regions.coral) tags.push('coral');
   if (regions.cloud) tags.push('cloud-zone');

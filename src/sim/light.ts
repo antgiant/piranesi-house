@@ -1,5 +1,6 @@
 import type { Hall } from '../world/hall';
 import type { World } from '../world/world';
+import { hashInts } from '../world/rng';
 import { birdSeason, type BirdSeason } from './seasons';
 import { clock, daylightPermille, moon, moonInDoorway, sunTimes, type SunPhase } from './time';
 import type { LocalWeather, Weather } from './weather';
@@ -39,7 +40,7 @@ export function lightAt(world: World, hall: Hall, t: number, w: Weather, lw: Loc
   return { level, tone, sunPhase: day.phase, moonInDoorway: false };
 }
 
-export type BirdMode = 'none' | 'roosting' | 'foraging' | 'sheltering' | 'silent' | 'murmuration' | 'nesting' | 'chick' | 'noisy' | 'soaring' | 'shore';
+export type BirdMode = 'none' | 'roosting' | 'foraging' | 'sheltering' | 'silent' | 'murmuration' | 'nesting' | 'chick' | 'noisy' | 'soaring' | 'shore' | 'hunted';
 
 export interface BirdScene {
   mode: BirdMode;
@@ -50,7 +51,7 @@ export interface BirdScene {
   season: BirdSeason;
 }
 
-export function birdsAt(hall: Hall, t: number, w: Weather, lw: LocalWeather, light: Light, tideDepthDm = 0): BirdScene {
+export function birdsAt(hall: Hall, t: number, w: Weather, lw: LocalWeather, light: Light, tideDepthDm = 0, seed = 0): BirdScene {
   const c = clock(t);
   const season = birdSeason(c.dayOfYear);
   const none: BirdScene = { mode: 'none', loudness: 0, species: [], season };
@@ -88,6 +89,8 @@ export function birdsAt(hall: Hall, t: number, w: Weather, lw: LocalWeather, lig
   }
   if (hall.tags.includes('rook-flock')) return night ? { mode: 'roosting', loudness: 80, species: ['rooks'], season } : { mode: 'noisy', loudness: 600, species: ['rooks'], season };
   if (night) return { mode: 'roosting', loudness: 60, species: hall.birdPerches ? ['sparrows shifting on their perches'] : [], season };
+  // a buzzard, now and then, hunting the little birds in a hall by day (the book has it once, circling; the small birds go still): about one hour in four hundred in a hall with perches
+  if (hall.birdPerches && hashInts(seed, 0xb022, hall.x, hall.y, Math.floor(t / 3600000)) % 400 === 0) return { mode: 'hunted', loudness: 120, species: ['a buzzard'], season };
   // just sparrows, a few: the book's little birds (no dawn chorus, no doves, no songbirds on the pavements; blackbirds come only with the floods and the rain)
   return { mode: 'foraging', loudness: hall.birdPerches ? 150 : 60, species: hall.birdPerches ? ['sparrows'] : ['a few sparrows'], season };
 }

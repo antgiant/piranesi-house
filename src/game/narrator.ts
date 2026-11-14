@@ -251,6 +251,7 @@ export function birdSentence(s: SceneState): string {
     case 'nesting': return b.season.fledglings ? 'Young gulls, brown and clumsy, crowd the shoulders and plinths, and the old ones rise screaming if you move.' : b.season.chicks ? 'Gulls nest on shoulders, plinths and heads, with grey downy chicks beneath them, and rise screaming if you move.' : 'Gulls nest on shoulders, plinths and heads, and rise screaming if you move.';
     case 'chick': return 'A pair of enormous white albatrosses tends a growing chick on a tall nest of weed.';
     case 'noisy': return 'Rooks wheel and call from the high statues.';
+    case 'hunted': return 'A buzzard circles the hall, broad-winged and unhurried, and the small birds have gone as still as the statues.';
     case 'soaring': return `${cap(b.species.join(' and '))} ride the air above the broken roof.`;
     case 'shore': return 'Gulls pick along the weed at the foot of the walls.';
   }
@@ -466,6 +467,7 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
     else if (b.mode === 'murmuration') bits.push('A rush and rustle of thousands of wings.');
     else if (b.mode === 'chick') bits.push('A strange clacking and whirring: the albatrosses.');
     else if (b.mode === 'noisy') bits.push('Rooks caw.');
+    else if (b.mode === 'hunted') bits.push('The small birds have fallen silent. Somewhere high up, a thin mewing, once.');
     else if (b.mode === 'sheltering') bits.push('Birds chatter on every ledge.');
     else if (b.mode === 'roosting') bits.push('Soft rustles of roosting birds.');
     else if (b.mode === 'soaring') bits.push('Gulls cry high overhead.');

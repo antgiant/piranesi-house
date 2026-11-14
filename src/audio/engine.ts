@@ -23,7 +23,7 @@ import type { AudioScene, Bearing, Bed, Leak, Portal, Surface } from './director
 import type { BirdSeason } from '../sim/seasons';
 import { REF_DISTANCE, airCutoffHz, bearingPosition, distanceOf, dopplerRatio, flybyPath, perchPosition, polar, positionAt, stageCell, toPolar, velocityOf, type Flyby, type Vec3 } from './spatial';
 
-export type Species = 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'owl';
+export type Species = 'buzzard' | 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'owl';
 
 export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<BirdSeason, 'songbirds' | 'owls' | 'chicks' | 'fledglings'>): Species[] {
   let list: Species[];
@@ -37,6 +37,7 @@ export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<Bird
     case 'foraging': list = ['sparrow', 'sparrow', 'rustle']; break;
     case 'soaring': list = ['gull']; break;
     case 'shore': list = ['gull', 'rustle']; break;
+    case 'hunted': list = ['rustle', 'rustle', 'rustle', 'buzzard']; break;
     default: return [];
   }
   if (!season) return list;
@@ -966,6 +967,12 @@ export class AudioEngine {
           }
           at += rand(0.5, 0.9);
         }
+        break;
+      }
+      case 'buzzard': {
+        // the plaintive mew, high and falling, a second long, and now and then only once
+        this.tone(t, 2300, 1500, 0.55, 'triangle', v * 0.5, pan, 0.04, out);
+        this.tone(t + 0.04, 4600, 3000, 0.4, 'sine', v * 0.12, pan, 0.04, out);
         break;
       }
       case 'owl': {

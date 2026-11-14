@@ -147,6 +147,9 @@ export function birdLines(h: Hall, s: SceneState, rand: Rand): string[] {
     case 'nesting':
       out.push(b.season.chicks ? pick(rand, ['A grey, downy gull chick peers over the rim of a nest at you, and lets out a long thin cry.', 'An adult gull lands with a fish and every chick in the nest begins to shriek at once.']) : b.season.fledglings ? pick(rand, ['A young gull, mottled brown, stands at the edge of a plinth and flaps hard at nothing, working up to jump.', 'A fledgling drops from a nest to a lower shoulder, lands badly, and screams at everyone about it.']) : 'A gull on her nest rises with a scream at your passing and settles again, glaring.');
       break;
+    case 'hunted':
+      out.push(pick(rand, ['A buzzard turns slowly under the vault, broad wings spread, and every small bird in the hall has pressed itself still against the stone.', 'High up, a buzzard hangs on the air. Nothing else in the hall moves or makes a sound.']));
+      break;
     case 'noisy':
       out.push('The rooks quarrel in the high statues, and one comes down and walks, bow-legged, across the floor, to see what you are.');
       break;

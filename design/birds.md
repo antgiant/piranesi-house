@@ -121,3 +121,9 @@ Still different: real calls have a rougher onset and a wobble in pitch from call
   differs: its tempo, its length, where the longer gaps break it into groups, one to three runs, a quick pair now and then, and whether a whirr ends it.
 - Sparrows answer one another: after a bout, one or two others take it up from their own places, 0.3 to 1.8 s later (so bouts overlap), and the answers can be answered
   (three deep at most). A bout is never fewer than three calls. The modal-click "tick" is no longer used: among the chirps it sounded like a water drop.
+
+### Individual gulls (version 5)
+A colony of fifty gulls all using one median call sounds like five. Each gull now has its own mew, measured on its own recording (Xeno-canto 1005243, 1032698,
+1093406, 1093407, 1102859, 1157890, 1157891, 1193631, 284200, 528591, 744909, 798407, 896886, 990704, 483105, 804205: sixteen birds, from Britain, Ireland, France,
+the Netherlands and Sweden). They differ in pitch (950 to 1700 Hz), length (0.16 to 0.53 s), roughness (16 to 43 dB harmonic-to-valley) and spectrum.
+Each calling episode picks one of the sixteen (`GULL_VOICES`). Recordings are not kept, only the numbers.

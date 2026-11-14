@@ -21,6 +21,9 @@ SPECS = {
 CLICKS = {'albatrossClap': ['730154:0:5.2', '862222:0:9'], 'sparrowTick': ['791783:0:12']}
 MODS = {'albatrossWhirr': (1500, 4000, 0.8, 3.0, ['730154:9.7:2.4'], 12, 0.6)}
 SPECS.update({k: v for k, v in MODS.items()})
+# Individual gulls: one template for each recording (a different bird each), so a colony is made of birds that do not all sound alike.
+# Each bird's mews measured on its own: pitch, length, roughness, spectrum differ from bird to bird (pitch 950 to 1700 Hz, length 0.16 to 0.5 s, roughness 13 to 43 dB).
+INDIVIDUALS = {'gullMew': (900, 2500, 0.15, 0.7, ['1005243', '1032698', '1093406', '1093407', '1102859', '1157890', '1157891', '1182702', '1193631', '284200', '528591', '744909', '798407', '896886', '990704', '483105', '804205'], 24.0)}
 out = {}
 for name, spans in CLICKS.items():
     tpl = T.build_click(name, [W + s_.split(':')[0] + '.wav:' + ':'.join(s_.split(':')[1:]) for s_ in spans])
@@ -31,6 +34,13 @@ for name, spec in SPECS.items():
     if tpl is None: print('!! no calls for', name); continue
     if name in MODS: tpl['am'] = T.modulation(name, [W + s_.split(':')[0] + '.wav:' + ':'.join(s_.split(':')[1:]) for s_ in spec[4]])
     out[name] = tpl; print(f"{name:14s} {tpl['n']:3d} calls  dur {tpl['dur']:.2f} ({tpl['durRange'][0]:.2f}-{tpl['durRange'][1]:.2f})  f0 {tpl['f0'][0]}..{max(tpl['f0'])}..{tpl['f0'][-1]}  gap {tpl['gap']} bout {tpl['bout']}")
+for base, (lo, hi, dmin, dmax, ids, snr) in INDIVIDUALS.items():
+    for i in ids:
+        t = T.build(base, lo, hi, [W + i + '.wav:0:40'], dmin, dmax, snr, 0.25)
+        if t is None or t['n'] < 3 or t['hnr'] < 15: continue
+        if not t['gap']: t['gap'] = out[base]['gap']
+        if not t['bout']: t['bout'] = out[base]['bout']
+        t['name'] = f'{base}_{i}'; out[f'{base}_{i}'] = t; print(f"{base}_{i}: {t['n']} calls dur {t['dur']:.2f} f0 {max(t['f0'])} hnr {t['hnr']}")
 if len(sys.argv) > 2:
     os.makedirs(sys.argv[2], exist_ok=True)
     for k, v in out.items(): json.dump(v, open(f'{sys.argv[2]}/{k}.json', 'w'))

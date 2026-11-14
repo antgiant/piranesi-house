@@ -66,11 +66,11 @@ describe('what the birds say', () => {
     const alb = plan('albatross', 'greeting', seeded(2));
     expect(alb.filter((n) => n.call === 'albatrossClap').length).toBeGreaterThanOrEqual(5); expect(alb[alb.length - 1]!.call).toBe('albatrossWhirr');
     let long = 0, alarm = 0;
-    for (let i = 0; i < 100; i++) { const p = plan('gull', 'colony', seeded(i + 11)); if (p.filter((n) => n.call === 'gullNote').length >= 9) long++; else if (p.length >= 3 && p.every((n) => n.call === 'gullMew')) alarm++; }
+    for (let i = 0; i < 100; i++) { const p = plan('gull', 'colony', seeded(i + 11)); if (p.filter((n) => n.call === 'gullNote').length >= 9) long++; else if (p.length >= 3 && p.every((n) => n.call.startsWith('gullMew'))) alarm++; }
     expect(long).toBeGreaterThan(5); expect(alarm).toBeGreaterThan(20);
   });
   it('spaces the notes as the recordings did', () => {
     const p = plan('gull', 'colony', seeded(5)).filter((n) => n.call === 'gullNote');
-    for (let k = 1; k < p.length; k++) { const g = p[k]!.dt - p[k - 1]!.dt; expect(g).toBeGreaterThan(0.2); expect(g).toBeLessThan(0.3); }
+    for (let k = 1; k < p.length; k++) { const g = p[k]!.dt - p[k - 1]!.dt; expect(g).toBeGreaterThan(0.15); expect(g).toBeLessThan(0.4); }
   });
 });

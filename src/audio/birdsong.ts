@@ -1,7 +1,7 @@
 // What each bird says, and in what order: the plan of one calling episode, made of notes taken from the measured templates (birdcalls.ts). The shapes, lengths and gaps are the
 // measured ones (design/birds.md); how often each is used, by place and season, is the behaviour (the scene). Pure, so it can be tested.
 
-import { CALLS, type CallName } from './birdcalls';
+import { CALLS, GULL_VOICES, type CallName } from './birdcalls';
 
 export type Rng = () => number;
 export interface PlannedNote { dt: number; call: CallName; pitch: number; gain: number }
@@ -31,19 +31,20 @@ function series(r: Rng, call: CallName, n: number, level: (i: number) => number,
 /** One episode of calling by a bird of this kind, in this situation. */
 export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNote[] {
   const bird = between(r, 0.92, 1.08); // this bird's own pitch
+  const mew: CallName = GULL_VOICES[Math.floor(r() * GULL_VOICES.length)] ?? 'gullMew'; // and, for a gull, its own mew: each bird measured on its own recording
   switch (who) {
     case 'gull': {
       if (ctx === 'colony') {
         const kind = pick(r, ['alarm', 'mew', 'long'] as const, [0.4, 0.4, 0.2]);
-        if (kind === 'alarm') return series(r, 'gullMew', 3 + Math.floor(r() * 4), (i) => 1 - i * 0.08, (i) => bird * (1 - i * 0.012));
-        if (kind === 'mew') return [{ dt: 0, call: 'gullMew', pitch: bird, gain: 1 }];
+        if (kind === 'alarm') return series(r, mew, 3 + Math.floor(r() * 4), (i) => 1 - i * 0.08, (i) => bird * (1 - i * 0.012));
+        if (kind === 'mew') return [{ dt: 0, call: mew, pitch: bird, gain: 1 }];
         // the long call: a few slow notes, then the laugh: a run of short notes about a quarter of a second apart, dropping a little in pitch
-        const n = 9 + Math.floor(r() * 6), notes: PlannedNote[] = [{ dt: 0, call: 'gullMew', pitch: bird * 0.82, gain: 0.8 }];
+        const n = 9 + Math.floor(r() * 6), notes: PlannedNote[] = [{ dt: 0, call: mew, pitch: bird * 0.82, gain: 0.8 }];
         let t = 0.7;
         for (let i = 0; i < n; i++) { notes.push({ dt: t, call: 'gullNote', pitch: bird * (1.04 - 0.03 * (i / n)), gain: 0.7 + 0.3 * Math.sin((Math.PI * (i + 1)) / (n + 1)) }); t += gapOf(r, 'gullNote') * (0.8 + 0.55 * (i / n)) * between(r, 0.9, 1.12); } // the laugh slows as it goes, and is never an even tick
         return notes;
       }
-      return r() < 0.88 ? [{ dt: 0, call: 'gullMew', pitch: bird, gain: 1 }] : series(r, 'gullMew', 2, (i) => 1 - i * 0.2, () => bird);
+      return r() < 0.88 ? [{ dt: 0, call: mew, pitch: bird, gain: 1 }] : series(r, mew, 2, (i) => 1 - i * 0.2, () => bird);
     }
     case 'chick': return series(r, 'gullBeg', 3 + Math.floor(r() * 6), (i) => 1 - i * 0.04, () => between(r, 0.95, 1.05));
     case 'rook': {

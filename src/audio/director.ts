@@ -13,7 +13,7 @@ import { hydrologyAt } from '../sim/hydrology';
 import { leaksOf } from '../world/leaks';
 import { azimuthTo, bearingFromAz, distanceTo, headingOf, nearestOnWall, proximity, sideOfHeading, wallPoint, type Pose } from './pose';
 
-export type Surface = 'marble' | 'wet' | 'shallow' | 'rubble';
+export type Surface = 'marble' | 'wet' | 'shallow' | 'rubble' | 'snow';
 export type TideSound = 'none' | 'approach' | 'booming' | 'submerged';
 
 export type Bearing = 'ahead' | 'right' | 'behind' | 'left';
@@ -294,7 +294,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
   const birds = { mode: b.mode, perMinute: b.mode === 'silent' || b.mode === 'none' ? 0 : Math.round((b.loudness / 1000) * 24), loudness: b.loudness / 1000, species: b.species, season: b.season };
 
   const muffle = clamp((cloudy / 1000) * 0.35 + (s.here.fogHere / 1000) * 0.2 + (tideKind === 'submerged' ? 0.9 : 0) + snowing * 0.25, 0, 0.95);
-  const surface: Surface = depth >= 4 ? 'shallow' : depth > 0 ? 'wet' : h.regions.derelict >= 60 ? 'rubble' : 'marble';
+  const surface: Surface = depth >= 4 ? 'shallow' : depth > 0 ? 'wet' : snowing > 0.3 ? 'snow' : h.regions.derelict >= 60 ? 'rubble' : 'marble';
 
   // --- water on the stair: rain streams (the open halls) and the drain of a tide, the two things that make it run ---
   let stairsFlow = 0, stairsCause: 'rain' | 'drain' | null = null, stairAz: number | undefined, stairBearing: Bearing = 'ahead';

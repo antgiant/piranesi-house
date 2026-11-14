@@ -3,7 +3,7 @@ import { stepPlan } from '../src/audio/steps';
 import type { Surface } from '../src/audio/director';
 
 function seeded(seed: number): () => number { let s = seed >>> 0; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
-const SURFACES: Surface[] = ['marble', 'wet', 'shallow', 'rubble'];
+const SURFACES: Surface[] = ['marble', 'wet', 'shallow', 'rubble', 'snow'];
 
 describe('a bare footstep', () => {
   it('is made of a few sounds, none late, none silent, none out of the audible range', () => {

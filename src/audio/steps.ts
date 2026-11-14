@@ -67,6 +67,15 @@ export function stepPlan(surface: Surface, r: Rng = Math.random): Hit[] {
       for (let i = 0, n = 3 + Math.floor(r() * 5); i < n; i++) hits.push({ dt: between(r, 0.01, 0.3), kind: 'bubble', f: logBetween(r, 500, 3400), tau: between(r, 0.01, 0.025), gain: 0.07 * wobble(r, 12) });
       return hits;
     }
+    case 'snow': { // snow underfoot (measured in boots, so only the snow is taken): muffled, mostly below 500 Hz, nothing above 2 kHz to speak of, a soft crunch of small grains, no ring
+      const hits: Hit[] = [
+        { dt: 0, kind: 'thud', f: logBetween(r, 60, 150), tau: between(r, 0.009, 0.014), gain: 0.3 * wobble(r, 8) * LOUD * 0.27 },
+        { dt: 0, kind: 'noise', f: logBetween(r, 130, 480), tau: between(r, 0.012, 0.02), gain: 0.6 * wobble(r, 8) * LOUD * 0.27, q: 0.5 },
+        { dt: 0.06, kind: 'noise', f: logBetween(r, 150, 500), tau: 0.012, gain: 0.25 * wobble(r, 8) * LOUD * 0.27, q: 0.5 },
+      ];
+      for (let i = 0, n = 8 + Math.floor(r() * 8); i < n; i++) hits.push({ dt: Math.pow(r(), 1.4) * 0.16, kind: 'noise', f: logBetween(r, 300, 1100), tau: between(r, 0.006, 0.016), gain: 0.12 * wobble(r, 14) * LOUD * 0.27, q: between(r, 0.8, 1.6) });
+      return hits;
+    }
     case 'rubble': { // loose stones: a soft thud (the stones give), and a crowd of grains over about a fifth of a second, from sharp to dull
       const hits: Hit[] = [{ dt: 0, kind: 'thud', f: between(r, 220, 380), tau: 0.009, gain: 0.012 * wobble(r, 8) }];
       for (let i = 0, n = 16 + Math.floor(r() * 14); i < n; i++) {

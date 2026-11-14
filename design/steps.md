@@ -19,6 +19,8 @@ spectrum of one footfall (the first 60 ms after each).
 * **Gravel:** per-step centroid 3.4 kHz, flatness 0.55, 200 ms to fall 20 dB, 19 dB spread between steps, 125 Hz 18-24 dB under 1 kHz.
 * **Water** (puddle, calf-deep, creek, mine): little or no thud (62-125 Hz is 8-19 dB down; deeper is lower), most energy 500 Hz-2 kHz (strongest 560-870 Hz), falling above (4 kHz 0 to -10 dB, 8 kHz
   -3 to -14); a footfall takes 190-350 ms to fall 20 dB (a puddle is quickest and brightest at 2.6 kHz, the mine slowest and darkest at 1.0 kHz). Steps 0.16-0.19 s apart in wading.
+* **Snow** (Freesound 417647, a walk in snow and then on wet ground, in boots, so only the snow is taken): one footfall is muffled: 62-500 Hz 2-5 dB over 1 kHz, 2 kHz 6 dB under, 4 and 8 kHz 13-14 dB under; per-step centroid 500 Hz, falls 20 dB in 12 ms (no ring), and it is tonal at the bottom (a soft thud). The wet ground that follows is brighter (+8 dB at 62 Hz, flat to 2 kHz, -2 above) and falls in 24 ms.
+  The game gains a `snow` surface: when snow is falling in the open halls (the same condition the narrator uses for "snow lies"); lying snow that outlasts the fall is not modelled (nothing keeps a store of snow).
 * **Rooms:** the bathroom's steps fall away within 50 ms (a reverberation time of about 0.3 s); the flooded mine falls 20 dB in 0.4 s and then has a long tail (a fit gives about 5 s, but it is two
   slopes and the drips in it make it a poor measure). Both are for the echo work.
 Renders now (one footfall, dB re 1 kHz at 62 / 125 / 250 / 500 / 2k / 4k / 8k Hz): marble -2 / +3 / -6 / -3 / 0 / 0 / 0 (hard floors: +6 / +8 / +3 / -1 / +1 / +3.5 / +5); shallow water -26 / -17 / -10 / 0 / 0 / -6 / -12

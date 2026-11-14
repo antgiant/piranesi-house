@@ -36,7 +36,7 @@ vestibules, and the halls out to the Eighty-Eighth Western, about 25,000 halls o
 vestibules one with the albatrosses and one with the murmuration. So each of those now occurs in about one hall in 25,000 (`BIRD_HALLS`) and one vestibule in 45 (`BIRD_VESTIBULES`), by a hash of the seed and the
 place (`getHall`), the same every time; the named halls are kept. (World version 9.) These are estimates from one book; they are constants to change.
 **A buzzard** (the owner said yes): rarely, by day, in a hall with perches (about one hour in 400), it circles and the small birds fall still; the narrator says so; it mews once in a while.
-**Mice and rats**: see design/animals.md.
+**Mice and rats**: considered and dropped by the owner (the book's mice are carved, only birds are alive in it).
 
 Taken out: goose, swift, wader, dove, starling, the night passage of geese, the dawn chorus and the blackbirds foraging; the sparrows and soaring and shore gulls are made quieter (about half).
 

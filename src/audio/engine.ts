@@ -12,6 +12,9 @@ import { Stream } from './stream';
 import { Wind } from './wind';
 import { allOn, maskScene, type Elements } from './elements';
 import { buildImpulse } from './room';
+import { renderCall } from './birdsynth';
+import { CALLS, type CallName } from './birdcalls';
+import { plan as birdPlan, type Context as BirdContext, type Voice as BirdVoice } from './birdsong';
 import { stepPlan, type Hit } from './steps';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
@@ -117,6 +120,7 @@ export class AudioEngine {
   private outsideId = '';
   private nextVoice = 0;
   private leftFoot = false;
+  private callCache: Partial<Record<CallName, AudioBuffer[]>> = {};
   private elements: Elements = allOn();
   private rawScene: AudioScene | null = null;
   private irKey = '';
@@ -781,7 +785,7 @@ export class AudioEngine {
       }
       if (p.birds.perMinute > 0 && t >= v.nextBird) {
         const ks = speciesFor(p.birds.mode, p.birds.season);
-        if (ks.length) { this.bird(ks[Math.floor(Math.random() * ks.length)] as Species, t + 0.02, p.birds.loudness * 1.6, v.bus); this.portalEvents++; }
+        if (ks.length) { this.bird(ks[Math.floor(Math.random() * ks.length)] as Species, t + 0.02, p.birds.loudness * 1.6, v.bus, undefined, p.birds.mode); this.portalEvents++; }
         v.nextBird = t + (60 / p.birds.perMinute) * rand(0.5, 1.6);
       }
       if ((p.falls > 0.06 || p.rain > 0.06) && t >= v.nextDrip) {
@@ -798,7 +802,7 @@ export class AudioEngine {
     // birds
     const kinds = speciesFor(a.birds.mode, a.birds.season);
     if (a.birds.perMinute > 0 && kinds.length > 0 && t >= this.nextBird) {
-      this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, FLYING_MODES.has(a.birds.mode) ? 'fly' : undefined);
+      this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, FLYING_MODES.has(a.birds.mode) ? 'fly' : undefined, a.birds.mode);
       this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6);
     }
   }
@@ -899,7 +903,7 @@ export class AudioEngine {
    * its own: perched somewhere around and above you, or, with `where` = 'fly' (and a species that flies), crossing the sky on a
    * random path, or on the path or point given. The flock is the exception: it is scattered over the sky, burst by burst.
    */
-  private bird(sp: Species, t: number, loud: number, out?: AudioNode, where?: 'fly' | Vec3 | Flyby): void {
+  private bird(sp: Species, t: number, loud: number, out?: AudioNode, where?: 'fly' | Vec3 | Flyby, mode?: AudioScene['birds']['mode']): void {
     this.calls++;
     const pan = 0;
     const prev = this.doppler;
@@ -912,76 +916,34 @@ export class AudioEngine {
       out = voice.input;
       this.doppler = voice.doppler;
     }
-    try { this.birdCall(sp, t, loud, out, pan, answer); } finally { this.doppler = prev; }
+    try { this.birdCall(sp, t, loud, out, pan, answer, mode); } finally { this.doppler = prev; }
   }
 
-  private birdCall(sp: Species, t: number, loud: number, out: AudioNode | undefined, pan: number, answer: Voice | null): void {
+  /** What each species is, as a measured voice, and the situation its mode makes (birdsong.ts). Anything not here (the flock's wings, a rustle) is made the old way. */
+  /** Play a plan of notes (birdsong.ts): each note is a call rendered from its measured template (a few variants of each are kept, and a note may be pitched up or down a little). */
+  private playPlan(notes: ReturnType<typeof birdPlan>, t: number, v: number, out?: AudioNode): void {
+    const ctx = this.ctx as AudioContext;
+    for (const n of notes) {
+      const variants = (this.callCache[n.call] ??= []);
+      let buf: AudioBuffer;
+      if (variants.length < 5) {
+        const data = renderCall(ctx.sampleRate, CALLS[n.call], Math.random);
+        buf = ctx.createBuffer(1, data.length, ctx.sampleRate); buf.getChannelData(0).set(data); variants.push(buf);
+      } else buf = variants[Math.floor(Math.random() * variants.length)] as AudioBuffer;
+      const at = t + n.dt, src = ctx.createBufferSource();
+      src.buffer = buf; src.playbackRate.value = n.pitch * (this.doppler?.(at) ?? 1);
+      const g = ctx.createGain(); g.gain.value = v * n.gain * 0.9;
+      src.connect(g).connect(out ?? this.spot(0));
+      src.start(at);
+    }
+  }
+
+  private birdCall(sp: Species, t: number, loud: number, out: AudioNode | undefined, pan: number, answer: Voice | null, mode?: AudioScene['birds']['mode']): void {
     const v = 0.05 + loud * 0.08;
+    const ctxOf = (m?: AudioScene['birds']['mode']): BirdContext => m === 'nesting' ? 'colony' : m === 'chick' ? 'greeting' : m === 'noisy' ? 'flock' : m === 'sheltering' ? 'rain' : m === 'roosting' ? 'roost' : 'air';
+    const who: BirdVoice | null = sp === 'chick' ? (mode === 'nesting' || mode === undefined ? 'chick' : 'sparrow') : sp === 'gull' || sp === 'rook' || sp === 'sparrow' || sp === 'blackbird' || sp === 'buzzard' || sp === 'owl' || sp === 'albatross' ? sp : null;
+    if (who) { this.playPlan(birdPlan(who, ctxOf(mode)), t, v, out); return; }
     switch (sp) {
-      case 'chick': {
-        // a hungry chick: a run of thin, high, quavering peeps, each a little lower, that goes on and on
-        const n = 5 + Math.floor(Math.random() * 6);
-        const f = rand(3600, 4800);
-        for (let i = 0; i < n; i++) this.tone(t + i * rand(0.11, 0.17), f * rand(0.97, 1.04), f * rand(0.82, 0.92), rand(0.05, 0.08), 'sine', v * 0.8, pan, 0.006, out);
-        break;
-      }
-      case 'sparrow': {
-        const n = 2 + Math.floor(Math.random() * 4);
-        for (let i = 0; i < n; i++) this.tone(t + i * rand(0.07, 0.13), rand(3200, 5200), rand(2600, 6000), rand(0.04, 0.08), 'sine', v, pan, 0.005, out);
-        break;
-      }
-      case 'gull': {
-        const n = 2 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < n; i++) {
-          const s = t + i * 0.38;
-          this.tone(s, 1500, 700, 0.3, 'sawtooth', v * 0.6, pan, 0.03, out);
-          this.burst(s, 0.28, 'bandpass', 1400, 2, v * 0.8, pan, 0.03, out);
-        }
-        break;
-      }
-      case 'rook': {
-        const n = 1 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < n; i++) {
-          const s = t + i * 0.33;
-          this.tone(s, 420, 260, 0.22, 'sawtooth', v * 0.7, pan, 0.02, out);
-          this.burst(s, 0.2, 'bandpass', 900, 1.5, v * 0.7, pan, 0.02, out);
-        }
-        break;
-      }
-      case 'albatross': {
-        const n = 7 + Math.floor(Math.random() * 6);
-        for (let i = 0; i < n; i++) this.burst(t + i * 0.045, 0.025, 'bandpass', rand(1800, 2600), 6, v * 1.4, pan, 0.001, out);
-        this.tone(t + 0.1, 110, 85, 0.7, 'sawtooth', v * 0.35, pan, 0.1, out);
-        break;
-      }
-      case 'blackbird': {
-        // a phrase of rich, fluting notes that rise and fall, with a pause, and sometimes a second phrase
-        const phrases = 1 + Math.floor(Math.random() * 2);
-        let at = t;
-        for (let p = 0; p < phrases; p++) {
-          const n = 4 + Math.floor(Math.random() * 4);
-          for (let i = 0; i < n; i++) {
-            const base = rand(1400, 2600);
-            this.tone(at, base, base * rand(0.8, 1.35), rand(0.09, 0.2), 'sine', v * 1.1, pan, 0.012, out);
-            at += rand(0.11, 0.22);
-          }
-          at += rand(0.5, 0.9);
-        }
-        break;
-      }
-      case 'buzzard': {
-        // the plaintive mew, high and falling, a second long, and now and then only once
-        this.tone(t, 2300, 1500, 0.55, 'triangle', v * 0.5, pan, 0.04, out);
-        this.tone(t + 0.04, 4600, 3000, 0.4, 'sine', v * 0.12, pan, 0.04, out);
-        break;
-      }
-      case 'owl': {
-        // two slow, hollow hoots, the second lower
-        this.tone(t, 330, 300, 0.45, 'sine', v * 1.1, pan, 0.08, out);
-        this.burst(t, 0.4, 'lowpass', 600, 0.5, v * 0.25, pan, 0.08, out);
-        this.tone(t + 0.8, 300, 250, 0.7, 'sine', v * 1.0, pan, 0.08, out);
-        break;
-      }
       case 'flock':
         for (let i = 0; i < 6; i++) this.burst(t + i * 0.12, 0.5, 'bandpass', rand(2500, 5000), 0.8, v * 0.9, out ? 0 : perchPosition(Math.random, [10, 65], [6, 22]), 0.15, out);
         break;

@@ -28,6 +28,8 @@ await page.addScriptTag({ content: code });
 const r = await page.evaluate(async ([gain, low, swell, wet, secs, solo, extra]) => {
   const SR = 48000;
   let seed = 12345; Math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+  // the engine disconnects a finished voice with a real-time timer; an offline render runs faster or slower than the clock, so a timer would cut later sounds off: none fire
+  window.setTimeout = () => 0;
   const OAC = window.OfflineAudioContext;
   window.AudioContext = class extends OAC { constructor() { super(2, SR * secs, SR); this.__t = 0; Object.defineProperty(this, 'currentTime', { get: () => this.__t }); Object.defineProperty(this, 'state', { get: () => 'running' }); } resume() { return Promise.resolve(); } };
   const e = new window.AudioEngine();
@@ -48,11 +50,12 @@ const r = await page.evaluate(async ([gain, low, swell, wet, secs, solo, extra])
   for (let t = 0; t < secs - 0.01; t += 0.2) { ctx.__t = t; if (!only) e.tickEvents(); }
   ctx.__t = 0;
   const b = await ctx.startRendering();
-  return { L: Array.from(b.getChannelData(0)), R: Array.from(b.getChannelData(1)), sr: SR, waves: e.sea ? e.sea.waveCount : null };
+  window.__stats = e.stats();
+  return { stats: e.stats(), L: Array.from(b.getChannelData(0)), R: Array.from(b.getChannelData(1)), sr: SR, waves: e.sea ? e.sea.waveCount : null };
 }, [+gain, +low, +swell, +wet, +secs, solo ?? '', extra ?? '']);
 const n = r.L.length, buf = Buffer.alloc(44 + n * 8);
 buf.write('RIFF', 0); buf.writeUInt32LE(36 + n * 8, 4); buf.write('WAVEfmt ', 8); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(3, 20); buf.writeUInt16LE(2, 22); buf.writeUInt32LE(r.sr, 24); buf.writeUInt32LE(r.sr * 8, 28); buf.writeUInt16LE(8, 32); buf.writeUInt16LE(32, 34); buf.write('data', 36); buf.writeUInt32LE(n * 8, 40);
 for (let i = 0; i < n; i++) { buf.writeFloatLE(r.L[i], 44 + i * 8); buf.writeFloatLE(r.R[i], 48 + i * 8); }
 writeFileSync(`${outDir}/${name}.wav`, buf);
-console.log(name, 'waves', r.waves);
+console.log(name, 'waves', r.waves, r.stats ? JSON.stringify(r.stats) : '');
 await browser.close();

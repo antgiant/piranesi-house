@@ -19,6 +19,7 @@ import { ScreenWake } from './wakelock';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
 import { Playlist } from './playlist';
+import { ELEMENTS, ELEMENT_LABELS, allOn, parseElements, type Element, type Elements } from '../audio/elements';
 import { lengthText, localiseUnits, parseUnits, resolveUnits, speedText, type UnitSystem, type UnitsSetting } from '../game/units';
 
 interface Settings {
@@ -35,6 +36,8 @@ interface Settings {
   /** The visitor's own quiet muttering, heard through the hall's acoustics. */
   mutter: boolean;
   mutterCaptions: boolean;
+  /** Which kinds of sound are heard: all of them, unless some are turned off. */
+  elements: Elements;
   /** Reading comfort: text scale (1 normal), a plain spaced face, more contrast. */
   textScale: number;
   plainFont: boolean;
@@ -56,7 +59,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, units: 'auto', muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, units: 'auto', muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, elements: allOn(), voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -77,6 +80,7 @@ function loadSettings(): Settings {
       else if (n === false) s.narrate = 'play';
       else if (n !== 'off' && n !== 'play' && n !== 'always') s.narrate = DEFAULTS.narrate;
       s.units = parseUnits(s.units);
+      s.elements = parseElements((JSON.parse(raw) as { elements?: unknown }).elements);
       return s;
     }
   } catch { /* storage can be blocked; carry on with defaults */ }
@@ -346,6 +350,7 @@ async function enter(): Promise<void> {
   $('bar').hidden = false;
   $('cmd').hidden = false;
   engine.setVolume(settings.volume / 100);
+  engine.setElements(settings.elements);
   applyMute();
   startGame(true);
   // ask the browser not to clear the saved journey when it is short of space (it may say no, or ask nothing of you)
@@ -637,6 +642,25 @@ const openAbout = (): void => openDialog(aboutDlg);
 $('open-about').addEventListener('click', openAbout);
 $('s-about').addEventListener('click', openAbout);
 $('about-close').addEventListener('click', (e) => { e.preventDefault(); closeDialog(aboutDlg); });
+/** One checkbox for each kind of sound (all on unless the visitor has turned some off). */
+function fillElements(): void {
+  const box = $('s-elements');
+  if (!box.querySelector('input')) {
+    for (const e of ELEMENTS) {
+      const l = document.createElement('label'); l.className = 'check';
+      const i = document.createElement('input'); i.type = 'checkbox'; i.id = `s-el-${e}`;
+      const t = document.createElement('span'); const info = ELEMENT_LABELS[e];
+      t.textContent = info.note ? `${info.label}: ${info.note}` : info.label;
+      l.append(i, document.createTextNode(' '), t); box.append(l);
+    }
+  }
+  for (const e of ELEMENTS) $<HTMLInputElement>(`s-el-${e}`).checked = settings.elements[e];
+}
+function readElements(): Elements {
+  const out = allOn();
+  for (const e of ELEMENTS) { const i = document.getElementById(`s-el-${e}`) as HTMLInputElement | null; if (i) out[e as Element] = i.checked; }
+  return out;
+}
 function fillSettings(): void {
   $<HTMLInputElement>('s-volume').value = String(settings.volume);
   $<HTMLSelectElement>('s-units').value = settings.units;
@@ -655,6 +679,7 @@ function fillSettings(): void {
   $<HTMLInputElement>('s-shortcuts').checked = settings.shortcuts;
   $<HTMLInputElement>('s-mutter').checked = settings.mutter;
   $<HTMLInputElement>('s-mutter-captions').checked = settings.mutterCaptions;
+  fillElements();
   fillVoices();
   $<HTMLInputElement>('s-rate').value = String(settings.narrateRate);
   $('s-rate-out').textContent = `${settings.narrateRate.toFixed(1)}×`;
@@ -694,6 +719,7 @@ $('s-save').addEventListener('click', (e) => {
     shortcuts: $<HTMLInputElement>('s-shortcuts').checked,
     mutter: $<HTMLInputElement>('s-mutter').checked,
     mutterCaptions: $<HTMLInputElement>('s-mutter-captions').checked,
+    elements: readElements(),
     voiceURI: $<HTMLSelectElement>('s-voice').value,
     narrateRate: Number($<HTMLInputElement>('s-rate').value) || 1,
     timeScale: Number($<HTMLSelectElement>('s-scale').value) || 1,
@@ -706,6 +732,7 @@ $('s-save').addEventListener('click', (e) => {
   settings = next;
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
+  engine.setElements(settings.elements);
   applyMute();
   paintMute();
   applyNarration();

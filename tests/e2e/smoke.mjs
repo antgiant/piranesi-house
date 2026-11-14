@@ -142,6 +142,21 @@ try {
   await page.waitForTimeout(300);
   check((await page.locator('#log').textContent()).includes('First Vestibule'), 'changing a world setting restarts at the First Vestibule');
 
+  // --- choosing which sounds to hear: nine kinds, all on at first; turning some off is kept ---
+  {
+    await page.click('#open-settings');
+    const boxes = await page.locator('#s-elements input[type=checkbox]').count();
+    check(boxes === 9, `the settings list nine kinds of sound (${boxes})`);
+    check((await page.locator('#s-elements input:checked').count()) === 9, 'all of them are on to begin with');
+    await page.click('#s-elements-details > summary');
+    await page.uncheck('#s-el-birds'); await page.uncheck('#s-el-footsteps');
+    await page.click('#s-save'); await page.waitForTimeout(300);
+    await page.click('#open-settings');
+    check(!(await page.isChecked('#s-el-birds')) && !(await page.isChecked('#s-el-footsteps')) && (await page.isChecked('#s-el-wind')), 'turned-off kinds stay off, and the rest on, when the settings are reopened');
+    await page.check('#s-el-birds', { force: true }); await page.check('#s-el-footsteps', { force: true });
+    await page.click('#s-save'); await page.waitForTimeout(300);
+  }
+
   // --- falling water: a hall with falls makes the falls voice and it is heard ---
   {
     const found = await page.evaluate(() => {

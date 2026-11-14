@@ -10,6 +10,7 @@ import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
 import { Stream } from './stream';
 import { Wind } from './wind';
+import { allOn, maskScene, type Elements } from './elements';
 import { buildImpulse } from './room';
 import { stepPlan, type Hit } from './steps';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
@@ -120,6 +121,8 @@ export class AudioEngine {
   private outsideId = '';
   private nextVoice = 0;
   private leftFoot = false;
+  private elements: Elements = allOn();
+  private rawScene: AudioScene | null = null;
   private irKey = '';
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBird = 0;
@@ -310,8 +313,15 @@ export class AudioEngine {
   }
 
   setScene(scene: AudioScene): void {
-    this.scene = scene;
-    if (this.ctx) this.apply(scene);
+    this.rawScene = scene;
+    this.scene = maskScene(scene, this.elements);
+    if (this.ctx) this.apply(this.scene);
+  }
+
+  /** Which kinds of sound are heard (see elements.ts). */
+  setElements(on: Elements): void {
+    this.elements = on;
+    if (this.rawScene) this.setScene(this.rawScene);
   }
 
   // -------------------------------------------------------------------------------------------------------------
@@ -1069,7 +1079,7 @@ export class AudioEngine {
   footstep(surface: Surface): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    if (!this.usable()) return;
+    if (!this.usable() || !this.elements.footsteps) return;
     const t = ctx.currentTime + 0.01;
     // under you and a little ahead: the floor, not the middle of your head; the left foot and the right a hand's breadth either side of the middle, and a little different
     // (a person's two feet are never quite alike), taking turns

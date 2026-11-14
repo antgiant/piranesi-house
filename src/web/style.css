@@ -153,3 +153,9 @@ dialog ul { padding-left: 1.2rem; }
 /* The page never scrolls as a whole: the log does. The introduction scrolls inside itself on a small screen. */
 html, body { overflow: hidden; }
 #intro { max-height: 55dvh; overflow-y: auto; flex: none; }
+
+/* the advanced list of sounds to hear */
+details.adv { margin: 0.6rem 0 0; }
+details.adv > summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
+details.adv fieldset { border: 0; padding: 0; margin: 0.4rem 0 0; }
+details.adv .check { display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.25rem 0; }

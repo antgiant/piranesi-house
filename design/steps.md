@@ -3,12 +3,27 @@
 The visitor is barefoot: the book gives a castaway in ragged clothes who makes coverings of cloth for his cold feet and means to make shoes of fish leather; shoes come only later, as a gift, and
 the game leaves that out. So a step is the foot itself (`src/audio/steps.ts`).
 
-A step is a heel and, a tenth of a second later, a toe: each a damped low thud and a short slap of filtered noise, the heel harder. What the floor adds:
-* **marble** (dry stone): firm, no give; thud near 230-460 Hz, slap 1.3-3.6 kHz. The room's echo does the rest.
-* **wet**: a film of water damps the slap (0.8-2.3 kHz, longer), adds a small wet sound and sometimes a bubble.
-* **shallow**: water over the foot: a longer splash and several bubbles.
-* **rubble**: a soft thud and a crowd of sharp grains (16-30) over a third of a second, 1.6-6 kHz, with grain levels varying by 19 dB.
-Every step is drawn afresh (pitch, level, timing), so it does not machine-gun.
+## What a step is (research and recordings; version 3)
+Version 1 and 2 made a heel and then a toe: two small clacks a tenth of a second apart, a low sine thud and a patter of bright noise. It sounded like a heeled shoe, or
+like something exploding in a shoe. The research and the recordings say it is something else:
+* The physical models of walking sound (Cook's physically informed stochastic models, and Nordahl, Serafin, Turchet and Fontana's work on real-time footstep synthesis, which
+  extracts the **ground reaction force** and uses it to excite the floor) treat a step as one exciter driving a resonator: an impact as the foot lands, then a **rolling contact**
+  (a friction noise that lasts as long as the force does), with the roughness of the surface a noise, and for loose ground (gravel, snow) a crowd of small collisions.
+  The force of a walking step has two humps over about 0.6 s, but only the first is an impact; the push-off is a soft friction, not a tap. Barefoot walking has a heel-strike
+  transient that is, if anything, more marked than in shoes. (Cook; Nordahl et al., Presence 2009 and IEEE TVCG 2011; Turchet et al., DAFx 2010; Logan, Li and Pastore on what listeners
+  hear in a footstep: where the spectrum's centre lies and how much high-frequency energy there is.)
+* In ten recordings of bare feet, the average step (`scripts/audition/stepspec.py` aligns every isolated step and averages the spectrograms; `stepenv.py` gives its three-band
+  envelope) is: **one** click a few milliseconds wide, broad all the way up to 10 kHz; a low body under about 500 Hz that falls 15 dB in 40 ms; the mid and high frequencies down 20 dB
+  in 20 ms; and then only the room. **No second tap.** Crest factors (peak over the rms of the step) are 19-29 dB.
+
+So a step is now: a broad click (3-8 kHz, 2-3 ms), a low body (noise through a low-pass at 350-600 Hz, 20-30 ms), a faint thud, a short mid slap, and a faint rolling noise that swells over
+30-60 ms and fades over 50-100 ms. The left foot and the right take turns, a hand's breadth either side of the middle, with a body a few per cent different in pitch and one landing a little
+harder; the interval between steps wanders by a few per cent (a person's steps are never evenly spaced). The surfaces:
+* **marble** (dry stone): as above, with the click and the slap sharp.
+* **wet**: the click is smothered (about 10 dB less), the slap dull and longer, more rolling, and the foot leaves a small wet sound and sometimes a bubble.
+* **shallow**: no thud, a broad splash that peaks near 1 kHz and falls over a fifth of a second or more, a low slosh and several bubbles.
+* **rubble**: a soft thud and a crowd of 16-30 sharp grains over a third of a second.
+* **snow**: a muffled low body and a soft crunch of small grains.
 
 ## Measured (eleven recordings; measurement only, never shipped)
 Freesound 565609 (bare feet on wood), 766931 (gravel), 272086 (ceramic tile), 608369 (a bathroom, walking), 272287 (concrete, running), 273102 (paving slabs on earth, running), 272541 (linoleum, running),

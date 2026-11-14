@@ -119,6 +119,7 @@ export class AudioEngine {
   private outsideEvents = 0;
   private outsideId = '';
   private nextVoice = 0;
+  private leftFoot = false;
   private irKey = '';
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextBird = 0;
@@ -1059,7 +1060,7 @@ export class AudioEngine {
 
   /** One sound of a footstep (see steps.ts): a damped note, a burst of filtered noise, or a small bubble. */
   private playHit(t: number, h: Hit, at: Place): void {
-    if (h.kind === 'noise') this.burst(t, h.tau * 7.5, 'bandpass', h.f, h.q ?? 1, h.gain, at, 0.001);
+    if (h.kind === 'noise') this.burst(t, h.tau * 7.5, h.type ?? 'bandpass', h.f, h.q ?? 1, h.gain, at, h.attack ?? 0.001);
     else if (h.kind === 'thud') this.tone(t, h.f, h.f * 0.7, h.tau * 7.5, 'sine', h.gain, at, 0.002);
     else this.tone(t, h.f, h.f * 1.4, h.tau * 6, 'sine', h.gain, at, 0.001);
   }
@@ -1070,7 +1071,10 @@ export class AudioEngine {
     if (!ctx) return;
     if (!this.usable()) return;
     const t = ctx.currentTime + 0.01;
-    const f = FEET; // under you and a little ahead: the floor, not the middle of your head
-    for (const h of stepPlan(surface)) this.playHit(t + h.dt, h, f);
+    // under you and a little ahead: the floor, not the middle of your head; the left foot and the right a hand's breadth either side of the middle, and a little different
+    // (a person's two feet are never quite alike), taking turns
+    this.leftFoot = !this.leftFoot;
+    const f = { ...FEET, x: this.leftFoot ? -0.14 : 0.14 };
+    for (const h of stepPlan(surface, Math.random, this.leftFoot ? -1 : 1)) this.playHit(t + h.dt, h, f);
   }
 }

@@ -998,6 +998,7 @@ setInterval(() => {
 function stepLoop(): void {
   if (game?.walk && engine.started) engine.footstep(audioFor(game.world, sceneNow(game, Date.now()), { portals: false }).surface);
   const pace = game && Number.isFinite(game.opts.walkPace) ? game.opts.walkPace : 1;
-  setTimeout(stepLoop, 1000 / stepsPerSecond(pace));
+  // a person's steps are never evenly spaced: a few per cent either way
+  setTimeout(stepLoop, (1000 / stepsPerSecond(pace)) * (0.94 + Math.random() * 0.12));
 }
 stepLoop();

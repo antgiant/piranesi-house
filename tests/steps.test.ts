@@ -12,21 +12,25 @@ describe('a bare footstep', () => {
       expect(plan.length).toBeGreaterThan(2);
       for (const h of plan) {
         expect(h.dt).toBeGreaterThanOrEqual(0); expect(h.dt).toBeLessThan(0.4);
-        expect(h.gain).toBeGreaterThan(0); expect(h.gain).toBeLessThan(0.9);
+        expect(h.gain).toBeGreaterThan(0); expect(h.gain).toBeLessThan(3.5);
         expect(h.f).toBeGreaterThan(60); expect(h.f).toBeLessThan(10000);
-        expect(h.tau).toBeGreaterThan(0.002); expect(h.tau).toBeLessThan(0.3);
+        expect(h.tau).toBeGreaterThan(0.001); expect(h.tau).toBeLessThan(0.3);
       }
     }
   });
-  it('is a heel and then a toe on a hard floor, about a tenth of a second apart, the heel the harder on the whole', () => {
-    let heel = 0, toe = 0;
-    for (let i = 0; i < 100; i++) {
-      const thuds = stepPlan('marble', seeded(i + 7)).filter((h) => h.kind === 'thud');
-      expect(thuds).toHaveLength(2);
-      expect(thuds[1]!.dt - thuds[0]!.dt).toBeGreaterThan(0.06); expect(thuds[1]!.dt - thuds[0]!.dt).toBeLessThan(0.13);
-      heel += thuds[0]!.gain; toe += thuds[1]!.gain;
+  it('is one impact and then a quiet roll of the foot: no second tap, as a heeled shoe would give', () => {
+    for (const sf of ['marble', 'wet'] as Surface[]) for (let i = 0; i < 100; i++) {
+      const plan = stepPlan(sf, seeded(i + 7));
+      const impact = Math.max(...plan.filter((h) => h.dt === 0).map((h) => h.gain));
+      for (const h of plan.filter((x) => x.dt >= 0.06)) expect(h.gain).toBeLessThan(impact * 0.2); // later sounds are far quieter than the impact
+      // and the impact is a broad click (high), a low body and a thud, all at the same moment
+      expect(plan.filter((h) => h.dt === 0 && h.kind === 'noise' && h.type === 'lowpass')).toHaveLength(1);
     }
-    expect(heel).toBeGreaterThan(toe);
+  });
+  it('has the left foot and the right a little unlike', () => {
+    const l = stepPlan('marble', seeded(4), -1), r = stepPlan('marble', seeded(4), 1);
+    const body = (p: ReturnType<typeof stepPlan>): number => p.find((h) => h.type === 'lowpass')!.f;
+    expect(body(r) / body(l)).toBeGreaterThan(1.05); expect(body(r) / body(l)).toBeLessThan(1.25);
   });
   it('is a crowd of grains on rubble, spread over a good part of a second, and mostly bright', () => {
     const grains = stepPlan('rubble', seeded(3)).filter((h) => h.kind === 'noise');

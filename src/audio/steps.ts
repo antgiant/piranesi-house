@@ -1,25 +1,34 @@
-// A bare footstep on each kind of floor (design/steps.md). The visitor is barefoot (the book gives a ragged castaway in coverings of cloth for his cold
-// feet, shoes only later and from another's hand), so a step is the foot itself: a heel that lands with a soft low thud, a toe that follows a tenth of a second
-// after with a small slap, and what the floor adds. Measured on bare feet on a wood floor (the thud is a damped note near 140-280 Hz that has fallen 20 dB in about
-// 15 ms, with the skin's slap above it) and on bare feet on gravel (a spread of sharp grains, 3.4 kHz at the centre, over a fifth of a second, 19 dB louder
-// and quieter from grain to grain). A pure plan, so it can be tested without a browser; the engine plays it.
+// A bare footstep on each kind of floor (design/steps.md).
+//
+// What a footstep is, from research and from recordings. The physical models of walking sound (Cook's physically informed stochastic models; Nordahl, Serafin, Turchet
+// and Fontana's) treat a step as an exciter (the ground reaction force of the foot) driving the floor: a short impact as the heel lands, then a rolling contact of the
+// foot, rough skin on rough stone, which makes a quiet continuous noise while the force lasts, and a push-off. The ground reaction force of a walking step has two humps
+// (the heel strike and the push-off) over a stance phase of about 0.6 s, but only the first is a sound: the rest is a soft friction. Measured on ten recordings of
+// bare feet (design/steps.md, scripts/audition/stepspec.py averages every step in a recording): there is ONE impact, a click of a few milliseconds across all
+// frequencies up to 10 kHz, then a low body (under about 500 Hz) that falls 15 dB in 40 ms and lasts a hundred milliseconds more, the mid and high frequencies fall 20 dB
+// within 20 ms, and nothing like a second tap a tenth of a second later. (An earlier version made a heel and a toe, two clacks: that is what a heeled shoe sounds like.)
+// A pure plan, so it can be tested without a browser; the engine plays it.
 
 import type { Surface } from './director';
 
 export type Rng = () => number;
 
-/** One sound within a step: a damped thud (a note falling away), a burst of filtered noise, or a small bubble. */
+/** One sound within a step: a damped note, a burst of noise through a filter (band, low or high pass), or a small bubble. */
 export interface Hit {
   /** Seconds after the step begins. */
   dt: number;
   kind: 'thud' | 'noise' | 'bubble';
-  /** Hz: the note's pitch, the noise's centre, or the bubble's pitch. */
+  /** Hz: the note's pitch, the noise filter's centre or cut-off, or the bubble's pitch. */
   f: number;
   /** Seconds for it to fall away (a thud falls 20 dB in about 2.3 of them). */
   tau: number;
   gain: number;
   /** Filter Q for noise; ignored otherwise. */
   q?: number;
+  /** Which filter shapes the noise (default a band-pass). */
+  type?: 'bandpass' | 'lowpass' | 'highpass';
+  /** Seconds to rise to full level (default almost at once: an impact). */
+  attack?: number;
 }
 
 /** The level of a foot on a hard floor, so that a step on stone is as present as one in water or on gravel (their sounds are spread over more time, so carry more energy for the same peak). */
@@ -30,29 +39,34 @@ const logBetween = (r: Rng, lo: number, hi: number): number => lo * Math.pow(hi 
 const wobble = (r: Rng, spreadDb: number): number => Math.pow(10, (r() - 0.5) * spreadDb / 20);
 
 /**
- * A heel and then a toe, as a person walks: the heel lands harder and lower, the toe lighter and brighter, about a tenth of a second behind. Each is a low thud
- * (the foot itself), a mid slap (the sole) and a brief bright patter of skin; on the hard floors measured (tile, ceramic, concrete, paving) one footfall is
- * about 6-8 dB up at 62-125 Hz, flat through the middle, and 3-5 dB up at 4-8 kHz.
+ * One footfall on a hard floor: the impact click (broad, a few milliseconds), the low body of the heel and the floor under it, a mid slap of the sole, and the foot
+ * rolling over the stone, a faint noise that swells and fades over a tenth of a second or two. No toe tap.
  */
-function foot(r: Rng, o: { thud: [number, number]; thudGain: number; slapHz: [number, number]; slapGain: number; slapTau: number; skinGain: number; toeAfter: [number, number] }): Hit[] {
-  const heel = wobble(r, 8) * LOUD, toe = wobble(r, 8) * 0.55 * LOUD;
-  const f = logBetween(r, o.thud[0], o.thud[1]);
-  const d = between(r, o.toeAfter[0], o.toeAfter[1]);
-  const one = (dt: number, k: number, fk: number): Hit[] => [
-    { dt, kind: 'thud', f: f * fk, tau: between(r, 0.008, 0.013), gain: o.thudGain * k },
-    { dt, kind: 'noise', f: logBetween(r, o.slapHz[0], o.slapHz[1]) * fk, tau: o.slapTau, gain: o.slapGain * k, q: 0.6 },
-    { dt, kind: 'noise', f: logBetween(r, 4500, 9000), tau: 0.004, gain: o.skinGain * k, q: 0.5 },
-    { dt, kind: 'noise', f: logBetween(r, 220, 560), tau: 0.012, gain: o.slapGain * 0.7 * k, q: 0.5 }, // the body of the foot, below the slap
+function foot(r: Rng, o: { click: number; clickHz: [number, number]; body: number; bodyHz: [number, number]; bodyTau: [number, number]; thud: number; slap: number; slapHz: [number, number]; slapTau: number; roll: number }): Hit[] {
+  const w = wobble(r, 8) * LOUD;
+  const hits: Hit[] = [
+    { dt: 0, kind: 'noise', type: 'bandpass', f: logBetween(r, o.clickHz[0], o.clickHz[1]), q: 0.3, tau: between(r, 0.0018, 0.003), gain: o.click * w },
+    { dt: 0, kind: 'noise', type: 'lowpass', f: logBetween(r, o.bodyHz[0], o.bodyHz[1]), q: 0.5, tau: between(r, o.bodyTau[0], o.bodyTau[1]), gain: o.body * w, attack: 0.002 },
+    { dt: 0, kind: 'thud', f: logBetween(r, 70, 130), tau: between(r, 0.015, 0.025), gain: o.thud * w },
+    { dt: 0, kind: 'noise', type: 'bandpass', f: logBetween(r, o.slapHz[0], o.slapHz[1]), q: 0.5, tau: o.slapTau, gain: o.slap * w },
   ];
-  return [...one(0, heel, 1), ...one(d, toe, 1.15)];
+  if (o.roll > 0) hits.push({ dt: between(r, 0.015, 0.05), kind: 'noise', type: 'bandpass', f: logBetween(r, 500, 1500), q: 0.4, tau: between(r, 0.05, 0.1), gain: o.roll * w * wobble(r, 10), attack: between(r, 0.03, 0.06) });
+  return hits;
 }
 
-export function stepPlan(surface: Surface, r: Rng = Math.random): Hit[] {
+/** `side` is -1 for the left foot and 1 for the right: the two are never quite alike (the pitch of the body of the step differs by a few per cent, and one lands a little harder). */
+export function stepPlan(surface: Surface, r: Rng = Math.random, side: -1 | 1 = 1): Hit[] {
+  const hits = plan(surface, r);
+  for (const h of hits) { if (h.type === 'lowpass' || h.kind === 'thud') h.f *= 1 + 0.07 * side; h.gain *= side > 0 ? 1.06 : 0.94; }
+  return hits;
+}
+
+function plan(surface: Surface, r: Rng): Hit[] {
   switch (surface) {
-    case 'marble': // dry stone: no give, so a firm low thud, a clear slap and a brief patter of skin; the room does the rest
-      return foot(r, { thud: [60, 120], thudGain: 0.02, slapHz: [350, 3200], slapGain: 0.17, slapTau: 0.006, skinGain: 0.26, toeAfter: [0.07, 0.12] });
-    case 'wet': { // a film of water: the slap is damped and dull and lasts longer, the skin patter is gone, and the foot leaves a small wet sound and a bubble or two
-      const hits = foot(r, { thud: [90, 190], thudGain: 0.016, slapHz: [900, 2200], slapGain: 0.16, slapTau: 0.012, skinGain: 0.04, toeAfter: [0.07, 0.12] });
+    case 'marble': // dry stone: no give, so a sharp click, a low body and a quick slap; the room does the rest
+      return foot(r, { click: 0.8, clickHz: [3000, 8000], body: 0.5, bodyHz: [350, 600], bodyTau: [0.02, 0.032], thud: 0.025, slap: 0.12, slapHz: [900, 2300], slapTau: 0.005, roll: 0.03 });
+    case 'wet': { // a film of water: the click is smothered, the slap dull, the body the same; and the foot leaves a small wet sound and a bubble or two
+      const hits = foot(r, { click: 0.07, clickHz: [2500, 5000], body: 0.5, bodyHz: [300, 500], bodyTau: [0.022, 0.034], thud: 0.02, slap: 0.12, slapHz: [700, 1800], slapTau: 0.01, roll: 0.05 });
       hits.push({ dt: between(r, 0.01, 0.03), kind: 'noise', f: logBetween(r, 2200, 4200), tau: between(r, 0.03, 0.06), gain: 0.07 * wobble(r, 10), q: 0.6 });
       for (let i = 0, n = r() < 0.55 ? 1 + Math.floor(r() * 2) : 0; i < n; i++) hits.push({ dt: between(r, 0.02, 0.14), kind: 'bubble', f: logBetween(r, 900, 3200), tau: 0.012, gain: 0.05 * wobble(r, 10) });
       return hits;
@@ -71,7 +85,6 @@ export function stepPlan(surface: Surface, r: Rng = Math.random): Hit[] {
       const hits: Hit[] = [
         { dt: 0, kind: 'thud', f: logBetween(r, 60, 150), tau: between(r, 0.009, 0.014), gain: 0.3 * wobble(r, 8) * LOUD * 0.27 },
         { dt: 0, kind: 'noise', f: logBetween(r, 130, 480), tau: between(r, 0.012, 0.02), gain: 0.6 * wobble(r, 8) * LOUD * 0.27, q: 0.5 },
-        { dt: 0.06, kind: 'noise', f: logBetween(r, 150, 500), tau: 0.012, gain: 0.25 * wobble(r, 8) * LOUD * 0.27, q: 0.5 },
       ];
       for (let i = 0, n = 8 + Math.floor(r() * 8); i < n; i++) hits.push({ dt: Math.pow(r(), 1.4) * 0.16, kind: 'noise', f: logBetween(r, 300, 1100), tau: between(r, 0.006, 0.016), gain: 0.12 * wobble(r, 14) * LOUD * 0.27, q: between(r, 0.8, 1.6) });
       return hits;

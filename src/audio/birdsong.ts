@@ -54,7 +54,7 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
     }
     case 'sparrow': {
       // chirps with ticks among them, in a bout of about five (one to sixteen)
-      const n = Math.max(1, Math.min(14, Math.round(countOf(r, 'sparrowChirp', 1, 16) * between(r, 0.6, 1.2))));
+      const n = Math.max(3, Math.min(14, Math.round(countOf(r, 'sparrowChirp', 1, 16) * between(r, 0.6, 1.2)))); // a sparrow chatters: never one call alone
       const notes: PlannedNote[] = []; let t = 0;
       for (let i = 0; i < n; i++) {
         const tick = r() < 0.35;
@@ -70,10 +70,20 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
     case 'buzzard': return series(r, 'buzzardMew', r() < 0.55 ? 1 : 2, (i) => 1 - i * 0.2, () => bird);
     case 'owl': return [{ dt: 0, call: 'owlScreech', pitch: bird, gain: 1 }];
     case 'albatross': {
-      // the greeting: the bill clapped a number of times, then a whirr in the throat (the book's clacking and whirring)
-      const n = countOf(r, 'albatrossClap', 5, 11), notes = series(r, 'albatrossClap', n, () => between(r, 0.8, 1), () => between(r, 0.96, 1.04));
-      const end = (notes[notes.length - 1]?.dt ?? 0) + 0.5;
-      if (ctx === 'greeting' || r() < 0.6) notes.push({ dt: end, call: 'albatrossWhirr', pitch: bird, gain: 1 });
+      // the greeting: the bill clapped in groups, then a whirr in the throat (the book's clacking and whirring). Measured on two recordings of clapping:
+      // two ways of clapping, mixed. Slow, a clap or two with a quarter of a second between; and a roll of ten to fifty claps about 25 ms apart. Pauses between
+      // groups run from 0.07 to 0.4 s and now and then a second or so: a rhythm that is never even, more like a message in code than a tick.
+      const notes: PlannedNote[] = []; let t = 0;
+      const groups = Math.round(between(r, 4, 9));
+      for (let g = 0; g < groups; g++) {
+        const roll = r() < 0.22, size = roll ? Math.round(between(r, 9, 36)) : pick(r, [1, 2, 3, 4, 6] as const, [0.4, 0.3, 0.1, 0.12, 0.08]);
+        for (let i = 0; i < size; i++) {
+          notes.push({ dt: t, call: 'albatrossClap', pitch: between(r, 0.95, 1.05), gain: roll ? between(r, 0.5, 0.9) * (1 - 0.2 * (i / size)) : between(r, 0.8, 1) });
+          t += roll ? between(r, 0.02, 0.034) : between(r, 0.026, 0.045) * (size > 1 ? 1 : 0);
+        }
+        t += r() < 0.12 ? between(r, 0.5, 1.1) : between(r, 0.07, 0.41);
+      }
+      if (ctx === 'greeting' || r() < 0.6) notes.push({ dt: t + 0.15, call: 'albatrossWhirr', pitch: bird, gain: 1 });
       return notes;
     }
   }

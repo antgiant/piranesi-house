@@ -906,8 +906,10 @@ export class AudioEngine {
    * its own: perched somewhere around and above you, or, with `where` = 'fly' (and a species that flies), crossing the sky on a
    * random path, or on the path or point given. The flock is the exception: it is scattered over the sky, burst by burst.
    */
+  private answerDepth = 0;
   private bird(sp: Species, t: number, loud: number, out?: AudioNode, where?: 'fly' | Vec3 | Flyby, mode?: AudioScene['birds']['mode']): void {
     this.calls++;
+    const out0 = out;
     const pan = 0;
     const prev = this.doppler;
     let answer: Voice | null = null;
@@ -920,6 +922,11 @@ export class AudioEngine {
       this.doppler = voice.doppler;
     }
     try { this.birdCall(sp, t, loud, out, pan, answer, mode); } finally { this.doppler = prev; }
+    // sparrows answer one another: others, from their own places, take it up before the first has done, and the answer may be answered
+    if (sp === 'sparrow' && !out0 && this.answerDepth < 3 && Math.random() < 0.8 - 0.2 * this.answerDepth) {
+      this.answerDepth++;
+      try { for (let i = 0, n = 1 + Math.floor(Math.random() * 2); i < n; i++) this.bird(sp, t + rand(0.3, 1.8), loud * rand(0.6, 0.95), undefined, where, mode); } finally { this.answerDepth--; }
+    }
   }
 
   /** What each species is, as a measured voice, and the situation its mode makes (birdsong.ts). Anything not here (the flock's wings, a rustle) is made the old way. */

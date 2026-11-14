@@ -114,3 +114,9 @@ envelope of the 0.8 to 6 kHz band, call frames being those within the top 65% of
 - The begging call's pitch track had failed (octave jumps, played as a steep sweep through the whole range and sounding nothing like a gull). The recordings show an arch:
   up to about 4.9 kHz, level for a third of a second, then down to about 2.1 kHz. `scripts/birds/overrides.py` holds that correction with its evidence.
 Still different: real calls have a rougher onset and a wobble in pitch from call to call; ours hold steadier lines. That wants more recordings of single calls.
+
+### Albatross cadence and sparrow answering
+- Two clapping recordings show two ways of clapping: slow (one or two claps, about a quarter of a second between) and rolls of ten to fifty claps 25 ms apart, in groups
+  separated by 0.07 to 0.4 s and now and then about a second. The plan is now groups of those, not an even run of claps, so it has a rhythm like code, not a tick.
+- Sparrows answer one another: after a bout, one or two others take it up from their own places, 0.3 to 1.8 s later (so bouts overlap), and the answers can be answered
+  (three deep at most). A bout is never fewer than three calls.

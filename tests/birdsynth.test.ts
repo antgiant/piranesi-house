@@ -54,7 +54,7 @@ describe('what the birds say', () => {
   it('makes a short, ordered plan of known calls for every bird in every situation', () => {
     for (const who of voices) for (const ctx of ['colony', 'air', 'roost', 'rain', 'flock', 'greeting', 'nest'] as const) for (let i = 0; i < 40; i++) {
       const p = plan(who, ctx, seeded(i * 7 + 1));
-      expect(p.length).toBeGreaterThan(0); expect(p.length).toBeLessThan(40);
+      expect(p.length).toBeGreaterThan(0); expect(p.length).toBeLessThan(160);
       for (let k = 0; k < p.length; k++) {
         const n = p[k]!; expect(CALLS[n.call]).toBeDefined(); expect(n.dt).toBeGreaterThanOrEqual(0); expect(n.gain).toBeGreaterThan(0); expect(n.pitch).toBeGreaterThan(0.6); expect(n.pitch).toBeLessThan(1.4);
         if (k > 0) expect(n.dt).toBeGreaterThanOrEqual(p[k - 1]!.dt);

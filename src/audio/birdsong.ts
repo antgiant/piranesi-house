@@ -40,7 +40,7 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
         // the long call: a few slow notes, then the laugh: a run of short notes about a quarter of a second apart, dropping a little in pitch
         const n = 9 + Math.floor(r() * 6), notes: PlannedNote[] = [{ dt: 0, call: 'gullMew', pitch: bird * 0.82, gain: 0.8 }];
         let t = 0.7;
-        for (let i = 0; i < n; i++) { notes.push({ dt: t, call: 'gullNote', pitch: bird * (1.04 - 0.03 * (i / n)), gain: 0.7 + 0.3 * Math.sin((Math.PI * (i + 1)) / (n + 1)) }); t += gapOf(r, 'gullNote'); }
+        for (let i = 0; i < n; i++) { notes.push({ dt: t, call: 'gullNote', pitch: bird * (1.04 - 0.03 * (i / n)), gain: 0.7 + 0.3 * Math.sin((Math.PI * (i + 1)) / (n + 1)) }); t += gapOf(r, 'gullNote') * (0.8 + 0.55 * (i / n)) * between(r, 0.9, 1.12); } // the laugh slows as it goes, and is never an even tick
         return notes;
       }
       return r() < 0.88 ? [{ dt: 0, call: 'gullMew', pitch: bird, gain: 1 }] : series(r, 'gullMew', 2, (i) => 1 - i * 0.2, () => bird);

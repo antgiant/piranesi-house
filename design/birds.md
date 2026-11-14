@@ -102,3 +102,15 @@ The owner knows the herring gull as the seaside gull, and the first synthetic gu
 * **Smeared contour:** a real mew rises quickly (about 1.25 to 1.55 kHz in 40 ms), peaks, then glides down to 1.1 kHz; the median of calls had smeared the apex. Calls are now aligned on their apex before the median is taken
   (the rise and the fall each stretched to a fixed length; `apex`), so the sharp peak is kept.
 Not yet done and visible in the spectrograms: the faint broadband noise burst at the start of some real calls, and the fine irregularity of each harmonic line.
+
+## Version 4: colonies measured against real colony and flock recordings
+
+Compared with recordings of herring-gull colonies and flocks from Britain (Xeno-canto 599932, 599934, 1086854, 861758, 486846, 400551; a 20 ms
+envelope of the 0.8 to 6 kHz band, call frames being those within the top 65% of the level range):
+- A real colony is a bed of overlapping calls, not separate calls: 90 to 220 call onsets a minute, about half to three quarters of the time inside a call,
+  the level moving by only 4 to 10 dB (standard deviation). Ours was 48 onsets a minute and 17 dB, so every call stood out from silence. A nesting hall now
+  starts episodes 3.2 times as often (about 110 to 170 onsets a minute, 5 to 8 dB), which falls in the measured range.
+- The long call's notes were an even tick; in the recordings the laugh slows as it goes and is uneven, so the gaps now stretch by about half over the run, with jitter.
+- The begging call's pitch track had failed (octave jumps, played as a steep sweep through the whole range and sounding nothing like a gull). The recordings show an arch:
+  up to about 4.9 kHz, level for a third of a second, then down to about 2.1 kHz. `scripts/birds/overrides.py` holds that correction with its evidence.
+Still different: real calls have a rougher onset and a wobble in pitch from call to call; ours hold steadier lines. That wants more recordings of single calls.

@@ -805,7 +805,8 @@ export class AudioEngine {
       // roosting birds are asleep: the owl is the one voice, and it calls one time in eight
       if (a.birds.mode === 'roosting' && Math.random() > 0.125) { this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6); } else
       this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, FLYING_MODES.has(a.birds.mode) ? 'fly' : undefined, a.birds.mode);
-      this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6);
+      // a breeding colony is a continuous bed of overlapping voices (measured on colony recordings: 90 to 220 call onsets a minute, the level moving only a few decibels)
+      this.nextBird = t + (60 / (a.birds.perMinute * (a.birds.mode === 'nesting' ? 3.2 : 1))) * rand(0.5, 1.6);
     }
   }
 

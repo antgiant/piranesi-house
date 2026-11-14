@@ -34,5 +34,6 @@ for name, spec in SPECS.items():
 if len(sys.argv) > 2:
     os.makedirs(sys.argv[2], exist_ok=True)
     for k, v in out.items(): json.dump(v, open(f'{sys.argv[2]}/{k}.json', 'w'))
-json.dump(out, open(os.path.join(os.path.dirname(__file__), 'templates.json'), 'w'), indent=1)
+import overrides
+json.dump(overrides.apply(out), open(os.path.join(os.path.dirname(__file__), 'templates.json'), 'w'), indent=1)
 print('wrote', os.path.join(os.path.dirname(__file__), 'templates.json'))

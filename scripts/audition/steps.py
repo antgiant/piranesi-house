@@ -30,6 +30,15 @@ for name in sys.argv[2:]:
     if rows:
         r = np.array(rows); q = lambda c: np.percentile(r[:, c], [10, 50, 90]).round(0).astype(int).tolist()
         print(f'   per step: rise-to-peak ms {q(0)}, fall by 20 dB ms {q(1)}, centroid Hz {q(2)}, strongest Hz {q(3)}, flatness {np.median(r[:,4]):.2f} (1 = noise, 0 = a tone)')
+    # the average spectrum of the first 60 ms of each event (what one footfall sounds like, with the room and floor noise left out)
+    if len(pk) > 2:
+        oc = [62, 125, 250, 500, 1000, 2000, 4000, 8000]; acc = []
+        for p in pk:
+            seg = m[max(0, p * n - int(sr * 0.004)): p * n + int(sr * 0.06)]
+            if len(seg) < 1024: continue
+            f0, P0 = signal.welch(seg, sr, nperseg=1024, noverlap=768)
+            acc.append([P0[(f0 >= c / 2 ** .5) & (f0 < c * 2 ** .5)].sum() for c in oc])
+        a_ = 10 * np.log10(np.median(np.array(acc), axis=0) + 1e-20); print('   one footfall, octave dB rel 1 kHz:', [round(float(v - a_[4]), 1) for v in a_])
     f, P = signal.welch(m, sr, nperseg=16384); cent = [62, 125, 250, 500, 1000, 2000, 4000, 8000]
     lv = [10 * np.log10(P[(f >= c / 2 ** .5) & (f < c * 2 ** .5)].sum() + 1e-20) for c in cent]
     print('   whole file, octave dB rel 1 kHz:', [round(v - lv[4], 1) for v in lv], '; centroid', int((f * P).sum() / P.sum()), 'Hz')

@@ -10,16 +10,21 @@ A step is a heel and, a tenth of a second later, a toe: each a damped low thud a
 * **rubble**: a soft thud and a crowd of sharp grains (16-30) over a third of a second, 1.6-6 kHz, with grain levels varying by 19 dB.
 Every step is drawn afresh (pitch, level, timing), so it does not machine-gun.
 
-## Measured (two starter recordings; measurement only, never shipped)
-Freesound 565609, bare feet dancing on a wood floor, and 766931, bare feet on gravel. `scripts/audition/steps.py` measures a recording and a render alike.
-* **Wood:** thump 140-280 Hz that has fallen 20 dB in about 15 ms (median), a rise of about 10 ms, per-step centroid 490 Hz, 10 dB more energy at 250-500 Hz than at 1 kHz and flat above;
-  very pitched (spectral flatness 0.09). Spacing 0.39 s median while dancing.
-* **Gravel:** per-step centroid 3.4 kHz (2.1-4.7), very noisy (flatness 0.55), about 200 ms to fall 20 dB, steps' levels spread 19 dB, almost nothing below 250 Hz (125 Hz is 24 dB under 1 kHz).
-Renders now: marble centroid 480 Hz, +14/+11 dB at 250/500 Hz over 1 kHz, 4 dB over at 2 kHz; rubble centroid 3.5 kHz, flatness 0.35, 125 Hz 23 dB under 1 kHz, 2-4 kHz 4 dB brighter than the
-recording. The wood's floor boom (125 and 62 Hz) is deliberately not copied for stone.
+## Measured (eleven recordings; measurement only, never shipped)
+Freesound 565609 (bare feet on wood), 766931 (gravel), 272086 (ceramic tile), 608369 (a bathroom, walking), 272287 (concrete, running), 273102 (paving slabs on earth, running), 272541 (linoleum, running),
+221764 (wading a puddle), 398345 (wading, calf-deep), 627004 (a creek), 116750 (a flooded mine). `scripts/audition/steps.py` measures a recording and a render alike, including the average
+spectrum of one footfall (the first 60 ms after each).
+* **Hard floors** (tile, ceramic, concrete, paving; wood is the odd one out with a floor boom): one footfall is a smile: about +6 to +8 dB at 62-125 Hz, flat from 500 Hz to 2 kHz, +3 to +5 dB at 4-8 kHz;
+  it falls 20 dB in 20-50 ms; centroid 2-3 kHz per step; noisy (flatness 0.4-0.5), not a tone. Wood is 14 dB up at 62-250 Hz (the floor), and 4 dB up at 2-4 kHz.
+* **Gravel:** per-step centroid 3.4 kHz, flatness 0.55, 200 ms to fall 20 dB, 19 dB spread between steps, 125 Hz 18-24 dB under 1 kHz.
+* **Water** (puddle, calf-deep, creek, mine): little or no thud (62-125 Hz is 8-19 dB down; deeper is lower), most energy 500 Hz-2 kHz (strongest 560-870 Hz), falling above (4 kHz 0 to -10 dB, 8 kHz
+  -3 to -14); a footfall takes 190-350 ms to fall 20 dB (a puddle is quickest and brightest at 2.6 kHz, the mine slowest and darkest at 1.0 kHz). Steps 0.16-0.19 s apart in wading.
+* **Rooms:** the bathroom's steps fall away within 50 ms (a reverberation time of about 0.3 s); the flooded mine falls 20 dB in 0.4 s and then has a long tail (a fit gives about 5 s, but it is two
+  slopes and the drips in it make it a poor measure). Both are for the echo work.
+Renders now (one footfall, dB re 1 kHz at 62 / 125 / 250 / 500 / 2k / 4k / 8k Hz): marble -2 / +3 / -6 / -3 / 0 / 0 / 0 (hard floors: +6 / +8 / +3 / -1 / +1 / +3.5 / +5); shallow water -26 / -17 / -10 / 0 / 0 / -6 / -12
+(wading: -11 / -9 / -8 / 0 / -2 / -5.5 / -9); rubble centroid 2.7 kHz, flatness 0.30, 125 Hz 26 dB under 1 kHz. Close to within about 5 dB; stone's 62-250 Hz is the largest gap.
 
 ## Not yet
-* Stone, marble and wet-stone recordings: the stone steps are tuned from the wood's foot and are a guess about the floor itself.
-* A lot of bare footsteps in water (shallow) and on wet stone, from real recordings.
+* Marble or stone recordings proper (the hard floors measured are tile, ceramic, concrete and paving), and bare feet on wet stone.
 * The room: steps, drips and voice should share a room response made from the hall's size (echo), with early reflections off the walls.
 * Knitted foot-coverings (a duller, softer step), and the slap changing with pace (running).

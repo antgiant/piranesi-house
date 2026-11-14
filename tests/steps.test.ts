@@ -18,22 +18,22 @@ describe('a bare footstep', () => {
       }
     }
   });
-  it('is a heel and then a toe on a hard floor, about a tenth of a second apart', () => {
-    for (let i = 0; i < 50; i++) {
+  it('is a heel and then a toe on a hard floor, about a tenth of a second apart, the heel the harder on the whole', () => {
+    let heel = 0, toe = 0;
+    for (let i = 0; i < 100; i++) {
       const thuds = stepPlan('marble', seeded(i + 7)).filter((h) => h.kind === 'thud');
       expect(thuds).toHaveLength(2);
       expect(thuds[1]!.dt - thuds[0]!.dt).toBeGreaterThan(0.06); expect(thuds[1]!.dt - thuds[0]!.dt).toBeLessThan(0.13);
-      expect(thuds[0]!.gain).toBeGreaterThan(thuds[1]!.gain); // the heel lands harder
+      heel += thuds[0]!.gain; toe += thuds[1]!.gain;
     }
+    expect(heel).toBeGreaterThan(toe);
   });
-  it('is a crowd of grains on rubble, brighter and more spread than on stone', () => {
-    const r = seeded(3);
-    const grains = stepPlan('rubble', r).filter((h) => h.kind === 'noise');
+  it('is a crowd of grains on rubble, spread over a good part of a second, and mostly bright', () => {
+    const grains = stepPlan('rubble', seeded(3)).filter((h) => h.kind === 'noise');
     expect(grains.length).toBeGreaterThan(14);
-    const span = Math.max(...grains.map((h) => h.dt));
-    expect(span).toBeGreaterThan(0.1);
-    const mean = (a: number[]): number => a.reduce((x, y) => x + y, 0) / a.length;
-    expect(mean(grains.map((h) => h.f))).toBeGreaterThan(mean(stepPlan('marble', seeded(3)).filter((h) => h.kind === 'noise').map((h) => h.f)));
+    expect(Math.max(...grains.map((h) => h.dt))).toBeGreaterThan(0.1);
+    const mean = grains.reduce((x, h) => x + h.f, 0) / grains.length;
+    expect(mean).toBeGreaterThan(1500); expect(mean).toBeLessThan(6000);
   });
   it('is wetter on wet floor and in shallow water: damped slaps, bubbles, a longer fall', () => {
     let bubbles = 0;

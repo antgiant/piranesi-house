@@ -22,49 +22,56 @@ export interface Hit {
   q?: number;
 }
 
+/** The level of a foot on a hard floor, so that a step on stone is as present as one in water or on gravel (their sounds are spread over more time, so carry more energy for the same peak). */
+const LOUD = 3;
 const between = (r: Rng, lo: number, hi: number): number => lo + r() * (hi - lo);
 const logBetween = (r: Rng, lo: number, hi: number): number => lo * Math.pow(hi / lo, r());
 /** A level that varies from step to step: about ±spread/2 dB, as a gain. */
 const wobble = (r: Rng, spreadDb: number): number => Math.pow(10, (r() - 0.5) * spreadDb / 20);
 
-/** A heel and then a toe, as a person walks: the heel lands harder and lower, the toe lighter and brighter, about a tenth of a second behind. */
-function foot(r: Rng, o: { thud: [number, number]; thudGain: number; slapHz: [number, number]; slapGain: number; slapTau: number; toeAfter: [number, number] }): Hit[] {
-  const heel = wobble(r, 8), toe = wobble(r, 8) * 0.55;
+/**
+ * A heel and then a toe, as a person walks: the heel lands harder and lower, the toe lighter and brighter, about a tenth of a second behind. Each is a low thud
+ * (the foot itself), a mid slap (the sole) and a brief bright patter of skin; on the hard floors measured (tile, ceramic, concrete, paving) one footfall is
+ * about 6-8 dB up at 62-125 Hz, flat through the middle, and 3-5 dB up at 4-8 kHz.
+ */
+function foot(r: Rng, o: { thud: [number, number]; thudGain: number; slapHz: [number, number]; slapGain: number; slapTau: number; skinGain: number; toeAfter: [number, number] }): Hit[] {
+  const heel = wobble(r, 8) * LOUD, toe = wobble(r, 8) * 0.55 * LOUD;
   const f = logBetween(r, o.thud[0], o.thud[1]);
-  return [
-    { dt: 0, kind: 'thud', f, tau: between(r, 0.007, 0.012), gain: o.thudGain * heel },
-    { dt: 0, kind: 'noise', f: logBetween(r, o.slapHz[0], o.slapHz[1]), tau: o.slapTau, gain: o.slapGain * heel, q: 0.8 },
-    ...(() => { const d = between(r, o.toeAfter[0], o.toeAfter[1]); return [
-      { dt: d, kind: 'thud' as const, f: f * 1.25, tau: between(r, 0.005, 0.009), gain: o.thudGain * toe * 0.7 },
-      { dt: d, kind: 'noise' as const, f: logBetween(r, o.slapHz[0], o.slapHz[1]) * 1.15, tau: o.slapTau * 0.8, gain: o.slapGain * toe, q: 0.8 },
-    ]; })(),
+  const d = between(r, o.toeAfter[0], o.toeAfter[1]);
+  const one = (dt: number, k: number, fk: number): Hit[] => [
+    { dt, kind: 'thud', f: f * fk, tau: between(r, 0.008, 0.013), gain: o.thudGain * k },
+    { dt, kind: 'noise', f: logBetween(r, o.slapHz[0], o.slapHz[1]) * fk, tau: o.slapTau, gain: o.slapGain * k, q: 0.6 },
+    { dt, kind: 'noise', f: logBetween(r, 4500, 9000), tau: 0.004, gain: o.skinGain * k, q: 0.5 },
+    { dt, kind: 'noise', f: logBetween(r, 220, 560), tau: 0.012, gain: o.slapGain * 0.7 * k, q: 0.5 }, // the body of the foot, below the slap
   ];
+  return [...one(0, heel, 1), ...one(d, toe, 1.15)];
 }
 
 export function stepPlan(surface: Surface, r: Rng = Math.random): Hit[] {
   switch (surface) {
-    case 'marble': // dry stone: no give, so a firm thud and a clear slap; the room does the rest
-      return foot(r, { thud: [230, 460], thudGain: 0.1, slapHz: [1300, 3600], slapGain: 0.24, slapTau: 0.006, toeAfter: [0.07, 0.12] });
-    case 'wet': { // a film of water: the slap is damped and duller, and the skin leaves a small wet sound and a bubble or two
-      const hits = foot(r, { thud: [170, 340], thudGain: 0.13, slapHz: [800, 2300], slapGain: 0.22, slapTau: 0.011, toeAfter: [0.07, 0.12] });
+    case 'marble': // dry stone: no give, so a firm low thud, a clear slap and a brief patter of skin; the room does the rest
+      return foot(r, { thud: [60, 120], thudGain: 0.02, slapHz: [350, 3200], slapGain: 0.17, slapTau: 0.006, skinGain: 0.26, toeAfter: [0.07, 0.12] });
+    case 'wet': { // a film of water: the slap is damped and dull and lasts longer, the skin patter is gone, and the foot leaves a small wet sound and a bubble or two
+      const hits = foot(r, { thud: [90, 190], thudGain: 0.016, slapHz: [900, 2200], slapGain: 0.16, slapTau: 0.012, skinGain: 0.04, toeAfter: [0.07, 0.12] });
       hits.push({ dt: between(r, 0.01, 0.03), kind: 'noise', f: logBetween(r, 2200, 4200), tau: between(r, 0.03, 0.06), gain: 0.07 * wobble(r, 10), q: 0.6 });
       for (let i = 0, n = r() < 0.55 ? 1 + Math.floor(r() * 2) : 0; i < n; i++) hits.push({ dt: between(r, 0.02, 0.14), kind: 'bubble', f: logBetween(r, 900, 3200), tau: 0.012, gain: 0.05 * wobble(r, 10) });
       return hits;
     }
-    case 'shallow': { // water over the foot: a splash, longer and wetter, and bubbles
+    case 'shallow': { // water over the foot (measured wading through puddles and creeks): no thud to speak of, a broad splash that peaks near 1 kHz and falls for a fifth of a second or more, and bubbles
       const hits: Hit[] = [
-        { dt: 0, kind: 'thud', f: between(r, 100, 200), tau: between(r, 0.02, 0.035), gain: 0.2 * wobble(r, 8) },
-        { dt: 0, kind: 'noise', f: logBetween(r, 500, 1000), tau: between(r, 0.06, 0.1), gain: 0.28 * wobble(r, 8), q: 0.5 },
-        { dt: 0.01, kind: 'noise', f: logBetween(r, 2000, 4200), tau: between(r, 0.08, 0.16), gain: 0.14 * wobble(r, 10), q: 0.5 },
+        { dt: 0, kind: 'noise', f: logBetween(r, 600, 1300), tau: between(r, 0.11, 0.19), gain: 0.3 * wobble(r, 10), q: 0.5 },
+        { dt: 0, kind: 'noise', f: logBetween(r, 1800, 4200), tau: between(r, 0.07, 0.14), gain: 0.17 * wobble(r, 12), q: 0.5 },
+        { dt: between(r, 0.03, 0.09), kind: 'noise', f: logBetween(r, 500, 1000), tau: between(r, 0.08, 0.14), gain: 0.14 * wobble(r, 12), q: 0.5 }, // the water falling back
       ];
-      for (let i = 0, n = 2 + Math.floor(r() * 4); i < n; i++) hits.push({ dt: between(r, 0.01, 0.22), kind: 'bubble', f: logBetween(r, 700, 3400), tau: between(r, 0.01, 0.02), gain: 0.07 * wobble(r, 12) });
+      hits.push({ dt: 0.005, kind: 'noise', f: logBetween(r, 180, 420), tau: between(r, 0.06, 0.11), gain: 0.14 * wobble(r, 10), q: 0.5 }); // the low slosh of the water moving aside
+      for (let i = 0, n = 3 + Math.floor(r() * 5); i < n; i++) hits.push({ dt: between(r, 0.01, 0.3), kind: 'bubble', f: logBetween(r, 500, 3400), tau: between(r, 0.01, 0.025), gain: 0.07 * wobble(r, 12) });
       return hits;
     }
     case 'rubble': { // loose stones: a soft thud (the stones give), and a crowd of grains over about a fifth of a second, from sharp to dull
       const hits: Hit[] = [{ dt: 0, kind: 'thud', f: between(r, 220, 380), tau: 0.009, gain: 0.012 * wobble(r, 8) }];
       for (let i = 0, n = 16 + Math.floor(r() * 14); i < n; i++) {
         const u = Math.pow(r(), 1.5); // grains crowd at the start and thin out
-        hits.push({ dt: u * 0.34, kind: 'noise', f: logBetween(r, 1600, 6000), tau: between(r, 0.008, 0.024), gain: 0.28 * wobble(r, 19) * (1 - 0.5 * u), q: between(r, 1.2, 3) });
+        hits.push({ dt: u * 0.34, kind: 'noise', f: logBetween(r, 900, 5000), tau: between(r, 0.008, 0.024), gain: 0.28 * wobble(r, 19) * (1 - 0.5 * u), q: between(r, 0.9, 2) });
       }
       return hits;
     }

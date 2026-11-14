@@ -93,3 +93,12 @@ Known gaps (the next work, and where the owner's ears or recordings are needed):
   instead of being held. The pitch contour of a falling call was also smeared at its start (the tracker settling): fixed, so the gull's mew now starts at its true 1.5 kHz and falls to 1.1 kHz without a swoop.
 * **Albatross:** the book has one pair and a chick; the many mentions are of them. The extra albatross nests are taken out; only the Forty-Third Vestibule has them.
 * **The owl:** the roosting birds are asleep (no sound); the owl is the only voice and calls one time in eight.
+
+## Version 3 (the gull was wrong)
+The owner knows the herring gull as the seaside gull, and the first synthetic gull was nothing like it. Compared with the real calls in detail (a spectrogram at 5 ms, and measured):
+* **Too clean:** the real voice has a harmonic-to-valley ratio of 24-46 dB (median 34; it is a rough, breathy voice); the synthetic one was 58-77 dB, an organ tone. Each template now has the measured `hnr`
+  (gull mew 37 dB, the laughing notes 25, the rook 12, the sparrow's chirp 25, the buzzard 30) and the call's noise is scaled, per call, until a measurement of that very call gives it (the peaks from the tone, the valleys from the noise).
+  The synthetic mew then measures 35-37 dB.
+* **Smeared contour:** a real mew rises quickly (about 1.25 to 1.55 kHz in 40 ms), peaks, then glides down to 1.1 kHz; the median of calls had smeared the apex. Calls are now aligned on their apex before the median is taken
+  (the rise and the fall each stretched to a fixed length; `apex`), so the sharp peak is kept.
+Not yet done and visible in the spectrograms: the faint broadband noise burst at the start of some real calls, and the fine irregularity of each harmonic line.

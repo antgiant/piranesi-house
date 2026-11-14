@@ -9,6 +9,10 @@ export interface CallTemplate {
   /** Median duration in seconds, and its 10th and 90th percentile. */
   dur: number;
   durRange: [number, number];
+  /** Where in the call the pitch peaks (0..1): the contour's fifth point is the apex, and the points before and after are spread across the time before and after it. */
+  apex?: number;
+  /** How clean the voice is, in dB: the harmonics' peaks above the valleys between them (a real gull about 34; a pure tone 70). The noise is never lower than this below the harmonics. */
+  hnr?: number;
   /** The fundamental in Hz, 12 points across the call. */
   f0: number[];
   /** Spread (natural-log standard deviation) of the call's overall pitch from call to call. */
@@ -67,7 +71,8 @@ function shapedNoise(sr: number, n: number, tpl: CallTemplate, rng: Rng, pitchSc
   const re = new Float64Array(m), im = new Float64Array(m);
   for (let k = 1; k < m / 2; k++) {
     const hz = (k * sr) / m;
-    const g = Math.pow(10, levelAt(tpl.N, tpl.bands, hz / pitchScale) / 20) * Math.sqrt(1 / Math.max(1, hz)); // a flat third-octave level per band means a falling density per hertz
+    const dbN = Math.max(levelAt(tpl.N, tpl.bands, hz / pitchScale), tpl.hnr ? levelAt(tpl.H, tpl.bands, hz / pitchScale) - tpl.hnr : -90);
+    const g = Math.pow(10, dbN / 20) * Math.sqrt(1 / Math.max(1, hz)); // a flat third-octave level per band means a falling density per hertz
     const ph = rng() * 2 * Math.PI;
     re[k] = g * Math.cos(ph); im[k] = g * Math.sin(ph); re[m - k] = re[k]!; im[m - k] = -im[k]!;
   }
@@ -75,6 +80,30 @@ function shapedNoise(sr: number, n: number, tpl: CallTemplate, rng: Rng, pitchSc
   const out = new Float32Array(n);
   for (let i = 0; i < n; i++) out[i] = re[i]!;
   return out;
+}
+
+/** The noise gain that gives a call the wanted harmonic-to-valley ratio: the call is measured with the noise at one, as the measurement of the real calls was made (a 1024-sample Hann window in the middle of the call, harmonics against the midpoints between them), and the noise scaled by the difference. */
+function noiseForHnr(sr: number, tone: Float32Array, noise: Float32Array, f0s: Float32Array, env: Float32Array, target: number): number {
+  const n = tone.length, W = 1024, c = Math.max(0, Math.min(n - W, (n >> 1) - (W >> 1)));
+  const f0 = f0s[n >> 1]!; if (!(f0 > 0)) return 0.5;
+  const spectrum = (x: Float32Array): ((hz: number) => number) => {
+    const re = new Float64Array(W), im = new Float64Array(W);
+    for (let i = 0; i < W; i++) re[i] = x[c + i]! * env[c + i]! * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (W - 1)));
+    fft(re, im, false);
+    return (hz: number): number => { const b = Math.round((hz * W) / sr); return re[b]! * re[b]! + im[b]! * im[b]!; };
+  };
+  // the peaks from the tonal part alone and the valleys from the noise alone: the glide of the tone smears its own valleys (the real calls' valleys are the bird's noise), so they must not be mixed
+  const tp = spectrum(tone), np_ = spectrum(noise);
+  const peaks: number[] = [], valleys: number[] = [];
+  for (let h = 1; h <= 8; h++) {
+    if (h * f0 > Math.min(sr * 0.4, 9000)) break;
+    let pk = 0; for (let d = -0.03; d <= 0.0301; d += 0.01) pk = Math.max(pk, tp(h * f0 * (1 + d)));
+    const vs: number[] = []; for (let d = 0.4; d <= 0.601; d += 0.05) vs.push(np_((h + d) * f0)); vs.sort((a, b) => a - b);
+    peaks.push(10 * Math.log10(pk + 1e-20)); valleys.push(10 * Math.log10((vs[vs.length >> 1] ?? 0) + 1e-20));
+  }
+  if (!peaks.length) return 0.5;
+  const have = peaks.reduce((a, b, i) => a + b - valleys[i]!, 0) / peaks.length; // dB, with the noise at one
+  return Math.pow(10, (have - target) / 20); // a cleaner call needs less noise, a noisier more
 }
 
 /** A sharp sound: a broadband impulse (a fraction of a millisecond, to the top of the spectrum) that sets the cavity ringing at its resonances, which die within a few milliseconds. */
@@ -102,17 +131,21 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
   const scale = (opts.pitch ?? 1) * Math.exp(Math.min(2, Math.max(-2, gauss(rng))) * tpl.f0Spread);
   // a slow wobble of the contour, different for each call
   const w1 = (rng() - 0.5) * 0.08, w2 = (rng() - 0.5) * 0.06, ph = rng() * 6.28;
-  const out = new Float32Array(n);
+  const tone = new Float32Array(n), env = new Float32Array(n), f0s = new Float32Array(n);
   const hasTone = Math.max(...tpl.H) > -60;
   const phases = new Float64Array(40);
   const amPhase = rng() * 6.28;
   const noise = shapedNoise(sr, n, tpl, rng, scale);
   let phi = 0;
   for (let i = 0; i < n; i++) {
-    const u = i / (n - 1);
+    const ul = i / (n - 1);
+    // time on the contour's own axis: its fifth point of twelve is the apex (4/11 of the way along)
+    const ap = Math.min(0.9, Math.max(0.05, tpl.apex ?? 4 / 11)), u = ul < ap ? (4 / 11) * (ul / ap) : 4 / 11 + (7 / 11) * ((ul - ap) / (1 - ap));
     const f0 = interp(tpl.f0, u) * scale * (1 + w1 * Math.sin(ph + 9 * u) + w2 * (u - 0.5));
-    let env = Math.pow(10, interp(tpl.env, u) / 20);
-    if (tpl.am) env *= 1 - tpl.am[1] * 0.5 * (1 - Math.cos(2 * Math.PI * tpl.am[0] * (i / sr) + amPhase));
+    f0s[i] = f0;
+    let e = Math.pow(10, interp(tpl.env, u) / 20);
+    if (tpl.am) e *= 1 - tpl.am[1] * 0.5 * (1 - Math.cos(2 * Math.PI * tpl.am[0] * (i / sr) + amPhase));
+    env[i] = e;
     let s = 0;
     if (hasTone && f0 > 0) {
       phi += (2 * Math.PI * f0) / sr;
@@ -123,8 +156,13 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
         s += Math.pow(10, db / 20) * Math.sin(k * phi + phases[k - 1]!);
       }
     }
-    out[i] = (s + noise[i]! * 0.5) * env;
+    tone[i] = s;
   }
+  // the noise level: whatever makes the voice as clean as the measured one (peaks over valleys, `hnr`), found by measuring this very call
+  let kNoise = 0.5;
+  if (hasTone && tpl.hnr && n >= 1024) kNoise = noiseForHnr(sr, tone, noise, f0s, env, tpl.hnr);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = (tone[i]! + noise[i]! * kNoise) * env[i]!;
   // a short fade at each end so nothing clicks, then normalise
   const fade = Math.min(n >> 2, Math.floor(0.004 * sr));
   let peak = 0;

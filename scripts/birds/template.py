@@ -83,12 +83,28 @@ def analyse(item, fmin, fmax, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25):
                 if Nn[bi] < bgdb[bi] + 4: Nn[bi] = -160.0
                 else: Nn[bi] = 10 * np.log10(max(10 ** (Nn[bi] / 10) - 10 ** (bgdb[bi] / 10), 1e-16))  # the call's own noise: the background taken away
         Ht, Nt = Hh, Nn
+        # how clean the voice is: the harmonics' peaks against the valleys between them, in the middle of the call (a real gull is only about 34 dB clean; a pure synthetic tone is 70)
+        mid = frames[:, len(seg) // 2]; f_mid = seg[len(seg) // 2]; pkv = []; vav = []
+        for h in range(1, 9):
+            c0 = h * f_mid
+            if c0 > min(sr / 2 * 0.8, 9000): break
+            vsel = (f > (h + 0.4) * f_mid) & (f < (h + 0.6) * f_mid)
+            pkv.append(10 * np.log10(mid[(f > c0 * 0.97) & (f < c0 * 1.03)].max() + 1e-20))
+            vav.append(10 * np.log10(max(np.median(mid[vsel]) - np.median(bg[vsel]), 10 ** (pkv[-1] / 10 - 6.0)) + 1e-20))  # the valley with the recording's own background taken away; never deeper than 60 dB
+        hnr = float(np.mean(np.array(pkv) - np.array(vav))) if pkv else 40.0
         # a failed pitch track sits on the edge of the range: leave such calls out
         edge = np.mean((seg < fmin * 1.04) | (seg > fmax * 0.96))
         if edge > edgeok: continue
-        x_ = np.linspace(0, 1, len(seg)); xs = np.linspace(0, 1, NPT)
         if not (dmin <= (b - a) * 0.005 <= dmax): continue
-        calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': np.interp(xs, x_, seg), 'env': np.interp(xs, x_, np.maximum(env, -50)), 'H': Ht, 'N': Nt, 'a': a * 0.005})
+        # align the calls on their apex (the highest point of the pitch): the rise into it and the fall from it are each stretched to fixed lengths, so that the median keeps the sharp
+        # peak that real calls have instead of smearing it (the gull's 'kyow' rises fast and then glides down)
+        sm = np.convolve(np.pad(seg, 2, mode='edge'), np.ones(5) / 5, mode='valid'); ap = int(np.argmax(sm)); ap = min(max(ap, 0), len(seg) - 1)
+        rise_n, fall_n = 4, NPT - 5
+        def warp(v):
+            up = np.interp(np.linspace(0, ap, rise_n, endpoint=False), np.arange(len(v)), v) if ap > 0 else np.full(rise_n, v[0])
+            dn = np.interp(np.linspace(ap, len(v) - 1, fall_n + 1), np.arange(len(v)), v)
+            return np.concatenate([up, dn])
+        calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': warp(seg), 'env': warp(np.maximum(env, -50)), 'apex': ap / max(1, len(seg) - 1), 'hnr': hnr, 'H': Ht, 'N': Nt, 'a': a * 0.005})
     return calls
 
 def build_click(name, items, lo=2500.0, hi=12000.0):
@@ -160,14 +176,9 @@ def build(name, fmin, fmax, items, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25)
             else: bouts.append(run); run = 1
         bouts.append(run)
     tpl = {'name': name, 'n': len(calls), 'dur': float(np.median([c['dur'] for c in calls])), 'durRange': [float(np.percentile([c['dur'] for c in calls], 10)), float(np.percentile([c['dur'] for c in calls], 90))],
-           'f0': [round(float(v)) for v in med('f0')], 'f0Spread': float(np.std(np.log([np.median(c['f0']) for c in calls]))), 'env': [round(float(v), 1) for v in med('env')],
+           'apex': round(float(np.median([c['apex'] for c in calls])), 3), 'hnr': round(float(np.median([c['hnr'] for c in calls])), 1), 'f0': [round(float(v)) for v in med('f0')], 'f0Spread': float(np.std(np.log([np.median(c['f0']) for c in calls]))), 'env': [round(float(v), 1) for v in med('env')],
            'bands': BANDS, 'H': [round(float(v - ref), 1) for v in H], 'N': [round(float(v - ref), 1) for v in N],
            'gap': [round(float(np.percentile(gaps, q)), 2) for q in (10, 50, 90)] if len(gaps) >= 3 else None, 'bout': [int(np.percentile(bouts, q)) for q in (10, 50, 90)] if bouts else None}
-    # the start of a call: leave out the frames before the voice is really on (the pitch there is the tracker's, not the bird's)
-    f0 = tpl['f0']
-    if int(np.argmax(f0)) <= 3:  # a call that peaks at its start (a falling one): the rise into it is the tracker settling, not the bird
-        top = max(f0[:5]); i = next((k for k, v in enumerate(f0) if v >= 0.92 * top), 0)
-        for k in range(i): f0[k] = f0[i]
     return tpl
 
 if __name__ == '__main__':

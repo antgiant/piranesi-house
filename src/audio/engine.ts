@@ -10,6 +10,7 @@ import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
 import { Stream } from './stream';
 import { Wind } from './wind';
+import { stepPlan, type Hit } from './steps';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
 import { waterBuffer } from './buffers';
@@ -1030,6 +1031,13 @@ export class AudioEngine {
     }
   }
 
+  /** One sound of a footstep (see steps.ts): a damped note, a burst of filtered noise, or a small bubble. */
+  private playHit(t: number, h: Hit, at: Place): void {
+    if (h.kind === 'noise') this.burst(t, h.tau * 7.5, 'bandpass', h.f, h.q ?? 1, h.gain, at, 0.001);
+    else if (h.kind === 'thud') this.tone(t, h.f, h.f * 0.7, h.tau * 7.5, 'sine', h.gain, at, 0.002);
+    else this.tone(t, h.f, h.f * 1.4, h.tau * 6, 'sine', h.gain, at, 0.001);
+  }
+
   /** One footstep on a surface. Called when the visitor moves. */
   footstep(surface: Surface): void {
     const ctx = this.ctx;
@@ -1037,11 +1045,6 @@ export class AudioEngine {
     if (!this.usable()) return;
     const t = ctx.currentTime + 0.01;
     const f = FEET; // under you and a little ahead: the floor, not the middle of your head
-    switch (surface) {
-      case 'marble': this.burst(t, 0.07, 'bandpass', 1500, 1.2, 0.35, f); this.tone(t, 160, 90, 0.08, 'sine', 0.2, f); break;
-      case 'wet': this.burst(t, 0.12, 'bandpass', 900, 0.9, 0.35, f); this.burst(t + 0.02, 0.18, 'highpass', 3000, 0.5, 0.15, f); break;
-      case 'shallow': this.burst(t, 0.35, 'bandpass', 600, 0.6, 0.5, f); this.burst(t + 0.05, 0.3, 'highpass', 2500, 0.5, 0.25, f); break;
-      case 'rubble': for (let i = 0; i < 5; i++) this.burst(t + i * 0.025, 0.05, 'bandpass', rand(900, 3000), 1.5, 0.28, f); break;
-    }
+    for (const h of stepPlan(surface)) this.playHit(t + h.dt, h, f);
   }
 }

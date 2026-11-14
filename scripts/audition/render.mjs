@@ -4,6 +4,7 @@
 //   node scripts/audition/render.mjs <outdir> <name> <seaGain> <lowpassHz> <swellSec> <reverbWet> <secs> [solo] [sceneJson]
 //
 //   solo       comma list of sea layers to keep (sub,body,roar,hiss,crack); others are silenced. Empty for all.
+//              "_steps":{"surface":"marble|wet|shallow|rubble","n":20,"gap":0.5} adds that many bare footsteps from 1 s on.
 //   sceneJson  overrides merged into the AudioScene, e.g. '{"rain":{"gain":0.6,"onWater":1}}'; add "_patterOnly":1 to hear only the rain on water.
 
 import { createRequire } from 'node:module';
@@ -31,13 +32,15 @@ const r = await page.evaluate(async ([gain, low, swell, wet, secs, solo, extra])
   window.AudioContext = class extends OAC { constructor() { super(2, SR * secs, SR); this.__t = 0; Object.defineProperty(this, 'currentTime', { get: () => this.__t }); Object.defineProperty(this, 'state', { get: () => 'running' }); } resume() { return Promise.resolve(); } };
   const e = new window.AudioEngine();
   const base = { reverb: { decaySec: 4, wet, dampHz: 6000 }, sea: { gain, lowpassHz: low, swellSec: swell }, tide: { kind: 'none', gain: 0, character: null, strikeEverySec: 12 }, falls: { gain: 0, amount: 0, near: 1, dist: 5 }, rain: { gain: 0, onWater: 0 }, wind: { gain: 0, whistle: 0 }, birds: { mode: 'none', perMinute: 0, loudness: 0.5, species: [], season: {} }, muffle: 0, hush: false, dark: false, surface: 'marble', space: 'large', thunder: 0, portals: [], beds: [], leaks: [], outside: null, stairs: { flow: 0, cause: null, bearing: 'ahead' }, water: { flow: 1, dripping: 1, overflow: 0, runoff: 0, streams: 0 } };
-  const ov = extra ? JSON.parse(extra) : {}; delete ov._patterOnly; delete ov._drips;
+  const ov = extra ? JSON.parse(extra) : {}; delete ov._patterOnly; delete ov._drips; delete ov._steps;
   e.setScene({ ...base, ...ov });
   await e.start();
   const ctx = e.ctx;
   const only = extra && JSON.parse(extra)._patterOnly;
   const dripsN = extra ? (JSON.parse(extra)._drips ?? 0) : 0; // N plain drips, 1.6 s apart, with the scene's reverb (to measure them)
   for (let i = 0; i < dripsN; i++) e.drip(1 + i * 1.6, 0.12);
+  const st = extra ? JSON.parse(extra)._steps : null; // {surface, n, gap}: n bare footsteps on a surface, gap seconds apart (a little uneven)
+  if (st) { let tt = 1; for (let i = 0; i < st.n; i++) { ctx.__t = tt; e.footstep(st.surface); tt += st.gap * (0.8 + Math.random() * 0.4); } ctx.__t = 0; }
   if (only) { e.rainGain.gain.cancelScheduledValues(0); e.rainGain.gain.setValueAtTime(0, 0); }
   if (solo && e.falls) { const keep = solo.split(','); for (const [k, g] of Object.entries(e.falls.layer)) if (!keep.includes(k)) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } if (!keep.includes('diffuse')) for (const g of e.falls.diffuse) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } }
   if (solo && e.stairs) { const keep = solo.split(','); for (const [k, g] of Object.entries(e.stairs.g)) { const grp = k === 'steps' || k === 'plops' || k === 'foam' ? 'steps' : 'shaft'; if (!keep.includes(grp) && !keep.includes(k)) { g.gain.cancelScheduledValues(0); g.gain.setValueAtTime(0, 0); } } }

@@ -340,7 +340,9 @@ standing in the same hall hear the same ambience.
 * Ground the whole natural world in the author's home region (Derbyshire and the English coast): weather (done), then plants and animals. The book's
   intent is read as: the House's life is that place's life, with animals now and then straying in through the portal and seeds blown or carried in.
   Anything the book says to the contrary wins.
-* Order of work: wind, then the sound of steps, then animal life (birds first); echo/reverb of the halls may come early or first.
+* Order of work (revised): wind (done), echo (done), a switch for each kind of sound (done), then **birds** (see design/birds.md), then more animals. Footsteps move later, with the walker's state:
+  the owner wants footsteps to carry weariness, unease and the rest of an emotional range, possibly different footwear, and a decision on barnacles (what walking on them sounds like); the first
+  recordings supplied were heavy stomping ones, which skewed the model, so the footstep work wants lighter, natural walking recordings and a state of the walker (tiredness, unease) in the game.
 
 ## Backlog
 

@@ -57,7 +57,7 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
       const n = Math.max(3, Math.min(14, Math.round(countOf(r, 'sparrowChirp', 1, 16) * between(r, 0.6, 1.2)))); // a sparrow chatters: never one call alone
       const notes: PlannedNote[] = []; let t = 0;
       for (let i = 0; i < n; i++) {
-        const tick = r() < 0.35;
+        const tick = false; // the modal-click 'tick' sounded like a water drop among the chirps, and is not used
         notes.push({ dt: t, call: tick ? 'sparrowTick' : 'sparrowChirp', pitch: bird * (tick ? 1 : between(r, 0.9, 1.1)), gain: tick ? 0.45 : 1 });
         t += gapOf(r, tick ? 'sparrowTick' : 'sparrowChirp');
       }
@@ -70,20 +70,26 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
     case 'buzzard': return series(r, 'buzzardMew', r() < 0.55 ? 1 : 2, (i) => 1 - i * 0.2, () => bird);
     case 'owl': return [{ dt: 0, call: 'owlScreech', pitch: bird, gain: 1 }];
     case 'albatross': {
-      // the greeting: the bill clapped in groups, then a whirr in the throat (the book's clacking and whirring). Measured on two recordings of clapping:
-      // two ways of clapping, mixed. Slow, a clap or two with a quarter of a second between; and a roll of ten to fifty claps about 25 ms apart. Pauses between
-      // groups run from 0.07 to 0.4 s and now and then a second or so: a rhythm that is never even, more like a message in code than a tick.
+      // the greeting: the bill clapped in a run, then (often) a whirr in the throat (the book's clacking and whirring). Measured on two recordings: single claps, 0.33 to 0.45 s apart
+      // (a run of seven to eleven), a slightly longer gap now and then (0.6 s), a pause of two seconds or more between runs. What is said is never the same twice: the tempo of the
+      // run, its length, where the longer gaps fall (they make the groups, a rhythm like code), the pauses between runs, and whether it ends in a whirr, all differ.
       const notes: PlannedNote[] = []; let t = 0;
-      const groups = Math.round(between(r, 4, 9));
-      for (let g = 0; g < groups; g++) {
-        const roll = r() < 0.22, size = roll ? Math.round(between(r, 9, 36)) : pick(r, [1, 2, 3, 4, 6] as const, [0.4, 0.3, 0.1, 0.12, 0.08]);
-        for (let i = 0; i < size; i++) {
-          notes.push({ dt: t, call: 'albatrossClap', pitch: between(r, 0.95, 1.05), gain: roll ? between(r, 0.5, 0.9) * (1 - 0.2 * (i / size)) : between(r, 0.8, 1) });
-          t += roll ? between(r, 0.02, 0.034) : between(r, 0.026, 0.045) * (size > 1 ? 1 : 0);
+      const runs = pick(r, [1, 2, 3] as const, [0.45, 0.4, 0.15]);
+      for (let k = 0; k < runs; k++) {
+        const tempo = between(r, 0.31, 0.5), n = Math.round(between(r, 3, 12));
+        // cut the run into groups of two to five by lengthening some gaps
+        let left = 0;
+        for (let i = 0; i < n; i++) {
+          notes.push({ dt: t, call: 'albatrossClap', pitch: between(r, 0.95, 1.05), gain: between(r, 0.6, 1) });
+          left--;
+          let gap = tempo * between(r, 0.85, 1.18);
+          if (left <= 0) { left = Math.round(between(r, 2, 5)); if (i < n - 1) gap *= between(r, 1.3, 2.0); }
+          if (r() < 0.07) gap = tempo * 0.35; // a quick pair
+          t += gap;
         }
-        t += r() < 0.12 ? between(r, 0.5, 1.1) : between(r, 0.07, 0.41);
+        t += k < runs - 1 ? between(r, 1.2, 3.0) : 0.3;
       }
-      if (ctx === 'greeting' || r() < 0.6) notes.push({ dt: t + 0.15, call: 'albatrossWhirr', pitch: bird, gain: 1 });
+      if (ctx === 'greeting' || r() < 0.5) notes.push({ dt: t, call: 'albatrossWhirr', pitch: bird, gain: 1 });
       return notes;
     }
   }

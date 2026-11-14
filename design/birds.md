@@ -127,3 +127,8 @@ A colony of fifty gulls all using one median call sounds like five. Each gull no
 1093406, 1093407, 1102859, 1157890, 1157891, 1193631, 284200, 528591, 744909, 798407, 896886, 990704, 483105, 804205: sixteen birds, from Britain, Ireland, France,
 the Netherlands and Sweden). They differ in pitch (950 to 1700 Hz), length (0.16 to 0.53 s), roughness (16 to 43 dB harmonic-to-valley) and spectrum.
 Each calling episode picks one of the sixteen (`GULL_VOICES`). Recordings are not kept, only the numbers.
+
+### The colony fills the cliff (version 6)
+A colony's birds are not all 4 to 14 m away: episodes in a nesting hall are now placed from 4 to 70 m (spread evenly in the logarithm of the distance), so the far ones are
+quiet and make the diffuse bed under the near ones, and the rate rose to 4.2 times (measured on the render: about 150 onsets a minute, 31 dB range, 9 dB standard deviation, against
+the Robin Hood's Bay colony recording's 94, 27 and 8.5).

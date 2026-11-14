@@ -10,6 +10,7 @@ import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
 import { Stream } from './stream';
 import { Wind } from './wind';
+import { buildImpulse } from './room';
 import { stepPlan, type Hit } from './steps';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
@@ -502,12 +503,31 @@ export class AudioEngine {
     this.loop(this.brown).connect(this.trafficFilter).connect(this.trafficGain).connect(this.outBus);
   }
 
-  private rebuildReverb(decaySec: number, dampHz: number): void {
+  private rebuildReverb(rev: AudioScene['reverb']): void {
+    const { decaySec, dampHz, room } = rev;
     const ctx = this.ctx as AudioContext;
-    const key = `${decaySec.toFixed(1)}:${Math.round(dampHz / 100)}`;
+    // the hall's own echo (room.ts) when its size is known; the position is taken to the nearest cell so that walking does not rebuild it at every step
+    const cell = room ? Math.max(8, Math.min(room.lx, room.ly) / 10) : 1;
+    const key = `${decaySec.toFixed(1)}:${Math.round(dampHz / 100)}` + (room ? `:${Math.round(room.lx)}x${Math.round(room.ly)}x${Math.round(room.h)}@${Math.round(room.px / cell)},${Math.round(room.py / cell)}` : '');
     if (key === this.irKey) return;
     this.irKey = key;
     const len = Math.floor(ctx.sampleRate * decaySec);
+    if (room) {
+      let seed = 2166136261 >>> 0;
+      for (const v of [room.lx, room.ly, room.h]) seed = Math.imul(seed ^ Math.round(v * 10), 16777619) >>> 0;
+      const rng = (): number => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+      const here = { ...room, px: Math.round(room.px / cell) * cell, py: Math.round(room.py / cell) * cell, rt: decaySec, damp: Math.max(0.3, Math.min(1, dampHz / 5200)) };
+      const [L, R] = buildImpulse(ctx.sampleRate, here, rng);
+      // keep the wet level where it was: the same total energy as the noise echo this replaces (its samples have a variance of about 0.083)
+      let e = 0; for (let i = 0; i < L.length; i++) e += L[i]! * L[i]! + R[i]! * R[i]!;
+      const want = 2 * 0.083 * ctx.sampleRate * decaySec / 13.8;
+      const k = Math.sqrt(want / Math.max(e, 1e-9));
+      const ir = ctx.createBuffer(2, L.length, ctx.sampleRate);
+      const dl = ir.getChannelData(0), dr = ir.getChannelData(1);
+      for (let i = 0; i < L.length; i++) { dl[i] = L[i]! * k; dr[i] = R[i]! * k; }
+      this.installReverb(ir);
+      return;
+    }
     const ir = ctx.createBuffer(2, len, ctx.sampleRate);
     for (let c = 0; c < 2; c++) {
       const d = ir.getChannelData(c);
@@ -520,6 +540,12 @@ export class AudioEngine {
         d[i] = lp * Math.exp(-6.9 * t) * (i < 400 ? i / 400 : 1);
       }
     }
+    this.installReverb(ir);
+  }
+
+  /** Swap in a new echo: the new one joins and the old one is let go a moment later, so a change of hall does not cut the tail. */
+  private installReverb(ir: AudioBuffer): void {
+    const ctx = this.ctx as AudioContext;
     const next = ctx.createConvolver();
     next.buffer = ir;
     next.connect(this.wet);
@@ -670,7 +696,7 @@ export class AudioEngine {
     const ctx = this.ctx as AudioContext;
     const now = ctx.currentTime;
     const ease = (p: AudioParam, v: number, tc = 1.2) => p.setTargetAtTime(v, now, tc);
-    this.rebuildReverb(a.reverb.decaySec, a.reverb.dampHz);
+    this.rebuildReverb(a.reverb);
     ease(this.wet.gain, a.reverb.wet);
     ease(this.dry.gain, 0.85 - a.reverb.wet * 0.5);
     ease(this.lowpass.frequency, 20000 - a.muffle * 19400, 0.6);

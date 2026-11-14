@@ -78,7 +78,7 @@ export interface AudioOpts {
 }
 
 export interface AudioScene {
-  reverb: { decaySec: number; wet: number; dampHz: number };
+  reverb: { decaySec: number; wet: number; dampHz: number; /** The hall as a box, and where you stand in it: the echo is built from these (room.ts). */ room?: { lx: number; ly: number; h: number; px: number; py: number } };
   /** The sea heard through the floor. */
   sea: { gain: number; lowpassHz: number; swellSec: number };
   tide: { kind: TideSound; gain: number; character: string | null; strikeEverySec: number };
@@ -218,6 +218,7 @@ export function audioFor(world: World, s: SceneState, opts: AudioOpts = {}): Aud
     decaySec: drowned ? 3 : cloudy > 400 ? decaySec * 0.6 : decaySec,
     wet: drowned ? 0.2 : dark ? 0.5 : 0.34,
     dampHz: cloudy > 400 ? 2200 : drowned ? 3500 : 5200,
+    room: { lx: h.xExtent, ly: h.yExtent, h: h.heightM, px: pose ? pose.x : h.xExtent * 0.3, py: pose ? pose.y : h.yExtent * 0.5 },
   };
 
   // --- the sea: loud in the lower halls, near the stairs, quiet far from any vestibule, absent in the lake ---

@@ -23,28 +23,26 @@ import type { AudioScene, Bearing, Bed, Leak, Portal, Surface } from './director
 import type { BirdSeason } from '../sim/seasons';
 import { REF_DISTANCE, airCutoffHz, bearingPosition, distanceOf, dopplerRatio, flybyPath, perchPosition, polar, positionAt, stageCell, toPolar, velocityOf, type Flyby, type Vec3 } from './spatial';
 
-export type Species = 'goose' | 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'swift' | 'wader' | 'dove' | 'owl' | 'starling';
+export type Species = 'chick' | 'sparrow' | 'gull' | 'rook' | 'albatross' | 'flock' | 'rustle' | 'blackbird' | 'owl';
 
-export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<BirdSeason, 'swifts' | 'waders' | 'songbirds' | 'owls' | 'chicks' | 'fledglings'> & { geese?: boolean }): Species[] {
+export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<BirdSeason, 'songbirds' | 'owls' | 'chicks' | 'fledglings'>): Species[] {
   let list: Species[];
   switch (mode) {
     case 'nesting': list = ['gull']; break;
     case 'noisy': list = ['rook']; break;
     case 'chick': list = ['albatross', 'albatross', 'rustle']; break;
-    case 'murmuration': list = ['flock', 'starling', 'starling']; break;
+    case 'murmuration': list = ['flock', 'sparrow', 'sparrow']; break;
     case 'roosting': list = ['rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'owl']; break;
-    case 'sheltering': list = ['sparrow', 'sparrow', 'blackbird', 'rook', 'dove']; break;
-    case 'foraging': list = ['sparrow', 'sparrow', 'blackbird', 'blackbird', 'dove', 'rustle']; break;
-    case 'soaring': list = ['gull', 'swift', 'swift', 'swift']; break;
-    case 'shore': list = ['gull', 'wader', 'wader', 'rustle']; break;
-    case 'passing': return ['goose'];
+    case 'sheltering': list = ['sparrow', 'sparrow', 'blackbird', 'rook']; break;
+    case 'foraging': list = ['sparrow', 'sparrow', 'rustle']; break;
+    case 'soaring': list = ['gull']; break;
+    case 'shore': list = ['gull', 'rustle']; break;
     default: return [];
   }
   if (!season) return list;
-  // The year in the voices. Out of season a bird is not here (the swifts, the waders), does not sing (the blackbird gives way to the
+  // The year in the voices. Out of season a bird does not sing (the blackbird gives way to the
   // sparrow), or is quiet (the owl); and in the nesting months the chicks beg.
-  list = list.filter((s) => !(s === 'swift' && !season.swifts) && !(s === 'wader' && !season.waders) && !(s === 'blackbird' && !season.songbirds) && !(s === 'owl' && !season.owls));
-  if (mode === 'soaring' && season.geese) list = [...list, 'goose', 'goose'];
+  list = list.filter((s) => !(s === 'blackbird' && !season.songbirds) && !(s === 'owl' && !season.owls));
   if (mode === 'nesting' && season.chicks) list = ['gull', 'chick', 'chick'];
   else if (mode === 'nesting' && season.fledglings) list = ['gull', 'chick', 'gull', 'chick'];
   if ((mode === 'foraging' || mode === 'sheltering') && season.chicks) list = [...list, 'chick'];
@@ -59,13 +57,10 @@ export type Place = number | Vec3;
 
 /** Species that cross the sky while they call, how long the call is tracked for, and how fast they fly (m/s). */
 const FLIERS: Partial<Record<Species, { dur: number; speed: number; height: [number, number] }>> = {
-  goose: { dur: 3.4, speed: 16, height: [14, 30] },
-  swift: { dur: 1.4, speed: 22, height: [8, 26] },
   gull: { dur: 1.7, speed: 11, height: [5, 18] },
-  wader: { dur: 1.3, speed: 14, height: [2, 6] },
 };
 /** In these bird scenes the birds that can fly are overhead and moving; in the rest they are perched. */
-const FLYING_MODES: ReadonlySet<AudioScene['birds']['mode']> = new Set(['soaring', 'passing', 'shore']);
+const FLYING_MODES: ReadonlySet<AudioScene['birds']['mode']> = new Set(['soaring', 'shore']);
 
 const FEET: Vec3 = { x: 0, y: -1.5, z: -0.4 };
 
@@ -915,8 +910,6 @@ export class AudioEngine {
       const voice = this.voice(t, at);
       out = voice.input;
       this.doppler = voice.doppler;
-      // a second swift answering from somewhere else
-      if (sp === 'swift') answer = this.voice(t + 0.35, where === 'fly' && fl ? flight() : perchPosition(Math.random, [10, 50], [6, 18]));
     }
     try { this.birdCall(sp, t, loud, out, pan, answer); } finally { this.doppler = prev; }
   }
@@ -924,17 +917,6 @@ export class AudioEngine {
   private birdCall(sp: Species, t: number, loud: number, out: AudioNode | undefined, pan: number, answer: Voice | null): void {
     const v = 0.05 + loud * 0.08;
     switch (sp) {
-      case 'goose': {
-        // a skein calling to itself high up: a run of low, nasal honks from several throats, each a little different
-        const n = 4 + Math.floor(Math.random() * 6);
-        for (let i = 0; i < n; i++) {
-          const f = rand(330, 480);
-          const at = t + i * rand(0.2, 0.45);
-          this.tone(at, f, f * rand(0.78, 0.9), rand(0.14, 0.24), 'triangle', v * 0.9, pan, 0.03, out);
-          this.tone(at + rand(0, 0.06), f * 1.5, f * 1.2, 0.12, 'sawtooth', v * 0.25, pan, 0.03, out);
-        }
-        break;
-      }
       case 'chick': {
         // a hungry chick: a run of thin, high, quavering peeps, each a little lower, that goes on and on
         const n = 5 + Math.floor(Math.random() * 6);
@@ -986,40 +968,11 @@ export class AudioEngine {
         }
         break;
       }
-      case 'swift': {
-        // a high thin scream: a fast descending trill, with a second bird answering a little way behind
-        const n = 8 + Math.floor(Math.random() * 6);
-        for (let i = 0; i < n; i++) this.tone(t + i * 0.052, 7400 - i * 90, 6000 - i * 90, 0.05, 'sine', v * 0.8, pan, 0.004, out);
-        if (answer) this.doppler = answer.doppler;
-        for (let i = 0; i < n - 3; i++) this.tone(t + 0.35 + i * 0.05, 6600 - i * 80, 5600 - i * 80, 0.05, 'sine', v * 0.5, 0, 0.004, answer ? answer.input : out);
-        break;
-      }
-      case 'wader': {
-        // a clear rising "tew-tew-tew" over the water
-        const n = 3 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < n; i++) this.tone(t + i * 0.2, 2100, 2800, 0.13, 'sine', v * 1.0, pan, 0.01, out);
-        break;
-      }
-      case 'dove': {
-        // a soft, low, rolling coo-coo-coo, three notes, the middle one longest
-        this.tone(t, 360, 330, 0.18, 'sine', v * 0.9, pan, 0.04, out);
-        this.tone(t + 0.26, 400, 340, 0.36, 'sine', v * 1.0, pan, 0.05, out);
-        this.tone(t + 0.78, 370, 320, 0.3, 'sine', v * 0.8, pan, 0.05, out);
-        break;
-      }
       case 'owl': {
         // two slow, hollow hoots, the second lower
         this.tone(t, 330, 300, 0.45, 'sine', v * 1.1, pan, 0.08, out);
         this.burst(t, 0.4, 'lowpass', 600, 0.5, v * 0.25, pan, 0.08, out);
         this.tone(t + 0.8, 300, 250, 0.7, 'sine', v * 1.0, pan, 0.08, out);
-        break;
-      }
-      case 'starling': {
-        // a chatter of clicks and short whistles, over in a moment
-        for (let i = 0; i < 12; i++) {
-          if (Math.random() < 0.6) this.burst(t + i * rand(0.04, 0.09), 0.02, 'bandpass', rand(3000, 6500), 6, v * 0.9, pan, 0.001, out);
-          else this.tone(t + i * 0.07, rand(2200, 4200), rand(2200, 4200), 0.07, 'sine', v * 0.7, pan, 0.005, out);
-        }
         break;
       }
       case 'flock':

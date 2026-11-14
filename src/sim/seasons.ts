@@ -3,10 +3,6 @@
 // the owls call in the cold months, and the gulls nest, hatch and fledge on a fixed schedule.
 
 export interface BirdSeason {
-  /** Swifts are here: arrive early May, gone by mid August. */
-  swifts: boolean;
-  /** Small shore waders are about: winter visitors, gone north to breed from mid May to mid August. */
-  waders: boolean;
   /** Blackbirds and the rest are in full song (February to July); out of season only the odd short call. */
   songbirds: boolean;
   /** Owls call more in the cold months, when they are setting up territories. */
@@ -17,21 +13,16 @@ export interface BirdSeason {
   fledglings: boolean;
   /** Gulls have come back to the colony and are paired up and incubating: March to May. */
   nesting: boolean;
-  /** Geese passing over on migration: north in March and April, south from late September to mid November. */
-  geese: boolean;
 }
 
 export function birdSeason(dayOfYear: number): BirdSeason {
   const d = ((Math.floor(dayOfYear) - 1) % 365 + 365) % 365 + 1;
   return {
-    swifts: d >= 125 && d <= 222,
-    waders: d >= 228 || d <= 135,
     songbirds: d >= 40 && d <= 200,
     owls: d >= 275 || d <= 90,
     chicks: d >= 152 && d <= 212,
     fledglings: d >= 213 && d <= 243,
     nesting: d >= 60 && d <= 243,
-    geese: (d >= 60 && d <= 110) || (d >= 270 && d <= 320),
   };
 }
 

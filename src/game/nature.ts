@@ -126,21 +126,17 @@ export function birdLines(h: Hall, s: SceneState, rand: Rand): string[] {
         out.push(pick(rand, ['Out of the cloud come the cries of gulls, near and then far, though there is nothing to see.', 'Something large passes through the cloud overhead, a dark shape and a rush of wings, and is gone.']));
         break;
       }
-      if (b.season.geese) out.push(pick(rand, ['A skein of geese goes over, high up, in a long wavering line, calling, and the whole hall seems to look up.', 'Geese cross the gap in the roof in a broad ragged V, and their low honking comes down the hall long after they are gone.']));
       out.push(pick(rand, [
         'Gulls ride the wind above the broken roof, tilting, never once moving their wings.',
-        b.season.swifts ? 'Swifts scream through the gaps in the roof in tight fast parties, and are away over the edge before you can follow them.' : 'A gull tips over the roof edge and slides away down the wind, calling.',
-        'A single gull stands on a roof-beam, white against the sky, and looks down at the hall as if it owned it.',
+        'A gull tips over the roof edge and slides away down the wind, calling.',
+        'A single gull stands on a broken ledge high up, white against the sky, and looks down at the hall as if it owned it.',
       ]));
       break;
     case 'shore':
       out.push(pick(rand, [
         'A gull pulls weed from the foot of a wall, looking for something, and flaps up to the ledge with it.',
-        b.season.waders ? 'A little wader runs along the edge of the pool in short fits, stops, probes, and runs on.' : 'Two gulls quarrel over something in the weed, and one flies off with it.',
+        'Two gulls quarrel over something in the weed, and one flies off with it.',
       ]));
-      break;
-    case 'passing':
-      out.push('High over the roof, in the dark, geese are calling to one another as they pass.');
       break;
     case 'roosting':
       out.push('Birds sit along the ledges with their heads tucked in, and shift and mutter in their sleep.');

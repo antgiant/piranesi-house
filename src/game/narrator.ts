@@ -251,9 +251,8 @@ export function birdSentence(s: SceneState): string {
     case 'nesting': return b.season.fledglings ? 'Young gulls, brown and clumsy, crowd the shoulders and plinths, and the old ones rise screaming if you move.' : b.season.chicks ? 'Gulls nest on shoulders, plinths and heads, with grey downy chicks beneath them, and rise screaming if you move.' : 'Gulls nest on shoulders, plinths and heads, and rise screaming if you move.';
     case 'chick': return 'A pair of enormous white albatrosses tends a growing chick on a tall nest of weed.';
     case 'noisy': return 'Rooks wheel and call from the high statues.';
-    case 'passing': return 'Somewhere high over the roof, unseen, geese are calling to one another in the dark.';
-    case 'soaring': return b.season.geese ? `${cap(b.species.filter((x) => !x.includes('geese')).join(' and '))} ride the air above the broken roof, and a skein of geese goes over in a long ragged line.` : `${cap(b.species.join(' and '))} ride the air above the broken roof.`;
-    case 'shore': return b.season.waders ? 'Gulls and small waders pick along the weed at the foot of the walls.' : 'Gulls pick along the weed at the foot of the walls.';
+    case 'soaring': return `${cap(b.species.join(' and '))} ride the air above the broken roof.`;
+    case 'shore': return 'Gulls pick along the weed at the foot of the walls.';
   }
 }
 
@@ -469,9 +468,8 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
     else if (b.mode === 'noisy') bits.push('Rooks caw.');
     else if (b.mode === 'sheltering') bits.push('Birds chatter on every ledge.');
     else if (b.mode === 'roosting') bits.push('Soft rustles of roosting birds.');
-    else if (b.mode === 'soaring') bits.push((b.season.swifts ? v(['Gulls cry high overhead.', 'The thin screams of swifts come and go above the roof.']) : 'Gulls cry high overhead.') + (b.season.geese ? ' Now and then a skein of geese honks its way across.' : ''));
-    else if (b.mode === 'passing') bits.push('Far overhead, geese call to one another as they pass.');
-    else if (b.mode === 'shore') bits.push(b.season.waders ? 'Gulls call over the wet stones, and a small bird pipes.' : 'Gulls call over the wet stones.');
+    else if (b.mode === 'soaring') bits.push('Gulls cry high overhead.');
+    else if (b.mode === 'shore') bits.push('Gulls call over the wet stones.');
     else bits.push(v(b.season.songbirds ? ['Small birds twitter and flutter.', 'A blackbird sings somewhere among the statues.', 'There is a flutter and twitter of small birds.'] : ['Small birds twitter and flutter.', 'There is a flutter and twitter of small birds.', 'A blackbird scolds, once, from somewhere among the statues.']));
   } else if (b.mode === 'silent' && s.hall.level === 1 && !a.hush) bits.push('There are no birdsong or wingbeats.');
   bits.push(...portalSentences(a));

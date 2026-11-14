@@ -15,14 +15,6 @@ const w = createWorld('the-house');
 const day = (d: number, hour = 12): number => (d - 1) * MS.day + hour * MS.hour;
 
 describe('the year in the birds', () => {
-  it('has the swifts arrive in spring, stay for the summer and leave, and the waders the other way round', () => {
-    expect(birdSeason(100).swifts).toBe(false);
-    expect(birdSeason(160).swifts).toBe(true);
-    expect(birdSeason(260).swifts).toBe(false);
-    expect(birdSeason(20).waders).toBe(true);
-    expect(birdSeason(180).waders).toBe(false);
-    expect(birdSeason(300).waders).toBe(true);
-  });
   it('has song in spring and early summer, owls in the cold months, and chicks in June and July', () => {
     expect(birdSeason(100).songbirds).toBe(true);
     expect(birdSeason(300).songbirds).toBe(false);
@@ -38,12 +30,8 @@ describe('the year in the birds', () => {
   });
   it('puts the right voices in each season', () => {
     const summer = birdSeason(170), winter = birdSeason(330);
-    expect(speciesFor('soaring', summer)).toContain('swift');
-    expect(speciesFor('soaring', winter)).not.toContain('swift');
-    expect(speciesFor('shore', winter)).toContain('wader');
-    expect(speciesFor('shore', summer)).not.toContain('wader');
-    expect(speciesFor('foraging', summer)).toContain('blackbird');
-    expect(speciesFor('foraging', winter)).not.toContain('blackbird');
+    expect(speciesFor('sheltering', summer)).toContain('blackbird');
+    expect(speciesFor('sheltering', winter)).not.toContain('blackbird');
     expect(speciesFor('roosting', winter)).toContain('owl');
     expect(speciesFor('roosting', summer)).not.toContain('owl');
     expect(speciesFor('nesting', summer)).toContain('chick');
@@ -63,17 +51,11 @@ describe('the year in the birds', () => {
     }
     expect(oct.birds.mode).not.toBe('nesting');
   });
-  it('has the dawn chorus louder than midday in song season', () => {
-    let louder = 0, n = 0;
-    for (let x = -8; x <= 8; x++) for (let y = -8; y <= 8; y++) {
-      const h = getHall(w, x, y, 1);
-      if (!h.birdPerches) continue;
-      const dawn = sceneAtWorldTime(w, x, y, 1, day(120, 0) + (sunTimes(120).sunrise - 10) * MS.min, { forecast: false });
-      const noon = sceneAtWorldTime(w, x, y, 1, day(120, 13), { forecast: false });
-      if (dawn.birds.mode === 'foraging' && noon.birds.mode === 'foraging') { n++; if (dawn.birds.loudness > noon.birds.loudness) louder++; }
+  it('has no dawn chorus: the book does not, so the House is not to feel too alive', () => {
+    for (let d = 1; d <= 365; d += 15) for (const hour of [3, 4, 5, 6, 12]) {
+      const sc = sceneAtWorldTime(w, 5, 5, 1, day(d, hour), { forecast: false });
+      if (sc.birds.mode === 'foraging') expect(sc.birds.loudness).toBeLessThanOrEqual(150);
     }
-    expect(n).toBeGreaterThan(0);
-    expect(louder).toBe(n);
   });
   void lightSentence;
 });
@@ -173,14 +155,12 @@ describe('growing things and creatures by season', () => {
     const dark = sceneAtWorldTime(w, -192, 0, 1, day(190, 12), { forecast: false });
     expect(plantLines(dark.hall, dark, rnd)).toEqual([]);
   });
-  it('never mentions swifts out of season, nor a singing blackbird in autumn', () => {
+  it('never mentions a singing blackbird in autumn', () => {
     for (let d = 1; d <= 365; d += 7) {
       for (const lvl of [1, 2] as const) {
         const sc = sceneAtWorldTime(w, 5, 5, lvl, day(d, 12), { forecast: false });
         for (let i = 0; i < 6; i++) for (const l of birdLines(sc.hall, sc, () => i / 6)) {
-          if (!sc.birds.season.swifts) expect(l).not.toMatch(/Swifts/);
           if (!sc.birds.season.songbirds) expect(l).not.toMatch(/blackbird sings/);
-          if (!sc.birds.season.waders) expect(l).not.toMatch(/little wader/);
         }
       }
     }
@@ -253,20 +233,3 @@ describe('fog', () => {
   });
 });
 
-describe('geese on passage', () => {
-  it('pass over in spring and autumn only, and are heard through the night', () => {
-    expect(birdSeason(80).geese).toBe(true);
-    expect(birdSeason(180).geese).toBe(false);
-    expect(birdSeason(290).geese).toBe(true);
-    expect(birdSeason(350).geese).toBe(false);
-    expect(speciesFor('soaring', birdSeason(290))).toContain('goose');
-    expect(speciesFor('soaring', birdSeason(180))).not.toContain('goose');
-    expect(speciesFor('passing')).toEqual(['goose']);
-    let spoken = 0;
-    for (let t = 290 * MS.day; t < 300 * MS.day; t += 37 * MS.min) {
-      const sc = sceneAtWorldTime(w, 3, 3, 2, t, { forecast: false });
-      if (sc.birds.mode === 'passing') { spoken++; expect(birdSentence(sc)).toMatch(/geese/); expect(sc.light.sunPhase).toBe('night'); }
-    }
-    expect(spoken).toBeGreaterThan(5);
-  });
-});

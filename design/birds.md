@@ -132,3 +132,9 @@ Each calling episode picks one of the sixteen (`GULL_VOICES`). Recordings are no
 A colony's birds are not all 4 to 14 m away: episodes in a nesting hall are now placed from 4 to 70 m (spread evenly in the logarithm of the distance), so the far ones are
 quiet and make the diffuse bed under the near ones, and the rate rose to 4.2 times (measured on the render: about 150 onsets a minute, 31 dB range, 9 dB standard deviation, against
 the Robin Hood's Bay colony recording's 94, 27 and 8.5).
+
+### Corrections after listening (version 7)
+- A hoarse, low gull was in the colony: of the sixteen individuals, five were dropped (1032698 and 284200 are a flat, rough call, 1093407 is noisy, 528591 and 896886 are rough and low), leaving eleven. The test for a voice
+  is now: an arched contour, 25 dB or more of roughness-to-valley and 0.35 s or less in length.
+- The sparrow chirp sounded like an aerosol spray. Its measured noise included the clicks that sit between chirps in the recording; it is now 10 dB lower, with the roughness target at 32 dB
+  (`scripts/birds/overrides.py`).

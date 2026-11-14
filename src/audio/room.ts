@@ -27,6 +27,8 @@ export const MATERIAL = [1, 1, 1, 1, 0.9, 0.78, 0.58] as const;
 /** What the air takes in a decibel a second at each octave (20 degrees, 70% humidity): 343 m/s times the absorption in dB a metre. */
 export const AIR_DB_PER_S = [0.13, 0.45, 0.96, 1.7, 3.1, 7.9, 26.3] as const;
 const C = 343;
+/** How much faster each octave is made to fall, to make up for the leakage between octaves. */
+const LEAK = [1, 1, 1, 1, 1.05, 1.2, 1.5] as const;
 
 /** Reverberation time of each octave band: the room's decay (as long as the material lets it) plus the air's, as decay rates add. */
 export function bandTimes(room: Pick<Room, 'rt' | 'damp'>): number[] {
@@ -36,6 +38,14 @@ export function bandTimes(room: Pick<Room, 'rt' | 'damp'>): number[] {
     const rate = 60 / (room.rt * MATERIAL[i]! * hi) + AIR_DB_PER_S[i]!;
     return 60 / rate;
   });
+}
+
+/** A second-order low-pass, as a function that filters one sample at a time. */
+function lowpass(sr: number, fc: number, q: number): (x: number) => number {
+  const w = (2 * Math.PI * fc) / sr, alpha = Math.sin(w) / (2 * q), cosw = Math.cos(w);
+  const a0 = 1 + alpha, b0 = (1 - cosw) / 2 / a0, b1 = (1 - cosw) / a0, a1 = (-2 * cosw) / a0, a2 = (1 - alpha) / a0;
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  return (x: number): number => { const y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2; x2 = x1; x1 = x; y2 = y1; y1 = y; return y; };
 }
 
 /** A second-order band-pass (constant skirt gain), as a function that filters one sample at a time. */
@@ -80,57 +90,40 @@ export function reflections(room: Room, order = 3, maxT = 0.6): Reflection[] {
 /**
  * The impulse responses (left, right) of the room, `sr` samples a second. The wet part only: the engine mixes the sound itself in separately.
  * Seeded, so a hall always sounds the same.
+ *
+ * Smooth, not a handful of echoes: a hall full of statues, pillars and ledges scatters the sound into thousands of tiny reflections, so what the ear gets from the first
+ * moment is a build-up of wash, not discrete repeats (the image-source reflections of the empty box, `reflections`, give the first arrival, but played as impulses they
+ * ticked and fluttered like a delay pedal, and the drips and footsteps were choppy and electronic). So the wash starts a little before the first reflection and swells over
+ * a tenth of a second or two, in seven octaves that each fall at their own rate.
  */
 export function buildImpulse(sr: number, room: Room, rng: Rng = Math.random): [Float32Array, Float32Array] {
   const times = bandTimes(room);
   const maxT = Math.min(12, Math.max(...times) * 1.15 + 0.2);
   const n = Math.floor(sr * maxT);
-  const L = new Float32Array(n), R = new Float32Array(n);
-  const vol = room.lx * room.ly * room.h;
-  // the mixing time: reflections have become so many (4 pi c^3 t^2 / V a second) that they are a wash
-  const tMix = Math.min(0.9, Math.max(0.05, Math.sqrt((1500 * vol) / (4 * Math.PI * C * C * C))));
-  const refl = reflections(room, 3, tMix * 1.3);
-  const taper = (t: number): number => (t < tMix ? 1 : Math.max(0, 1 - (t - tMix) / (tMix * 0.3)));
-  // each reflection is a short burst through the seven octaves, each octave weakened by the air it crossed (dB a metre) and by the surfaces it met (a little more
-  // of the highs each time), so a far echo is duller than a near one, as in a real hall
-  const hb = BANDS.map((fc) => { const f1 = bandpass(sr, fc, 1.1), f2 = bandpass(sr, fc, 1.1); const h = new Float32Array(96); for (let i = 0; i < h.length; i++) h[i] = f2(f1(i === 0 ? 1 : 0)); return h; });
-  const norm = 1 / Math.sqrt(hb.reduce((e, h) => e + h.reduce((x, v) => x + v * v, 0), 0));
-  for (const r of refl) {
-    const dist = r.t * C;
-    const gb = BANDS.map((_, b) => Math.pow(10, -(AIR_DB_PER_S[b]! / C) * dist / 20) * Math.pow(b <= 3 ? 1 : 0.97, r.order * (b - 3)));
-    // the same reflection reaches the two ears a hair apart: tiny differences in delay and level decorrelate the two sides
-    const sign = rng() < 0.5 ? -1 : 1;
-    const g = r.gain * taper(r.t) * norm * sign;
-    for (const [buf, jitter, lvl] of [[L, rng() - 0.5, 1], [R, rng() - 0.5, 0.85 + rng() * 0.3]] as const) {
-      const i0 = Math.floor((r.t + jitter * 0.0006) * sr);
-      for (let b = 0; b < hb.length; b++) { const h = hb[b]!, gg = g * gb[b]! * lvl; for (let k = 0; k < h.length; k++) { const i = i0 + k; if (i >= 0 && i < n) buf[i] = (buf[i] ?? 0) + gg * h[k]!; } }
-    }
-  }
-  // the late wash: noise in seven octaves, each falling at its own rate from the moment it begins (about half the mixing time), where it meets the reflections
-  const start = tMix * 0.5;
-  const tail: [Float32Array, Float32Array] = [new Float32Array(n), new Float32Array(n)];
+  // when the sound first comes back (the nearest surface and back), and how long the wash takes to swell to full
+  const first = reflections(room, 1, 0.8)[0]?.t ?? 0.05;
+  const pre = Math.min(0.03, first * 0.4);
+  const rise = Math.min(0.25, Math.max(0.05, first * 0.8));
+  const ir: [Float32Array, Float32Array] = [new Float32Array(n), new Float32Array(n)];
   for (let ch = 0; ch < 2; ch++) {
+    const buf = ir[ch]!;
     for (let b = 0; b < BANDS.length; b++) {
-      const bp1 = bandpass(sr, BANDS[b]!, 1.1), bp2 = bandpass(sr, BANDS[b]!, 1.1); // two in a row: steep skirts, so one band's long tail does not leak into the next band's short one
-      const bp = (x: number): number => bp2(bp1(x));
-      const rate = 6.9078 / times[b]!; // amplitude: exp(-6.9078 t / T) is 60 dB down at T
-      const buf = tail[ch]!;
-      for (let i = 0; i < n; i++) buf[i] = (buf[i] ?? 0) + bp(rng() * 2 - 1) * Math.exp(-rate * Math.max(0, i / sr - start));
+      // the lows and middles through a broad band-pass with a low-pass above it (smooth, a wash, and a steep top so that the long low octaves do not leak into the short high ones); the highs through two steep band-passes
+      const f1 = bandpass(sr, BANDS[b]!, b >= 4 ? 0.9 : b <= 1 ? 0.5 : 0.7), f2 = b >= 4 ? bandpass(sr, BANDS[b]!, 0.9) : lowpass(sr, Math.min(BANDS[b]! * 1.7, sr * 0.45), 0.7);
+      const bp = (v: number): number => f2(f1(v));
+      // (the octaves overlap, so the long decay of one leaks into the next and lengthens it: the highs are made to fall a little faster to land on the intended times)
+      const rate = (6.9078 / times[b]!) * LEAK[b]!; // amplitude: exp(-6.9078 t / T) is 60 dB down at T
+      for (let i = 0; i < n; i++) {
+        const t = i / sr;
+        const x = bp(rng() * 2 - 1);
+        if (t < pre) continue;
+        const u = Math.min(1, (t - pre) / rise);
+        buf[i] = (buf[i] ?? 0) + x * (u * u * (3 - 2 * u)) * Math.exp(-rate * Math.max(0, t - pre - rise * 0.5));
+      }
     }
-  }
-  // match the wash to the reflections where they meet: the RMS of each over the window just before the mixing time
-  const w0 = Math.floor(sr * tMix * 0.6), w1 = Math.floor(sr * tMix);
-  const rms = (a: Float32Array, i0: number, i1: number): number => { let s = 0; for (let i = i0; i < i1; i++) s += a[i]! * a[i]!; return Math.sqrt(s / Math.max(1, i1 - i0)); };
-  const eRef = Math.max(rms(L, w0, w1), rms(R, w0, w1)) || 1e-4, eTail = Math.max(rms(tail[0]!, w0, w1), rms(tail[1]!, w0, w1)) || 1;
-  const k = (eRef / eTail) * 1.0;
-  for (let i = 0; i < n; i++) {
-    const t = i / sr;
-    const ramp = t < start ? 0 : Math.min(1, (t - start) / 0.03);
-    const w = ramp * ramp * (3 - 2 * ramp);
-    L[i] = (L[i] ?? 0) + (tail[0]![i] ?? 0) * k * w; R[i] = (R[i] ?? 0) + (tail[1]![i] ?? 0) * k * w;
   }
   // a very short fade in, so that nothing clicks
   const f = Math.min(n, 48);
-  for (let i = 0; i < f; i++) { L[i] = (L[i] ?? 0) * (i / f); R[i] = (R[i] ?? 0) * (i / f); }
-  return [L, R];
+  for (let i = 0; i < f; i++) { ir[0][i] = (ir[0][i] ?? 0) * (i / f); ir[1][i] = (ir[1][i] ?? 0) * (i / f); }
+  return ir;
 }

@@ -6,7 +6,7 @@ describe('bird calls by situation', () => {
     const all = new Set<string>();
     for (const m of ['murmuration', 'roosting', 'sheltering', 'foraging', 'soaring', 'shore', 'nesting', 'noisy', 'chick'] as const) for (const s of speciesFor(m)) all.add(s);
     // only the book's birds: gulls, an albatross, rooks, sparrows, a blackbird after rain, a rare owl; no swifts, waders, geese, doves or starlings
-    expect([...all].sort()).toEqual(['albatross', 'blackbird', 'flock', 'gull', 'owl', 'rook', 'rustle', 'sparrow']);
+    expect([...all].sort()).toEqual(['albatross', 'blackbird', 'gull', 'owl', 'rook', 'sparrow']);
     expect(speciesFor('soaring')).toEqual(['gull']);
     expect(speciesFor('shore')).toContain('gull');
     expect(speciesFor('foraging')).not.toContain('blackbird');
@@ -16,8 +16,8 @@ describe('bird calls by situation', () => {
     expect(speciesFor('noisy')).toEqual(['rook']);
     expect(speciesFor('silent')).toEqual([]);
   });
-  it('keeps the owl rare: one call in eight at most when roosting', () => {
-    const r = speciesFor('roosting');
-    expect(r.filter((s) => s === 'owl').length / r.length).toBeLessThanOrEqual(0.125);
+  it('has only the owl for the roosting birds (asleep; the engine lets it call one time in eight), and no synthetic rustle or flock noise anywhere', () => {
+    expect(speciesFor('roosting')).toEqual(['owl']);
+    for (const m of ['murmuration', 'roosting', 'sheltering', 'foraging', 'soaring', 'shore', 'nesting', 'noisy', 'chick', 'hunted'] as const) { expect(speciesFor(m)).not.toContain('rustle'); expect(speciesFor(m)).not.toContain('flock'); }
   });
 });

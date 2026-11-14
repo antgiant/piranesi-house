@@ -22,6 +22,8 @@ export interface CallTemplate {
   N: number[];
   /** Amplitude modulation, as rate in Hz and depth 0..1 (a whirr), if the call has it. */
   am?: [number, number];
+  /** A sharp sound (a bill clap, a tick): not a call with a contour but a broadband impulse that rings: the resonances (Hz, dB) and how fast they and the impulse die (seconds). */
+  click?: { modes: [number, number][]; ringTau: number; impulseTau: number };
 }
 
 const gauss = (r: Rng): number => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
@@ -35,7 +37,7 @@ function interp(points: number[], u: number): number {
 function levelAt(spec: number[], bands: number[], hz: number): number {
   if (hz <= (bands[0] ?? 125)) return Math.max(-90, spec[0] ?? -90);
   const x = 3 * Math.log2(hz / (bands[0] ?? 125)), i = Math.floor(x);
-  if (i >= spec.length - 1) return Math.max(-90, spec[spec.length - 1] ?? -90);
+  if (i >= spec.length - 1) return Math.max(-90, (spec[spec.length - 1] ?? -90) - 12 * (x - (spec.length - 1))); // above the last measured band: falling away, not held
   const f = x - i;
   return Math.max(-90, (spec[i] ?? -90) * (1 - f) + (spec[i + 1] ?? -90) * f);
 }
@@ -75,8 +77,26 @@ function shapedNoise(sr: number, n: number, tpl: CallTemplate, rng: Rng, pitchSc
   return out;
 }
 
+/** A sharp sound: a broadband impulse (a fraction of a millisecond, to the top of the spectrum) that sets the cavity ringing at its resonances, which die within a few milliseconds. */
+function renderClick(sr: number, tpl: CallTemplate & { click: NonNullable<CallTemplate['click']> }, rng: Rng, pitch: number): Float32Array {
+  const c = tpl.click, n = Math.floor(sr * Math.max(0.012, Math.min(0.045, 8 * c.ringTau)));
+  const out = new Float32Array(n);
+  const modes = c.modes.map(([f, db]) => ({ f: f * pitch * (1 + (rng() - 0.5) * 0.05), a: Math.pow(10, (db + (rng() - 0.5) * 3) / 20), ph: rng() * 6.28 }));
+  const tau = c.ringTau * (1 + (rng() - 0.5) * 0.2);
+  for (let i = 0; i < n; i++) {
+    const t = i / sr;
+    let s = (rng() * 2 - 1) * Math.exp(-t / Math.max(0.00015, c.impulseTau)) * 0.9; // the impulse itself, white
+    for (const m of modes) s += 1.3 * m.a * Math.sin(2 * Math.PI * m.f * t + m.ph) * Math.exp(-t / tau);
+    out[i] = s;
+  }
+  let peak = 0; for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(out[i]!));
+  if (peak > 0) for (let i = 0; i < n; i++) out[i] = out[i]! / peak;
+  return out;
+}
+
 /** Render one call: `sr` samples a second; peak amplitude about 1. */
 export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random, opts: { duration?: number; pitch?: number } = {}): Float32Array {
+  if (tpl.click) return renderClick(sr, tpl as CallTemplate & { click: NonNullable<CallTemplate['click']> }, rng, opts.pitch ?? 1);
   const dur = opts.duration ?? Math.min(tpl.durRange[1], Math.max(tpl.durRange[0], tpl.dur * Math.exp(0.18 * gauss(rng))));
   const n = Math.max(64, Math.floor(dur * sr));
   const scale = (opts.pitch ?? 1) * Math.exp(Math.min(2, Math.max(-2, gauss(rng))) * tpl.f0Spread);

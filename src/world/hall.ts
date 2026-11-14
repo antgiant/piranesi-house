@@ -247,7 +247,8 @@ function buildHall(world: World, x: number, y: number, level: Level, id: string)
   const roll = (salt: number, n: number): boolean => hashInts(world.seed, 0xb1d5, salt, x, y) % n === 0;
   const add = (t: HallTag): void => { if (!tags.includes(t)) tags.push(t); };
   if (!isDark) {
-    if (kind === 'vestibule') { if (roll(1, BIRD_VESTIBULES)) add('albatross-nest'); if (roll(2, BIRD_VESTIBULES)) add('murmuration'); }
+    // (there is one pair of albatrosses in the book, and they stay in their own vestibule: only the murmuration is placed again)
+    if (kind === 'vestibule') { if (roll(2, BIRD_VESTIBULES)) add('murmuration'); }
     else { if (roll(3, BIRD_HALLS)) add('gull-colony'); if (roll(4, BIRD_HALLS)) add('rook-flock'); if (roll(5, BIRD_HALLS)) add('bird-shelter'); }
   }
   if (regions.drowned && level === 1) tags.push('drowned');

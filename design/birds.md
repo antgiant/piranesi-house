@@ -83,3 +83,13 @@ Known gaps (the next work, and where the owner's ears or recordings are needed):
 * The murmuration's wing rush and the rustle are still the old synthesised noise; there are recordings of wing beats (xeno-canto 1054490, rook) to measure.
 * A single template is a median: real birds vary more, and an individual has its own voice. More recordings per call type would give a better spread.
 * Whether any of it sounds like the real bird, to an ear. The measurements make it close in the spectrogram; only listening can say whether it is right.
+
+## Version 2 (after the owner's first listening)
+* **"Broom" / "swish":** two causes. (1) The old synthesised *rustle*, a burst of high-pass noise, was in the species lists for most situations and came first in a clip (the first event is at once), and through the echo it was a swish:
+  removed, and the flock's wing noise with it (the murmuration is now sparrow chirps only until wings are measured). (2) The albatross's bill clap was a 12 ms burst of band-limited noise, a whoosh; the real clap, measured
+  on two recordings of Laysan albatrosses, is a broadband impulse about 2-3 ms wide that sets the bill's cavity ringing at about 0.8, 2.6, 3.1, 3.7 and 4.6 kHz for about 2 ms a time constant. It is now made so
+  (`click` in the template: an impulse and damped resonances), and so is the sparrow's tick.
+* **Frequencies not tamed:** the templates stopped at 6.3 kHz, so everything above was missing (the real calls reach 10 kHz and clap noise 17 kHz). They now run to 16 kHz; above the last measured band the level falls away
+  instead of being held. The pitch contour of a falling call was also smeared at its start (the tracker settling): fixed, so the gull's mew now starts at its true 1.5 kHz and falls to 1.1 kHz without a swoop.
+* **Albatross:** the book has one pair and a chick; the many mentions are of them. The extra albatross nests are taken out; only the Forty-Third Vestibule has them.
+* **The owl:** the roosting birds are asleep (no sound); the owl is the only voice and calls one time in eight.

@@ -9,7 +9,7 @@ from scipy import signal
 from scipy.io import wavfile
 sys.path.insert(0, __file__.rsplit('/', 1)[0])
 NPT = 12
-BANDS = [round(125 * 2 ** (i / 3)) for i in range(18)]  # 125 Hz .. about 9 kHz, third octaves
+BANDS = [round(125 * 2 ** (i / 3)) for i in range(22)]  # 125 Hz .. about 16 kHz, third octaves (the calls reach 10 kHz and more; nothing is cut off)
 
 def load(item):
     parts = item.split(':'); sr, x = wavfile.read(parts[0]); x = x.astype(float) / (32768 if x.dtype == np.int16 else 1)
@@ -110,9 +110,29 @@ def build_click(name, items, lo=2500.0, hi=12000.0):
             else: bouts.append(run); run = 1
         bouts.append(run)
     if not envs: return None
+    # the ringing after the click: the strongest resonances in the 2-20 ms after it, and how fast they die
+    tails = []; rings = []; hfs = []
+    for it in items:
+        sr, m = load(it)
+        y = signal.sosfilt(signal.butter(4, [lo, min(hi, sr * 0.45)], 'bandpass', fs=sr, output='sos'), m); e = np.convolve(np.abs(y), np.ones(int(sr * 0.0008)) / int(sr * 0.0008), 'same')
+        pk, _ = signal.find_peaks(e, height=e.max() * 0.2, distance=int(0.1 * sr))
+        ring = signal.sosfilt(signal.butter(4, [1500, 6000], 'bandpass', fs=sr, output='sos'), m); renv = np.abs(signal.hilbert(ring))
+        hf = np.convolve(np.abs(signal.sosfilt(signal.butter(4, [7000, min(16000, sr * 0.45)], 'bandpass', fs=sr, output='sos'), m)), np.ones(int(sr * 0.0003)) / int(sr * 0.0003), 'same')
+        for p in pk:
+            if p < int(sr * 0.003) or p + int(sr * 0.03) > len(m): continue
+            tail = m[p + int(sr * 0.003): p + int(sr * 0.02)]; f, P = signal.welch(tail, sr, nperseg=min(512, len(tail)), noverlap=0); tails.append((f, P))
+            c = 20 * np.log10(renv[p: p + int(sr * 0.012)] / (renv[p] + 1e-12) + 1e-6); rings.append(c)
+            h = 20 * np.log10(hf[p - int(sr * 0.001): p + int(sr * 0.006)] / (hf[p - int(sr * 0.001): p + int(sr * 0.006)].max() + 1e-12) + 1e-6); hfs.append(h)
+    f = tails[0][0]; P = 10 * np.log10(np.median(np.array([t[1][:len(f)] for t in tails if len(t[1]) == len(f)]), axis=0) + 1e-20); P = P - P.max()
+    pks, _ = signal.find_peaks(P, prominence=3); pks = [i for i in pks if f[i] > 300]; pks = sorted(pks, key=lambda i: -P[i])[:7]
+    modes = sorted([[int(f[i]), round(float(P[i]), 1)] for i in pks])
+    rc = np.median(np.array([r[:int(sr * 0.012)] for r in rings if len(r) >= int(sr * 0.012)]), axis=0); t_ms = np.arange(len(rc)) / sr * 1000
+    k = next((i for i, v in enumerate(rc) if v < -20), len(rc) - 1); ring_tau = max(0.0005, t_ms[k] / 1000 / 2.3)  # -20 dB in 2.3 time constants
+    hc = np.median(np.array([h for h in hfs if len(h) == len(hfs[0])]), axis=0); ipk = int(np.argmax(hc)); k2 = next((i for i in range(ipk, len(hc)) if hc[i] < -20), len(hc) - 1); imp_tau = max(0.0001, (k2 - ipk) / sr / 2.3)
+    click = {'modes': modes, 'ringTau': round(float(ring_tau), 5), 'impulseTau': round(float(imp_tau), 5)}
     H = np.full(len(BANDS), -160.0); N = np.median(np.array(specs), axis=0); N = N - N.max()
     return {'name': name, 'n': len(envs), 'dur': 0.012, 'durRange': [0.012, 0.012], 'f0': [0] * 12, 'f0Spread': 0.0, 'env': [round(float(v), 1) for v in np.maximum(np.median(np.array(envs), axis=0), -60)],
-            'bands': BANDS, 'H': [-160.0] * len(BANDS), 'N': [round(float(v), 1) for v in N], 'gap': [round(float(np.percentile(gaps, q)), 2) for q in (10, 50, 90)] if len(gaps) >= 3 else None, 'bout': [int(np.percentile(bouts, q)) for q in (10, 50, 90)]}
+            'bands': BANDS, 'H': [-160.0] * len(BANDS), 'N': [round(float(v), 1) for v in N], 'click': click, 'gap': [round(float(np.percentile(gaps, q)), 2) for q in (10, 50, 90)] if len(gaps) >= 3 else None, 'bout': [int(np.percentile(bouts, q)) for q in (10, 50, 90)]}
 
 def modulation(name, items):
     """The amplitude modulation of a long call (a whirr): its rate in Hz and its depth 0..1."""
@@ -143,6 +163,11 @@ def build(name, fmin, fmax, items, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25)
            'f0': [round(float(v)) for v in med('f0')], 'f0Spread': float(np.std(np.log([np.median(c['f0']) for c in calls]))), 'env': [round(float(v), 1) for v in med('env')],
            'bands': BANDS, 'H': [round(float(v - ref), 1) for v in H], 'N': [round(float(v - ref), 1) for v in N],
            'gap': [round(float(np.percentile(gaps, q)), 2) for q in (10, 50, 90)] if len(gaps) >= 3 else None, 'bout': [int(np.percentile(bouts, q)) for q in (10, 50, 90)] if bouts else None}
+    # the start of a call: leave out the frames before the voice is really on (the pitch there is the tracker's, not the bird's)
+    f0 = tpl['f0']
+    if int(np.argmax(f0)) <= 3:  # a call that peaks at its start (a falling one): the rise into it is the tracker settling, not the bird
+        top = max(f0[:5]); i = next((k for k, v in enumerate(f0) if v >= 0.92 * top), 0)
+        for k in range(i): f0[k] = f0[i]
     return tpl
 
 if __name__ == '__main__':

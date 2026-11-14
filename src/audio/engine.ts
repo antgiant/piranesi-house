@@ -33,14 +33,14 @@ export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<Bird
   switch (mode) {
     case 'nesting': list = ['gull']; break;
     case 'noisy': list = ['rook']; break;
-    case 'chick': list = ['albatross', 'albatross', 'rustle']; break;
-    case 'murmuration': list = ['flock', 'sparrow', 'sparrow']; break;
-    case 'roosting': list = ['rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'rustle', 'owl']; break;
+    case 'chick': list = ['albatross']; break;
+    case 'murmuration': list = ['sparrow']; break;
+    case 'roosting': list = ['owl']; break;
     case 'sheltering': list = ['sparrow', 'sparrow', 'blackbird', 'rook']; break;
-    case 'foraging': list = ['sparrow', 'sparrow', 'rustle']; break;
+    case 'foraging': list = ['sparrow']; break;
     case 'soaring': list = ['gull']; break;
-    case 'shore': list = ['gull', 'rustle']; break;
-    case 'hunted': list = ['rustle', 'rustle', 'rustle', 'buzzard']; break;
+    case 'shore': list = ['gull']; break;
+    case 'hunted': list = ['buzzard']; break;
     default: return [];
   }
   if (!season) return list;
@@ -50,7 +50,7 @@ export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<Bird
   if (mode === 'nesting' && season.chicks) list = ['gull', 'chick', 'chick'];
   else if (mode === 'nesting' && season.fledglings) list = ['gull', 'chick', 'gull', 'chick'];
   if ((mode === 'foraging' || mode === 'sheltering') && season.chicks) list = [...list, 'chick'];
-  if (list.length === 0) list = mode === 'soaring' || mode === 'shore' ? ['gull'] : ['rustle'];
+  if (list.length === 0) list = mode === 'soaring' || mode === 'shore' ? ['gull'] : [];
   return list;
 }
 
@@ -802,6 +802,8 @@ export class AudioEngine {
     // birds
     const kinds = speciesFor(a.birds.mode, a.birds.season);
     if (a.birds.perMinute > 0 && kinds.length > 0 && t >= this.nextBird) {
+      // roosting birds are asleep: the owl is the one voice, and it calls one time in eight
+      if (a.birds.mode === 'roosting' && Math.random() > 0.125) { this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6); } else
       this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, FLYING_MODES.has(a.birds.mode) ? 'fly' : undefined, a.birds.mode);
       this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6);
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CALLS, type CallName } from '../src/audio/birdcalls';
+import { CALLS, type CallName, type MeasuredCall } from '../src/audio/birdcalls';
 import { renderCall } from '../src/audio/birdsynth';
 import { plan, type Voice } from '../src/audio/birdsong';
 
@@ -26,6 +26,7 @@ describe('a bird call made from its measured template', () => {
       expect(c.every(Number.isFinite)).toBe(true);
       expect(peak).toBeGreaterThan(0.5); expect(peak).toBeLessThanOrEqual(1.0001);
       const dur = c.length / sr;
+      if ((CALLS[nm] as MeasuredCall).click) { expect(dur).toBeLessThan(0.05); continue; }
       expect(dur).toBeGreaterThan(CALLS[nm].durRange[0] * 0.95 - 0.005); expect(dur).toBeLessThan(CALLS[nm].durRange[1] * 1.05 + 0.005);
     }
   });

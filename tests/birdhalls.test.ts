@@ -14,11 +14,11 @@ describe('the book\'s bird halls, and more of them at the book\'s own density', 
     expect(getHall(w, -88, 0, 1).tags).not.toContain('rook-flock');
   });
   it('is the same every time for the same world, and different in another', () => {
-    const tagged = (seed: string): string[] => { const x = createWorld(seed); const out: string[] = []; for (let a = -60; a < 60; a++) for (let b = -60; b < 60; b++) { const t = getHall(x, a, b, 1).tags.filter((k) => k === 'albatross-nest' || k === 'murmuration'); if (t.length && cellKind(x, a, b) === 'vestibule') out.push(`${a},${b}:${t.join('+')}`); } return out; };
+    const tagged = (seed: string): string[] => { const x = createWorld(seed); const out: string[] = []; for (let a = -60; a < 60; a++) for (let b = -60; b < 60; b++) { const t = getHall(x, a, b, 1).tags.filter((k) => k === 'murmuration'); if (t.length && cellKind(x, a, b) === 'vestibule') out.push(`${a},${b}:${t.join('+')}`); } return out; };
     expect(tagged('the-house')).toEqual(tagged('the-house'));
     expect(tagged('the-house')).not.toEqual(tagged('another-house'));
   });
-  it('puts about one of each kind in forty-five vestibules, and in 25,000 halls', () => {
+  it('puts about one of each kind in forty-five vestibules (the murmuration) and in 25,000 halls, and only one pair of albatrosses', () => {
     let vest = 0, nest = 0, murm = 0, halls = 0, gulls = 0, rooks = 0, shelters = 0;
     for (let x = -150; x < 150; x++) for (let y = -150; y < 150; y++) {
       const h = getHall(w, x, y, 1);
@@ -26,7 +26,7 @@ describe('the book\'s bird halls, and more of them at the book\'s own density', 
       else { halls++; if (h.tags.includes('gull-colony')) gulls++; if (h.tags.includes('rook-flock')) rooks++; if (h.tags.includes('bird-shelter')) shelters++; }
     }
     const wantV = vest / BIRD_VESTIBULES, wantH = halls / BIRD_HALLS;
-    expect(nest).toBeGreaterThan(wantV * 0.4); expect(nest).toBeLessThan(wantV * 2 + 3);
+    expect(nest).toBe(1); // the one pair of albatrosses, in the Forty-Third Vestibule, and no other
     expect(murm).toBeGreaterThan(wantV * 0.4); expect(murm).toBeLessThan(wantV * 2 + 3);
     // among 90,000 halls: a handful of each (and the named ones)
     for (const n of [gulls, rooks, shelters]) { expect(n).toBeGreaterThanOrEqual(1); expect(n).toBeLessThan(wantH * 3 + 6); }

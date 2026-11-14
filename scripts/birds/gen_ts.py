@@ -19,6 +19,7 @@ for k, v in T.items():
         c = v['click']; cl = f", click: {{ modes: [{', '.join('[' + str(m[0]) + ', ' + str(m[1]) + ']' for m in c['modes'])}], ringTau: {c['ringTau']}, impulseTau: {c['impulseTau']} }}"
     lines.append(f"    gap: {arr(v['gap'], 2) if v.get('gap') else 'null'}, bout: {arr(v['bout']) if v.get('bout') else 'null'}" + (f", am: {arr(v['am'], 2)}" if v.get('am') else '') + cl + ' },')
 voices = [k for k in T if k.startswith('gullMew_')]
-lines += ['} satisfies Record<string, MeasuredCall>;', '', 'export type CallName = keyof typeof CALLS;', '', '/** Individual gulls: each one\'s own mew, measured on its own recording. */', 'export const GULL_VOICES: CallName[] = [' + ', '.join("'" + k + "'" for k in voices) + '];', '']
+svoices = [k for k in T if k.startswith('sparrowChirp_')]
+lines += ['} satisfies Record<string, MeasuredCall>;', '', 'export type CallName = keyof typeof CALLS;', '', '/** Individual gulls: each one\'s own mew, measured on its own recording. */', 'export const GULL_VOICES: CallName[] = [' + ', '.join("'" + k + "'" for k in voices) + '];', '', '/** Individual sparrows: each one\'s own chirp. */', 'export const SPARROW_VOICES: CallName[] = [' + ', '.join("'" + k + "'" for k in svoices) + '];', '']
 open(os.path.join(here, '../../src/audio/birdcalls.ts'), 'w').write('\n'.join(lines))
 print('wrote src/audio/birdcalls.ts', sum(len(l) for l in lines), 'bytes')

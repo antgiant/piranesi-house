@@ -254,6 +254,7 @@ export function birdSentence(s: SceneState): string {
     case 'hunted': return 'A buzzard circles the hall, broad-winged and unhurried, and the small birds have gone as still as the statues.';
     case 'soaring': return `${cap(b.species.join(' and '))} ride the air above the broken roof.`;
     case 'shore': return 'Gulls pick along the weed at the foot of the walls.';
+    case 'feeding': return 'A great flock of gulls wheels and squabbles overhead, dropping and rising over something on the water.';
   }
 }
 
@@ -472,6 +473,7 @@ export function soundBits(a: AudioScene, s: SceneState, v: Pick): string[] {
     else if (b.mode === 'roosting') bits.push('Soft rustles of roosting birds.');
     else if (b.mode === 'soaring') bits.push('Gulls cry high overhead.');
     else if (b.mode === 'shore') bits.push('Gulls call over the wet stones.');
+    else if (b.mode === 'feeding') bits.push('A flock of gulls cries and quarrels overhead.');
     else bits.push(v(b.season.songbirds ? ['Small birds twitter and flutter.', 'A blackbird sings somewhere among the statues.', 'There is a flutter and twitter of small birds.'] : ['Small birds twitter and flutter.', 'There is a flutter and twitter of small birds.', 'A blackbird scolds, once, from somewhere among the statues.']));
   } else if (b.mode === 'silent' && s.hall.level === 1 && !a.hush) bits.push('There are no birdsong or wingbeats.');
   bits.push(...portalSentences(a));

@@ -138,3 +138,14 @@ the Robin Hood's Bay colony recording's 94, 27 and 8.5).
   is now: an arched contour, 25 dB or more of roughness-to-valley and 0.35 s or less in length.
 - The sparrow chirp sounded like an aerosol spray. Its measured noise included the clicks that sit between chirps in the recording; it is now 10 dB lower, with the roughness target at 32 dB
   (`scripts/birds/overrides.py`).
+
+### Version 8: richer colony, flocks, chicks
+- Colony: birds now spread from 4 to 120 m, and the far ones are only partly dimmed by distance (their level falls as the distance to the power of 0.25 past 4 m, not 1), so the far
+  birds make a bed under the near ones, as in the recordings; a call is taken up by one to three neighbours (each in its own voice and place), so the quick runs have a chorus behind
+  them; the rate is 4 times the single-bird rate. On a 20 ms envelope: about 175 call onsets a minute, in-call 64% and a 7 dB standard deviation (XC1086854: 112, 69%, 9 dB).
+  The long-term spectrum agrees from 800 Hz up, but has none of the 200 to 800 Hz body of the recordings (-50 dB against -30); that body is unmodelled (adding noise there risks the hoarse
+  sound that was just removed), and needs recordings of single birds at close range.
+- Feeding flock: a new bird mode, `feeding` (a flock of gulls overhead over food): flying birds, nine mews to a run or bouts of short laughing notes, neighbours joining in, 2.5 times the base
+  rate (about 130 onsets a minute, 8 dB, 64%, against 120, 10 dB and 57% in an Essex flock, XC861758). Nothing in the world yet makes this mode: where it occurs is a decision.
+- Chick: a pulsing (14 a second) rather than a pure arch, half the length, a quieter series of two to five calls.
+- Sparrows: eight individual birds (XC1082700, 791782, 1152146, 1145371, 1092252, 1089317, 1152144, 1145322), 2.7 to 6 kHz and 0.09 to 0.2 s, one picked for each bout, so no two sparrows are the same sweep.

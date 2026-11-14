@@ -39,6 +39,7 @@ export function speciesFor(mode: AudioScene['birds']['mode'], season?: Pick<Bird
     case 'sheltering': list = ['sparrow', 'sparrow', 'blackbird', 'rook']; break;
     case 'foraging': list = ['sparrow']; break;
     case 'soaring': list = ['gull']; break;
+    case 'feeding': list = ['gull']; break;
     case 'shore': list = ['gull']; break;
     case 'hunted': list = ['buzzard']; break;
     default: return [];
@@ -64,7 +65,7 @@ const FLIERS: Partial<Record<Species, { dur: number; speed: number; height: [num
   gull: { dur: 1.7, speed: 11, height: [5, 18] },
 };
 /** In these bird scenes the birds that can fly are overhead and moving; in the rest they are perched. */
-const FLYING_MODES: ReadonlySet<AudioScene['birds']['mode']> = new Set(['soaring', 'shore']);
+const FLYING_MODES: ReadonlySet<AudioScene['birds']['mode']> = new Set(['soaring', 'shore', 'feeding']);
 
 const FEET: Vec3 = { x: 0, y: -1.5, z: -0.4 };
 
@@ -806,7 +807,7 @@ export class AudioEngine {
       if (a.birds.mode === 'roosting' && Math.random() > 0.125) { this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6); } else
       this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, FLYING_MODES.has(a.birds.mode) ? 'fly' : undefined, a.birds.mode);
       // a breeding colony is a continuous bed of overlapping voices (measured on colony recordings: 90 to 220 call onsets a minute, the level moving only a few decibels)
-      this.nextBird = t + (60 / (a.birds.perMinute * (a.birds.mode === 'nesting' ? 4.2 : 1))) * rand(0.5, 1.6);
+      this.nextBird = t + (60 / (a.birds.perMinute * (a.birds.mode === 'nesting' ? 4 : a.birds.mode === 'feeding' ? 2.5 : 1))) * rand(0.5, 1.6);
     }
   }
 
@@ -909,23 +910,28 @@ export class AudioEngine {
   private answerDepth = 0;
   private bird(sp: Species, t: number, loud: number, out?: AudioNode, where?: 'fly' | Vec3 | Flyby, mode?: AudioScene['birds']['mode']): void {
     this.calls++;
-    const out0 = out;
+    const out0 = out, loud0 = loud;
     const pan = 0;
     const prev = this.doppler;
     let answer: Voice | null = null;
     if (!out && sp !== 'flock') {
       const fl = FLIERS[sp];
       const flight = (): Flyby => flybyPath(Math.random, { dur: (fl as NonNullable<typeof fl>).dur, speed: (fl as NonNullable<typeof fl>).speed, closest: [3, 12], height: (fl as NonNullable<typeof fl>).height });
-      const at: Vec3 | Flyby = where && where !== 'fly' ? where : where === 'fly' && fl ? flight() : mode === 'nesting' ? (() => { const d = 4 * Math.pow(17, Math.random()); return perchPosition(Math.random, [0, 30], [d, d]); })() : perchPosition(Math.random); // a colony fills the cliff: near birds and far ones (4 to 70 m), so the far ones make the diffuse bed
+      const at: Vec3 | Flyby = where && where !== 'fly' ? where : where === 'fly' && fl ? flight() : mode === 'nesting' ? (() => { const d = 4 * Math.pow(30, Math.random()); loud *= Math.pow(d / 4, 0.75); return perchPosition(Math.random, [0, 30], [d, d]); })() : perchPosition(Math.random); // a colony fills the cliff: near birds and far ones (4 to 120 m), so the far ones make the diffuse bed
       const voice = this.voice(t, at);
       out = voice.input;
       this.doppler = voice.doppler;
     }
     try { this.birdCall(sp, t, loud, out, pan, answer, mode); } finally { this.doppler = prev; }
     // sparrows answer one another: others, from their own places, take it up before the first has done, and the answer may be answered
+    // gulls in a colony set one another off: a call is taken up by neighbours (each in its own voice and place) and the chorus builds
+    if (sp === 'gull' && (mode === 'nesting' || mode === 'feeding') && !out0 && this.answerDepth < 3 && Math.random() < 0.55 - 0.15 * this.answerDepth) {
+      this.answerDepth++;
+      try { for (let i = 0, n = 1 + Math.floor(Math.random() * 3); i < n; i++) this.bird(sp, t + rand(0.15, 1.4), loud0 * rand(0.7, 1), undefined, where, mode); } finally { this.answerDepth--; }
+    }
     if (sp === 'sparrow' && !out0 && this.answerDepth < 3 && Math.random() < 0.8 - 0.2 * this.answerDepth) {
       this.answerDepth++;
-      try { for (let i = 0, n = 1 + Math.floor(Math.random() * 2); i < n; i++) this.bird(sp, t + rand(0.3, 1.8), loud * rand(0.6, 0.95), undefined, where, mode); } finally { this.answerDepth--; }
+      try { for (let i = 0, n = 1 + Math.floor(Math.random() * 2); i < n; i++) this.bird(sp, t + rand(0.3, 1.8), loud0 * rand(0.6, 0.95), undefined, where, mode); } finally { this.answerDepth--; }
     }
   }
 
@@ -950,7 +956,7 @@ export class AudioEngine {
 
   private birdCall(sp: Species, t: number, loud: number, out: AudioNode | undefined, pan: number, answer: Voice | null, mode?: AudioScene['birds']['mode']): void {
     const v = 0.05 + loud * 0.08;
-    const ctxOf = (m?: AudioScene['birds']['mode']): BirdContext => m === 'nesting' ? 'colony' : m === 'chick' ? 'greeting' : m === 'noisy' ? 'flock' : m === 'sheltering' ? 'rain' : m === 'roosting' ? 'roost' : 'air';
+    const ctxOf = (m?: AudioScene['birds']['mode']): BirdContext => m === 'nesting' ? 'colony' : m === 'chick' ? 'greeting' : m === 'noisy' || m === 'feeding' ? 'flock' : m === 'sheltering' ? 'rain' : m === 'roosting' ? 'roost' : 'air';
     const who: BirdVoice | null = sp === 'chick' ? (mode === 'nesting' || mode === undefined ? 'chick' : 'sparrow') : sp === 'gull' || sp === 'rook' || sp === 'sparrow' || sp === 'blackbird' || sp === 'buzzard' || sp === 'owl' || sp === 'albatross' ? sp : null;
     if (who) { this.playPlan(birdPlan(who, ctxOf(mode)), t, v, out); return; }
     switch (sp) {

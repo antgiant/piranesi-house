@@ -1,7 +1,7 @@
 // What each bird says, and in what order: the plan of one calling episode, made of notes taken from the measured templates (birdcalls.ts). The shapes, lengths and gaps are the
 // measured ones (design/birds.md); how often each is used, by place and season, is the behaviour (the scene). Pure, so it can be tested.
 
-import { CALLS, GULL_VOICES, type CallName } from './birdcalls';
+import { CALLS, GULL_VOICES, SPARROW_VOICES, type CallName } from './birdcalls';
 
 export type Rng = () => number;
 export interface PlannedNote { dt: number; call: CallName; pitch: number; gain: number }
@@ -31,6 +31,7 @@ function series(r: Rng, call: CallName, n: number, level: (i: number) => number,
 /** One episode of calling by a bird of this kind, in this situation. */
 export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNote[] {
   const bird = between(r, 0.92, 1.08); // this bird's own pitch
+  const chirp: CallName = SPARROW_VOICES[Math.floor(r() * SPARROW_VOICES.length)] ?? 'sparrowChirp'; // a sparrow has its own chirp, too
   const mew: CallName = GULL_VOICES[Math.floor(r() * GULL_VOICES.length)] ?? 'gullMew'; // and, for a gull, its own mew: each bird measured on its own recording
   switch (who) {
     case 'gull': {
@@ -44,9 +45,18 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
         for (let i = 0; i < n; i++) { notes.push({ dt: t, call: 'gullNote', pitch: bird * (1.04 - 0.03 * (i / n)), gain: 0.7 + 0.3 * Math.sin((Math.PI * (i + 1)) / (n + 1)) }); t += gapOf(r, 'gullNote') * (0.8 + 0.55 * (i / n)) * between(r, 0.9, 1.12); } // the laugh slows as it goes, and is never an even tick
         return notes;
       }
+      if (ctx === 'flock') {
+        // a flock over food: short runs of mews (two to five, quick), single mews, and now and then a bout of the short laughing notes; birds join in all the time
+        const kind = pick(r, ['run', 'mew', 'laugh'] as const, [0.5, 0.35, 0.15]);
+        if (kind === 'mew') return [{ dt: 0, call: mew, pitch: bird, gain: 1 }];
+        if (kind === 'run') return series(r, mew, 2 + Math.floor(r() * 4), (i) => 1 - i * 0.07, (i) => bird * (1 + 0.01 * i)).map((n, i) => ({ ...n, dt: n.dt * 0.55 + i * 0.03 }));
+        const n = 4 + Math.floor(r() * 5); const out: PlannedNote[] = []; let t = 0;
+        for (let i = 0; i < n; i++) { out.push({ dt: t, call: 'gullNote', pitch: bird * (1.1 - 0.04 * (i / n)), gain: 0.8 }); t += gapOf(r, 'gullNote') * between(r, 0.7, 1.0); }
+        return out;
+      }
       return r() < 0.88 ? [{ dt: 0, call: mew, pitch: bird, gain: 1 }] : series(r, mew, 2, (i) => 1 - i * 0.2, () => bird);
     }
-    case 'chick': return series(r, 'gullBeg', 3 + Math.floor(r() * 6), (i) => 1 - i * 0.04, () => between(r, 0.95, 1.05));
+    case 'chick': return series(r, 'gullBeg', 2 + Math.floor(r() * 4), (i) => 0.55 - i * 0.04, () => between(r, 0.95, 1.05));
     case 'rook': {
       const n = pick(r, [1, 2, 3, 4] as const, [0.45, 0.28, 0.17, 0.1]);
       const notes: PlannedNote[] = []; let t = 0;
@@ -59,8 +69,8 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
       const notes: PlannedNote[] = []; let t = 0;
       for (let i = 0; i < n; i++) {
         const tick = false; // the modal-click 'tick' sounded like a water drop among the chirps, and is not used
-        notes.push({ dt: t, call: tick ? 'sparrowTick' : 'sparrowChirp', pitch: bird * (tick ? 1 : between(r, 0.9, 1.1)), gain: tick ? 0.45 : 1 });
-        t += gapOf(r, tick ? 'sparrowTick' : 'sparrowChirp');
+        notes.push({ dt: t, call: tick ? 'sparrowTick' : chirp, pitch: bird * (tick ? 1 : between(r, 0.9, 1.1)), gain: tick ? 0.45 : 1 });
+        t += gapOf(r, tick ? 'sparrowTick' : chirp);
       }
       return notes;
     }

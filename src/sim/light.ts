@@ -40,7 +40,7 @@ export function lightAt(world: World, hall: Hall, t: number, w: Weather, lw: Loc
   return { level, tone, sunPhase: day.phase, moonInDoorway: false };
 }
 
-export type BirdMode = 'none' | 'roosting' | 'foraging' | 'sheltering' | 'silent' | 'murmuration' | 'nesting' | 'chick' | 'noisy' | 'soaring' | 'shore' | 'hunted';
+export type BirdMode = 'none' | 'roosting' | 'foraging' | 'sheltering' | 'silent' | 'murmuration' | 'nesting' | 'chick' | 'noisy' | 'soaring' | 'shore' | 'hunted' | 'feeding';
 
 export interface BirdScene {
   mode: BirdMode;

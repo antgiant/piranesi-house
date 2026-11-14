@@ -24,7 +24,8 @@ SPECS.update({k: v for k, v in MODS.items()})
 # Individual gulls: one template for each recording (a different bird each), so a colony is made of birds that do not all sound alike.
 # Dropped after listening to each in turn: 1032698 and 284200 (a flat, hoarse call), 1093407, 528591 and 896886 (rough and low: a hoarse gull among the others).
 # Each bird's mews measured on its own: pitch, length, roughness, spectrum differ from bird to bird (pitch 950 to 1700 Hz, length 0.16 to 0.5 s, roughness 13 to 43 dB).
-INDIVIDUALS = {'gullMew': (900, 2500, 0.15, 0.7, ['1005243', '1093406', '1102859', '1157890', '1157891', '1182702', '1193631', '744909', '798407', '990704', '483105', '804205'], 24.0)}
+INDIVIDUALS = {'gullMew': (900, 2500, 0.15, 0.7, ['1005243', '1093406', '1102859', '1157890', '1157891', '1182702', '1193631', '744909', '798407', '990704', '483105', '804205'], 24.0),
+               'sparrowChirp': (2200, 7000, 0.03, 0.3, ['1082700', '791782', '1152146', '1145371', '1092252', '1089317', '1152144', '1145322'], 28.0)}
 out = {}
 for name, spans in CLICKS.items():
     tpl = T.build_click(name, [W + s_.split(':')[0] + '.wav:' + ':'.join(s_.split(':')[1:]) for s_ in spans])
@@ -35,7 +36,7 @@ for name, spec in SPECS.items():
     if tpl is None: print('!! no calls for', name); continue
     if name in MODS: tpl['am'] = T.modulation(name, [W + s_.split(':')[0] + '.wav:' + ':'.join(s_.split(':')[1:]) for s_ in spec[4]])
     out[name] = tpl; print(f"{name:14s} {tpl['n']:3d} calls  dur {tpl['dur']:.2f} ({tpl['durRange'][0]:.2f}-{tpl['durRange'][1]:.2f})  f0 {tpl['f0'][0]}..{max(tpl['f0'])}..{tpl['f0'][-1]}  gap {tpl['gap']} bout {tpl['bout']}")
-for base, (lo, hi, dmin, dmax, ids, snr) in INDIVIDUALS.items():
+for base, (lo, hi, dmin, dmax, ids, snr) in INDIVIDUALS.items():  # (sparrows: eight birds of different pitch, 2.7 to 6 kHz, and length, 0.09 to 0.2 s)
     for i in ids:
         t = T.build(base, lo, hi, [W + i + '.wav:0:40'], dmin, dmax, snr, 0.25)
         if t is None or t['n'] < 3 or t['hnr'] < 15: continue

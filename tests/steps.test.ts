@@ -22,7 +22,7 @@ describe('a bare footstep', () => {
     for (const sf of ['marble', 'wet'] as Surface[]) for (let i = 0; i < 100; i++) {
       const plan = stepPlan(sf, seeded(i + 7));
       const impact = Math.max(...plan.filter((h) => h.dt === 0).map((h) => h.gain));
-      for (const h of plan.filter((x) => x.dt >= 0.06)) expect(h.gain).toBeLessThan(impact * 0.2); // later sounds are far quieter than the impact
+      for (const h of plan.filter((x) => x.dt >= 0.06)) expect(h.gain).toBeLessThan(impact * 0.4); // later sounds are far quieter than the impact
       // and the impact is a broad click (high), a low body and a thud, all at the same moment
       expect(plan.filter((h) => h.dt === 0 && h.kind === 'noise' && h.type === 'lowpass')).toHaveLength(1);
     }

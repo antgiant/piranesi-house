@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import template as T
 from scipy.io import wavfile
 qd, lib_path, out = sys.argv[1:4]
-RANGES = {'gullChoke': (450, 1500, 0.03, 0.4), 'gullAlarm': (500, 2800, 0.04, 0.6), 'gullFlight': (500, 2800, 0.04, 0.6), 'gullMew': (900, 2800, 0.05, 0.9), 'gullNote': (600, 2200, 0.04, 0.3), 'rookCaw': (220, 750, 0.1, 1.0), 'sparrowChirp': (2200, 7000, 0.03, 0.3), 'blackbirdTink': (1200, 3500, 0.02, 0.15), 'buzzardMew': (1800, 4000, 0.2, 1.0), 'owlScreech': (1500, 2800, 0.3, 2.6), 'gullBeg': (1100, 3000, 0.05, 0.9), 'albatrossWhirr': (1800, 4200, 0.4, 2.8)}
+RANGES = {'gullThin': (3000, 6500, 0.05, 1.0), 'gullChoke': (450, 1500, 0.03, 0.4), 'gullAlarm': (500, 2800, 0.04, 0.6), 'gullFlight': (500, 2800, 0.04, 0.6), 'gullMew': (900, 2800, 0.05, 0.9), 'gullNote': (600, 2200, 0.04, 0.3), 'rookCaw': (220, 750, 0.1, 1.0), 'sparrowChirp': (2200, 7000, 0.03, 0.3), 'blackbirdTink': (1200, 3500, 0.02, 0.15), 'buzzardMew': (1800, 4000, 0.2, 1.0), 'owlScreech': (1500, 2800, 0.3, 2.6), 'gullBeg': (1100, 3000, 0.05, 0.9), 'albatrossWhirr': (1800, 4200, 0.4, 2.8)}
 MINV = {'owlScreech': 1, 'albatrossWhirr': 1}
 lib = json.load(open(lib_path)); res = {}
 for kind, spec in lib.items():

@@ -57,7 +57,11 @@ function planOf(who: Voice, ctx: Context, r: Rng): PlannedNote[] {
         // the clucking train ("choking"): measured in 21 regular trains of 16 recordings: 5 to 12 pulses, 3 to 5.5 a second, the pace easing a little
         if (kind === 'choke') { const n = 5 + Math.floor(r() * 8), rate = between(r, 3.2, 5.5), out: PlannedNote[] = []; let t = 0; for (let i = 0; i < n; i++) { out.push({ dt: t, call: 'gullChoke', pitch: bird, gain: 0.8 - 0.015 * i }); t += (1 / rate) * (1 + 0.02 * i) * between(r, 0.92, 1.08); } return out; }
         if (kind === 'flight') return spaced(r, series(r, 'gullFlight', 1 + Math.floor(r() * 3), (i) => 1 - i * 0.1, () => bird), 0.25, 0.7);
-        if (kind === 'alarm') return spaced(r, series(r, 'gullAlarm', 3 + Math.floor(r() * 5), (i) => 1 - i * 0.06, (i) => bird * (1 - i * 0.01)), 0.2, 0.42);
+        if (kind === 'alarm') {
+          // the "kek-kek-kek": now and then a long train, 10 to 22 pulses at about six a second (a winter flock's trains; the clean alarm recordings' runs are shorter and slower)
+          const train = r() < 0.3;
+          return spaced(r, series(r, 'gullAlarm', train ? 10 + Math.floor(r() * 13) : 3 + Math.floor(r() * 5), (i) => 1 - i * (train ? 0.015 : 0.06), (i) => bird * (1 - i * 0.01)), train ? 0.15 : 0.2, train ? 0.19 : 0.42);
+        }
         if (kind === 'mew') return r() < 0.8 ? [{ dt: 0, call: mew, pitch: bird, gain: 1 }] : series(r, mew, 2, (i) => 1 - i * 0.15, () => bird);
         // the long call: a few slow notes, then the laugh: a run of short notes about a quarter of a second apart, dropping a little in pitch
         const n = 9 + Math.floor(r() * 6), notes: PlannedNote[] = [{ dt: 0, call: mew, pitch: bird * 0.82, gain: 0.8 }];
@@ -77,7 +81,11 @@ function planOf(who: Voice, ctx: Context, r: Rng): PlannedNote[] {
       }
       return r() < 0.88 ? [{ dt: 0, call: mew, pitch: bird, gain: 1 }] : series(r, mew, 2, (i) => 1 - i * 0.2, () => bird);
     }
-    case 'chick': return series(r, 'gullBeg', countOf(r, 'gullBeg', 2, 7), (i) => 0.8 - i * 0.04, () => between(r, 0.95, 1.05));
+    case 'chick': {
+      // the young's call is a thin, high tone (3.2 to 5.6 kHz) in a small chick, stronger and lower in a juvenile, lower still in an adult (the adult mew): mostly the thin call, with the rougher begging of the older young among it
+      if (r() < 0.62) return series(r, 'gullThin', 2 + Math.floor(r() * 4), (i) => 0.8 - i * 0.05, () => between(r, 0.93, 1.07));
+      return series(r, 'gullBeg', countOf(r, 'gullBeg', 2, 7), (i) => 0.8 - i * 0.04, () => between(r, 0.95, 1.05));
+    }
     case 'rook': {
       const n = pick(r, [1, 2, 3, 4] as const, [0.45, 0.28, 0.17, 0.1]);
       const notes: PlannedNote[] = []; let t = 0;

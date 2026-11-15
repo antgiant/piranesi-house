@@ -220,3 +220,12 @@ Four very clean recordings of herring gull alarm calls at one metre with a shotg
 - The four clean recordings are the first voices of the alarm kind (`gullAlarm`).
 - **Feeding flock**: the close recording shows a bursty flock (36 gaps of over a second in 100, none over six; calls bunched; 50 dB of level swing; median pitch 1.67 kHz against 1.27 for a colony; much brighter, broadband squeals, wingbeats).
   The feeding mode now alternates spells (4 to 12 s at 1.8 times the rate) and lulls (1.5 to 5 s at a tenth), and pitches calls 12 to 45% higher. Wingbeats and squeals are not done.
+
+## Version 15: the thin high call, and trains of "kek" (a winter flock, ML547765491, Suffolk NY, 10 Feb 2023; clear, 60°F, 12:55 pm)
+- Long regular trains of short pulses (10 to 25 a train, about six a second, fundamental about 1.7 to 1.9 kHz, with thin arched harmonics reaching 10 kHz) fill much of the recording. The alarm episodes of the colony and the flock now include
+  them in 30% of the runs (10 to 22 pulses 0.15 to 0.19 s apart), the rest keep the shorter, slower runs of the clean alarm recordings.
+- **The thin high call.** 239 detections of a pitch between 3.2 and 7 kHz: 147 coincide with a mid-range call (they are its second harmonic), 92 stand alone: flat or gently falling pure tones at 3.3 to 4.7 kHz, 0.1 to 0.8 s, 13 to 60 dB clean (a winter flock with first-winter birds).
+  With the begging recordings' own high tones they form `gullThin` (11 voices, 51 of 72 calls pass the round trip), now the main call of the young (62% of a chick episode; the rest is the rougher begging).
+  The owner's observation: chicks give a thin high call that is stronger and lower in juveniles and lower still in adults (the mew). That fits the measured tones (3.3 to 4.7 kHz for first-winter birds against the mew's 1.2 to 1.6 kHz), but this recording has no
+  downy chicks, so the highest, thinnest call of the smallest chicks is not measured. That the kek trains hide the call is a hypothesis: here the stand-alone thin calls fall inside the trains only rarely (8 of 239 detections), but the trains' own arched harmonics fill the same 4 to 10 kHz band.
+- The library trimmed to ten voices of three calls to stay under the JS budget (167.7 KB gzipped).

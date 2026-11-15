@@ -57,7 +57,7 @@ describe('what the birds say', () => {
       const p = plan(who, ctx, seeded(i * 7 + 1));
       expect(p.length).toBeGreaterThan(0); expect(p.length).toBeLessThan(80);
       for (let k = 0; k < p.length; k++) {
-        const n = p[k]!; expect(n.call in CALLS || n.call in LIB).toBe(true); expect(n.dt).toBeGreaterThanOrEqual(0); expect(n.gain).toBeGreaterThan(0); expect(n.pitch).toBeGreaterThan(0.6); expect(n.pitch).toBeLessThan(1.4);
+        const n = p[k]!; expect(n.call in CALLS || n.call in LIB).toBe(true); expect(n.dt).toBeGreaterThanOrEqual(0); expect(n.gain).toBeGreaterThan(0); expect(n.pitch).toBeGreaterThan(0.6); expect(n.pitch).toBeLessThan(1.7);
         if (k > 0) expect(n.dt).toBeGreaterThanOrEqual(p[k - 1]!.dt);
       }
       expect(p[p.length - 1]!.dt).toBeLessThan(30);

@@ -159,3 +159,15 @@ the Robin Hood's Bay colony recording's 94, 27 and 8.5).
   partly true to life. The previous version was a pure 5 kHz arch, a different (cleaner) sound. Now: fundamental 1.5 to 2.1 kHz, 45 Hz pulsing, rough (`hnr` 20), a bout of three to six.
 - Sparrows: the four individuals whose chirps rendered as a bare block of noise or a pure whistle (1145371, 1145322, 1089317, 1092252) are dropped; the noise of the rest is 18 dB lower. The long steady "whistle" tails seen in a
   spectrogram after a chirp are the hall's own echo (a pure tone through a four-second hall comes back as a steady narrow band of noise at the same pitch), not part of the call.
+
+## Version 10: a library of real calls, checked by analysis-by-synthesis
+The median templates (one averaged call per kind) are replaced, for the gull mew and notes, the rook, the sparrow, the blackbird and the buzzard, by a library of real calls.
+- **Recordings** (`scripts/birds/harvest.py`, from Xeno-canto; only numbers are kept): about 60 of the herring gull (all kinds of call, Britain, Ireland, France, the Netherlands, Germany, Scandinavia), 24 each of rook, house sparrow, blackbird and buzzard,
+  20 of barn owl, 21 of albatross (Laysan, black-footed, wandering).
+- **Measurement** (`library.py`): every clear call in each recording (pitch contour, loudness contour, length, roughness, spectrum in third octaves split into tone and noise). 1,271 gull calls, 727 sparrow, 350 rook, 340 blackbird, 209 buzzard.
+- **Selection** (`build_lib.py`): the pitch tracker's failures are plain in the numbers: 600 to 900 Hz "gull calls" with roughness under 10 dB are noise taken for calls (this was the hoarse low gull). Each kind has a filter on pitch, length and roughness;
+  a recording with enough passing calls is a voice (its own spectrum, and up to six of its real calls, spread through the recording). Up to 14 voices a kind.
+- **Round trip** (`qa_render.ts`, `qa.py`): every call is rendered as the game renders it, measured again by the same analysis, and must come back with the same pitch (within 8%), roughness (within 12 dB) and harmonic spectrum (within 9 dB).
+  What fails is dropped (gull mew 63 of 84 pass, gull notes 41 of 46, rook 36 of 72, sparrow 50 of 72, blackbird 34 of 54, buzzard 42 of 50). The final library: 13 + 8 + 7 + 11 + 6 + 10 voices, `src/audio/birdlib.ts` (about 15 KB gzipped).
+- **Use**: a calling episode is one bird: it takes one voice and each note is one of that voice's real calls (rendered once, kept). The old medians stay for what has no library (the chick's begging, the albatross, the owl, and the timing of notes).
+- The barn owl's screech is a rough hiss without a clear pitch: one call in eight came back from the round trip, so the owl is left as it was.

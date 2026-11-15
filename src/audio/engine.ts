@@ -13,8 +13,9 @@ import { ColonyBed } from './colonybed';
 import { Wind } from './wind';
 import { allOn, maskScene, type Elements } from './elements';
 import { buildImpulse } from './room';
-import { renderCall } from './birdsynth';
+import { libTemplate, renderCall } from './birdsynth';
 import { CALLS, type CallName } from './birdcalls';
+import { LIB, type LibKind } from './birdlib';
 import { plan as birdPlan, type Context as BirdContext, type Voice as BirdVoice } from './birdsong';
 import { stepPlan, type Hit } from './steps';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
@@ -122,7 +123,7 @@ export class AudioEngine {
   private outsideId = '';
   private nextVoice = 0;
   private leftFoot = false;
-  private callCache: Partial<Record<CallName, AudioBuffer[]>> = {};
+  private callCache: Record<string, AudioBuffer[]> = {};
   private elements: Elements = allOn();
   private rawScene: AudioScene | null = null;
   private irKey = '';
@@ -948,10 +949,15 @@ export class AudioEngine {
   private playPlan(notes: ReturnType<typeof birdPlan>, t: number, v: number, out?: AudioNode): void {
     const ctx = this.ctx as AudioContext;
     for (const n of notes) {
-      const variants = (this.callCache[n.call] ??= []);
+      // a call of a real bird of the library (one of the voice's measured calls, rendered once and kept), or else the call's own template
+      const lib = n.call in LIB && n.voice !== undefined ? LIB[n.call as LibKind][n.voice] : undefined;
+      const ci = lib ? Math.floor(Math.random() * lib.calls.length) : -1;
+      const key = lib ? `${n.call}/${n.voice}/${ci}` : n.call;
+      const variants = (this.callCache[key] ??= []);
       let buf: AudioBuffer;
-      if (variants.length < 5) {
-        const data = renderCall(ctx.sampleRate, CALLS[n.call], Math.random);
+      if (variants.length < (lib ? 2 : 5)) {
+        const tpl = lib ? libTemplate(CALLS[n.call].bands, lib, lib.calls[ci] as number[]) : CALLS[n.call];
+        const data = renderCall(ctx.sampleRate, tpl, Math.random);
         buf = ctx.createBuffer(1, data.length, ctx.sampleRate); buf.getChannelData(0).set(data); variants.push(buf);
       } else buf = variants[Math.floor(Math.random() * variants.length)] as AudioBuffer;
       const at = t + n.dt, src = ctx.createBufferSource();

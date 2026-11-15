@@ -1,10 +1,12 @@
 // What each bird says, and in what order: the plan of one calling episode, made of notes taken from the measured templates (birdcalls.ts). The shapes, lengths and gaps are the
 // measured ones (design/birds.md); how often each is used, by place and season, is the behaviour (the scene). Pure, so it can be tested.
 
-import { CALLS, GULL_VOICES, SPARROW_VOICES, type CallName } from './birdcalls';
+import { CALLS, type CallName } from './birdcalls';
+import { LIB, type LibKind } from './birdlib';
 
 export type Rng = () => number;
-export interface PlannedNote { dt: number; call: CallName; pitch: number; gain: number }
+/** `voice` is, for a call that has a library of real birds (birdlib.ts), which bird's voice makes it. */
+export interface PlannedNote { dt: number; call: CallName; pitch: number; gain: number; voice?: number }
 export type Voice = 'gull' | 'rook' | 'sparrow' | 'blackbird' | 'buzzard' | 'owl' | 'albatross' | 'chick';
 export type Context = 'colony' | 'air' | 'roost' | 'rain' | 'flock' | 'greeting' | 'nest';
 
@@ -29,10 +31,16 @@ function series(r: Rng, call: CallName, n: number, level: (i: number) => number,
 }
 
 /** One episode of calling by a bird of this kind, in this situation. */
+/** One episode of calling by one bird: its notes, each made in the voice of one real bird of the library (the same bird for all its notes of a kind). */
 export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNote[] {
+  const notes = planOf(who, ctx, r), mine: Partial<Record<string, number>> = {};
+  for (const n of notes) if (n.call in LIB) { const k = n.call as LibKind; mine[k] ??= Math.floor(r() * LIB[k].length); n.voice = mine[k]; }
+  return notes;
+}
+
+function planOf(who: Voice, ctx: Context, r: Rng): PlannedNote[] {
   const bird = between(r, 0.92, 1.08); // this bird's own pitch
-  const chirp: CallName = SPARROW_VOICES[Math.floor(r() * SPARROW_VOICES.length)] ?? 'sparrowChirp'; // a sparrow has its own chirp, too
-  const mew: CallName = GULL_VOICES[Math.floor(r() * GULL_VOICES.length)] ?? 'gullMew'; // and, for a gull, its own mew: each bird measured on its own recording
+  const mew: CallName = 'gullMew', chirp: CallName = 'sparrowChirp';
   switch (who) {
     case 'gull': {
       if (ctx === 'colony') {

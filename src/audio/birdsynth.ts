@@ -33,6 +33,8 @@ export interface CallTemplate {
   second?: { ratio: number; db: number; from: number; to: number };
   /** How the brightness changes through the call (dB, in the first, middle and last third, from the harmonics above the third): a real call loses its high harmonics before it ends. */
   bright?: [number, number, number];
+  /** The wavering of the pitch, measured on the real call: rate (Hz) and depth (peak, percent of the pitch). Gull calls waver slowly (6 to 13 a second, 1 to 4%); a fast flutter sounds like a vibrating plate. */
+  vib?: [number, number];
   /** A sharp sound (a bill clap, a tick): not a call with a contour but a broadband impulse that rings: the resonances (Hz, dB) and how fast they and the impulse die (seconds). */
   click?: { modes: [number, number][]; ringTau: number; impulseTau: number };
 }
@@ -134,25 +136,26 @@ function renderClick(sr: number, tpl: CallTemplate & { click: NonNullable<CallTe
 export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random, opts: { duration?: number; pitch?: number } = {}): Float32Array {
   if (tpl.click) return renderClick(sr, tpl as CallTemplate & { click: NonNullable<CallTemplate['click']> }, rng, opts.pitch ?? 1);
   const dur = opts.duration ?? Math.min(tpl.durRange[1], Math.max(tpl.durRange[0], tpl.dur * Math.exp(0.18 * gauss(rng))));
-  const n = Math.max(64, Math.floor(dur * sr));
+  // the call itself, then its tail: the analysis keeps the frames within 18 dB of the peak, so a measured call stops while the real one is still dying away (the real fall from the peak to -30 dB is about 0.28 s against 0.17 s
+  // in a synthesis without a tail): the end falls on, at 40 dB across a third of the call's length (0.04 to 0.15 s)
+  const nBody = Math.max(64, Math.floor(dur * sr)), nTail = Math.floor(Math.min(0.15, Math.max(0.04, 0.3 * dur)) * sr), n = nBody + nTail;
   const scale = (opts.pitch ?? 1) * Math.exp(Math.min(2, Math.max(-2, gauss(rng))) * tpl.f0Spread);
   // a slow wobble of the contour, different for each call
-  const w1 = (rng() - 0.5) * 0.08, w2 = (rng() - 0.5) * 0.06, ph = rng() * 6.28;
+  const w1 = tpl.vib ? 0 : (rng() - 0.5) * 0.08, w2 = tpl.vib ? 0 : (rng() - 0.5) * 0.06, ph = rng() * 6.28;
   const tone = new Float32Array(n), env = new Float32Array(n), f0s = new Float32Array(n);
   const hasTone = Math.max(...tpl.H) > -60;
   const phases = new Float64Array(40);
   const amPhase = rng() * 6.28;
   const noise = shapedNoise(sr, n, tpl, rng, scale);
   let phi = 0, phi2 = 0;
-  const br = tpl.bright, flutRate = Array.from({ length: 12 }, () => 2 * Math.PI * (22 + rng() * 40)), flutPh = Array.from({ length: 12 }, () => rng() * 6.28);
-  const jit1 = 0.0025 * (rng() - 0.5) * 2, jit2 = 0.0018 * (rng() - 0.5) * 2, jp1 = rng() * 6.28, jp2 = rng() * 6.28;
+  const br = tpl.bright, vibRate = tpl.vib ? 2 * Math.PI * tpl.vib[0] : 0, vibDepth = tpl.vib ? tpl.vib[1] / 100 : 0, vibPh = rng() * 6.28;
   for (let i = 0; i < n; i++) {
-    const ul = i / (n - 1);
+    const ul = Math.min(1, i / (nBody - 1)), tg = i < nBody ? 1 : Math.pow(10, (-40 * ((i - nBody) / nTail)) / 20);
     // time on the contour's own axis: its fifth point of twelve is the apex (4/11 of the way along)
     const ap = Math.min(0.9, Math.max(0.05, tpl.apex ?? 4 / 11)), u = ul < ap ? (4 / 11) * (ul / ap) : 4 / 11 + (7 / 11) * ((ul - ap) / (1 - ap));
-    const f0 = interp(tpl.f0, u) * scale * (1 + w1 * Math.sin(ph + 9 * u) + w2 * (u - 0.5)) * (1 + jit1 * Math.sin(2 * Math.PI * 37 * (i / sr) + jp1) + jit2 * Math.sin(2 * Math.PI * 83 * (i / sr) + jp2));
+    const f0 = interp(tpl.f0, u) * scale * (1 + w1 * Math.sin(ph + 9 * u) + w2 * (u - 0.5)) * (1 + vibDepth * Math.sin(vibRate * (i / sr) + vibPh));
     f0s[i] = f0;
-    let e = Math.pow(10, interp(tpl.env, u) / 20);
+    let e = Math.pow(10, interp(tpl.env, u) / 20) * tg;
     if (tpl.am) e *= 1 - tpl.am[1] * 0.5 * (1 - Math.cos(2 * Math.PI * tpl.am[0] * (i / sr) + amPhase));
     env[i] = e;
     let s = 0;
@@ -169,9 +172,7 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
         let db = levelAt(tpl.H, tpl.bands, hz / scale);
         if (db <= -60) continue;
         if (br && k >= 3) db += ul < 0.5 ? br[0] + (br[1] - br[0]) * (ul / 0.5) : br[1] + (br[2] - br[1]) * ((ul - 0.5) / 0.5);
-        // a living voice is never perfectly steady: each harmonic's level wavers by a decibel or so, at its own rate (the lines of a real call are rippled; a synthetic one is smooth)
-        const flutter = k <= 12 ? 1 + 0.11 * Math.sin(flutRate[k - 1]! * i / sr + flutPh[k - 1]!) : 1;
-        s += Math.pow(10, db / 20) * flutter * Math.sin(k * phi + phases[k - 1]!);
+        s += Math.pow(10, db / 20) * Math.sin(k * phi + phases[k - 1]!);
       }
     }
     tone[i] = s;
@@ -183,8 +184,8 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
   for (let i = 0; i < n; i++) out[i] = (tone[i]! + noise[i]! * kNoise) * env[i]!;
   // a short fade at each end so nothing clicks, then normalise
   // a smooth start and end: a call that starts or stops at full level is heard as a thump at its start and as cut off at its end (the recordings rise over some 10 ms and die away over a few tens)
-  const fadeIn = Math.min(n >> 2, Math.max(Math.floor(0.006 * sr), Math.min(Math.floor(0.015 * sr), Math.floor(0.12 * n))));
-  const fadeOut = Math.min(n >> 1, Math.max(Math.floor(0.012 * sr), Math.min(Math.floor(0.06 * sr), Math.floor(0.3 * n))));
+  const fadeIn = Math.min(n >> 2, Math.max(Math.floor(0.004 * sr), Math.min(Math.floor(0.008 * sr), Math.floor(0.08 * n))));
+  const fadeOut = Math.min(n >> 2, Math.floor(0.008 * sr)); // (the tail does the dying away)
   let peak = 0;
   for (let i = 0; i < n; i++) {
     if (i < fadeIn) out[i] = out[i]! * 0.5 * (1 - Math.cos((Math.PI * i) / fadeIn));
@@ -216,5 +217,5 @@ export function fillBands(v: number[], up: number, down: number, floor = -118): 
 /** A call made by one real bird of the library: its voice's spectrum and one of its measured calls (length, roughness, 12 pitch points, 12 loudness points). */
 export function libTemplate(bands: number[], voice: { H: number[]; N: number[] }, call: number[]): CallTemplate {
   const dur = call[0]!;
-  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: call.slice(15, 27), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[27] ?? 0, call[28] ?? 0, call[29] ?? 0], ...(call.length > 30 ? { am: [call[30]!, call[31]!] as [number, number] } : {}) };
+  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: call.slice(15, 27), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[27] ?? 0, call[28] ?? 0, call[29] ?? 0], vib: [call[30] ?? 0, call[31] ?? 0], ...(call.length > 32 ? { am: [call[32]!, call[33]!] as [number, number] } : {}) };
 }

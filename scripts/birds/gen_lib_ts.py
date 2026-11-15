@@ -12,7 +12,7 @@ for kind, v in L.items():
     lines.append(f'  {kind}: [')
     for vo in v['voices']:
         lines.append(f"    {{ H: {ar(vo['H'])}, N: {ar(vo['N'])}, calls: [")
-        for c in vo['calls']: lines.append('      ' + ar([c['dur'], c['apex'], c['hnr']] + c['f0'] + c['env'] + c.get('bright', [0, 0, 0]) + (c['am'] if c.get('am') else [])) + ',')
+        for c in vo['calls']: lines.append('      ' + ar([c['dur'], c['apex'], c['hnr']] + c['f0'] + c['env'] + c.get('bright', [0, 0, 0]) + c.get('vib', [0, 0]) + (c['am'] if c.get('am') else [])) + ',')
         lines.append('    ] },')
     lines.append('  ],')
 lines += ['};', '']

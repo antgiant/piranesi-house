@@ -63,6 +63,28 @@ def analyse(item, fmin, fmax, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25):
         if len(strong) < 6 or len(loud) < 2: continue
         a, b = a + max(strong[0], loud[0] - 3), a + strong[-1] + 1  # from just before the first loud frame, so every call starts at its own onset
         seg = f0[a:b]; env = e[a:b] - e[a:b].max(); frames = S[:, a:b]
+        # how clean the voice is: the harmonics' peaks against the valleys between them, in the middle of the call (a real gull is only about 34 dB clean; a pure synthetic tone is 70)
+        mid = frames[:, len(seg) // 2]; f_mid = seg[len(seg) // 2]; pkv = []; vav = []
+        for h in range(1, 9):
+            c0 = h * f_mid
+            if c0 > min(sr / 2 * 0.8, 9000): break
+            vsel = (f > (h + 0.4) * f_mid) & (f < (h + 0.6) * f_mid)
+            pkv.append(10 * np.log10(mid[(f > c0 * 0.97) & (f < c0 * 1.03)].max() + 1e-20))
+            vav.append(10 * np.log10(max(np.median(mid[vsel]) - np.median(bg[vsel]), 10 ** (pkv[-1] / 10 - 6.0)) + 1e-20))  # the valley with the recording's own background taken away; never deeper than 60 dB
+        hnr = float(np.mean(np.array(pkv) - np.array(vav))) if pkv else 40.0
+        # a pitch tracked an octave too high (the second harmonic the strongest, as in many gull calls) shows as a roughness near zero, because the valleys it looks in are the true harmonics: try half the pitch
+        # as well, and if that is much cleaner it was the true pitch
+        octave = 1
+        if f_mid * 0.5 >= fmin * 0.45:
+            pk2 = []; va2 = []; fh = 0.5 * f_mid
+            for h in range(1, 17):
+                c0 = h * fh
+                if c0 > min(sr / 2 * 0.8, 9000): break
+                vsel = (f > (h + 0.4) * fh) & (f < (h + 0.6) * fh)
+                pk2.append(10 * np.log10(mid[(f > c0 * 0.97) & (f < c0 * 1.03)].max() + 1e-20)); va2.append(10 * np.log10(max(np.median(mid[vsel]) - np.median(bg[vsel]), 10 ** (pk2[-1] / 10 - 6.0)) + 1e-20))
+            hnr2 = float(np.mean(np.array(pk2) - np.array(va2))) if pk2 else 0.0
+            if hnr2 > hnr + 12 and hnr2 > 20: hnr = hnr2; octave = 2
+        if octave == 2: seg = seg / 2.0  # the true pitch, for everything that follows
         # harmonic mask: within a few bins of each harmonic of this frame's f0
         harm = np.zeros(frames.shape, bool); df = f[1] - f[0]
         for k in range(frames.shape[1]):
@@ -83,15 +105,6 @@ def analyse(item, fmin, fmax, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25):
                 if Nn[bi] < bgdb[bi] + 4: Nn[bi] = -160.0
                 else: Nn[bi] = 10 * np.log10(max(10 ** (Nn[bi] / 10) - 10 ** (bgdb[bi] / 10), 1e-16))  # the call's own noise: the background taken away
         Ht, Nt = Hh, Nn
-        # how clean the voice is: the harmonics' peaks against the valleys between them, in the middle of the call (a real gull is only about 34 dB clean; a pure synthetic tone is 70)
-        mid = frames[:, len(seg) // 2]; f_mid = seg[len(seg) // 2]; pkv = []; vav = []
-        for h in range(1, 9):
-            c0 = h * f_mid
-            if c0 > min(sr / 2 * 0.8, 9000): break
-            vsel = (f > (h + 0.4) * f_mid) & (f < (h + 0.6) * f_mid)
-            pkv.append(10 * np.log10(mid[(f > c0 * 0.97) & (f < c0 * 1.03)].max() + 1e-20))
-            vav.append(10 * np.log10(max(np.median(mid[vsel]) - np.median(bg[vsel]), 10 ** (pkv[-1] / 10 - 6.0)) + 1e-20))  # the valley with the recording's own background taken away; never deeper than 60 dB
-        hnr = float(np.mean(np.array(pkv) - np.array(vav))) if pkv else 40.0
         # a failed pitch track sits on the edge of the range: leave such calls out
         edge = np.mean((seg < fmin * 1.04) | (seg > fmax * 0.96))
         if edge > edgeok: continue
@@ -111,7 +124,30 @@ def analyse(item, fmin, fmax, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25):
             f0k = max(seg[k], 1.0); lo = (f >= 0.8 * f0k) & (f < 2.6 * f0k); hi = (f >= 2.6 * f0k) & (f < min(10000, sr * 0.45)); lf.append(frames[lo, k].sum()); hf.append(frames[hi, k].sum() if hi.any() else 0.0)
         br = 10 * np.log10((np.array(hf) + 1e-14) / (np.array(lf) + 1e-14)); th = np.array_split(br, 3); bright = [float(np.mean(t_)) for t_ in th]; bm = float(np.mean(bright)); bright = [round(float(np.clip(v - bm, -30, 30)), 1) for v in bright]
         jump = float(np.max(np.maximum(seg[1:] / seg[:-1], seg[:-1] / seg[1:]))) if len(seg) > 1 else 1.0
-        calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': warp(seg), 'env': warp(np.maximum(env, -50)), 'apex': ap / max(1, len(seg) - 1), 'hnr': hnr, 'H': Ht, 'N': Nt, 'a': a * 0.005, 'bright': bright, 'jump': jump})
+        # vibrato: the wavering of the pitch about its own slow course. The strongest of the second to fourth harmonics is followed bin by bin (parabolic peak), divided back to the pitch, the slow course taken away (a 60 ms mean), and what is left measured:
+        # its rate (5 to 80 a second) and its depth (peak, in percent of the pitch)
+        vib = [0.0, 0.0]
+        try:
+            fi = []
+            for k in range(frames.shape[1]):
+                best = None
+                for h in (2, 3, 4):
+                    c0 = seg[k] * h
+                    if c0 > sr * 0.4: continue
+                    kk = int(round(c0 / df)); lo_ = max(1, kk - 4); hi_ = min(frames.shape[0] - 2, kk + 4)
+                    j = lo_ + int(np.argmax(frames[lo_:hi_ + 1, k]))
+                    y0, y1, y2 = np.log(frames[j - 1, k] + 1e-20), np.log(frames[j, k] + 1e-20), np.log(frames[j + 1, k] + 1e-20); den = y0 - 2 * y1 + y2
+                    off = 0.5 * (y0 - y2) / den if den != 0 else 0.0
+                    if best is None or frames[j, k] > best[0]: best = (frames[j, k], (j + off) * df / h)
+                fi.append(best[1] if best else np.nan)
+            fi = np.array(fi); 
+            if len(fi) >= 24 and not np.isnan(fi).any():
+                slow = np.convolve(np.pad(fi, 6, mode='edge'), np.ones(13) / 13, mode='valid'); r_ = (fi - slow) / slow; r_ = r_ - r_.mean()
+                F = np.abs(np.fft.rfft(r_ * np.hanning(len(r_)), 512)); fr_ = np.fft.rfftfreq(512, 0.005); sel_ = (fr_ >= 5) & (fr_ <= 80)
+                vib = [round(float(fr_[sel_][np.argmax(F[sel_])]), 1), round(float(100 * np.sqrt(2) * np.sqrt(np.mean(r_ ** 2))), 2)]
+        except Exception:
+            vib = [0.0, 0.0]
+        calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': warp(seg), 'env': warp(np.maximum(env, -50)), 'apex': ap / max(1, len(seg) - 1), 'hnr': hnr, 'H': Ht, 'N': Nt, 'a': a * 0.005, 'bright': bright, 'jump': jump, 'vib': vib, 'octave': octave})
     return calls
 
 def am_of(x, sr, a, dur):

@@ -8,7 +8,7 @@ Writes OUTDIR/real.wav, synth.wav, compare.png and prints the look score (correl
 150 Hz to 6 kHz; 0.82 to 0.96 matched the eye in earlier work, under 0.75 was visibly wrong).
 
 Model (source plus noise, no neural part):
-  f0(t)         12 knots, pchip; held through the noisy onset; the last 20 frames re-tracked so the end flick survives
+  f0(t)         knots chosen where needed (about 8 for a simple call, 40 for a wavy one), pchip; steps kept; held through the noisy onset; the last 20 frames re-tracked so the end flick survives
   harmonics     k = 1..8 at k*f0: log amplitudes reduced to rank 2 over the call, then pchip through the same knots
   second voice  a period-doubled voice at f0/2 (lines at 0.5, 1.5 ... 5.5 times f0), only while its 1.5*f0 line stands out
   residual      noise in 27 log-spaced bands from what is left once the harmonic and second-voice lines are masked out,
@@ -19,7 +19,7 @@ import sys
 import numpy as np
 from scipy.io import wavfile
 from scipy.signal import stft, istft
-from scipy.ndimage import gaussian_filter, uniform_filter1d
+from scipy.ndimage import gaussian_filter, uniform_filter1d, median_filter
 from scipy.interpolate import PchipInterpolator
 
 NF, HOP = 1024, 128
@@ -32,7 +32,10 @@ def para(m, i):
     if i <= 0 or i >= len(m) - 1:
         return float(i), m[i]
     a, b, c = np.log(m[i - 1] + 1e-12), np.log(m[i] + 1e-12), np.log(m[i + 1] + 1e-12)
-    p = 0.5 * (a - c) / (a - 2 * b + c)
+    d = a - 2 * b + c
+    if d > -1e-6:                                      # flat or not a peak: no interpolation (it blows up)
+        return float(i), m[i]
+    p = float(np.clip(0.5 * (a - c) / d, -1, 1))
     return i + p, np.exp(b - 0.25 * (a - c) * p)
 
 
@@ -57,14 +60,28 @@ def main(rec, T0, T1, CS, CE, out):
     S = np.array([sum(np.log(np.interp(cand * k, f, M[:, j]) + 1e-6) * (1.0 if k < 3 else 0.7) for k in (1, 2, 3, 4))
                   for j in range(len(t))]).T
     f0 = np.zeros(len(t))
-    mid = (on + off) // 2
-    i0 = int(np.argmax(S[:, mid]))
-    for rng in (range(mid, on - 1, -1), range(mid, off + 1)):
-        cur = i0
-        for j in rng:
-            a = max(cur - 30, 0)
-            cur = a + int(np.argmax(S[a:cur + 31, j]))
-            f0[j] = cand[cur]
+    j0 = on + 12                                      # the onset is noise: start where the lines are clear
+    idx_c = np.arange(len(cand))
+    LAM, JUMP = 0.04, 14.0                             # cost per candidate step (2 Hz) when gliding; flat cost of a jump
+    D = -S[:, j0].copy()
+    back = np.zeros((off - j0 + 1, len(cand)), int)
+    for q, j in enumerate(range(j0 + 1, off + 1), 1):
+        fw = np.minimum.accumulate(D - LAM * idx_c) + LAM * idx_c              # best predecessor at or below i
+        fwi = np.maximum.accumulate(np.where(D - LAM * idx_c <= fw, idx_c, 0))
+        bw = (np.minimum.accumulate((D + LAM * idx_c)[::-1])[::-1]) - LAM * idx_c   # at or above i
+        bwi = np.minimum.accumulate(np.where((D + LAM * idx_c) <= (bw + LAM * idx_c), idx_c, len(cand) - 1)[::-1])[::-1]
+        use_f = fw <= bw
+        glide = np.where(use_f, fw, bw)
+        gi = np.where(use_f, fwi, bwi)
+        am = int(np.argmin(D))
+        jump = D[am] + JUMP
+        take_j = jump < glide
+        D = -S[:, j] + np.where(take_j, jump, glide)
+        back[q] = np.where(take_j, am, gi)
+    cur = int(np.argmin(D))
+    for q in range(off - j0, -1, -1):
+        f0[j0 + q] = cand[cur]
+        cur = back[q, cur]
     f0[on:on + 12] = f0[on + 12]                      # the onset is noise: hold the first reliable value
     f0[:on] = f0[on]
     f0[off + 1:] = f0[off]
@@ -73,7 +90,12 @@ def main(rec, T0, T1, CS, CE, out):
         a = cur - (2 if j < off - 14 else 5)
         cur = a + int(np.argmax(M[a:cur + (3 if j < off - 14 else 6), j]))
         f0[j] = para(M[:, j], cur)[0] * df
-    f0s = uniform_filter1d(f0, 5)
+    f0 = median_filter(f0, 3)
+    f0s = f0.copy()                                   # smooth within each stretch, never across a step
+    steps = [j for j in range(on, off) if abs(f0[j + 1] - f0[j]) > 0.06 * f0[j]]
+    bounds = [on] + [j + 1 for j in steps] + [off + 1]
+    for u, v in zip(bounds[:-1], bounds[1:]):
+        f0s[u:v] = uniform_filter1d(f0[u:v], 5, mode='nearest') if v - u > 4 else f0[u:v]
     f0s[off - 12:off + 1] = f0[off - 12:off + 1]
     f0s[:on] = f0s[on]
     f0s[off + 1:] = f0s[off]
@@ -123,12 +145,23 @@ def main(rec, T0, T1, CS, CE, out):
                 mask &= ~(np.abs(f - r * c0) < 0.05 * r * c0 + df)
         for b in range(len(cent)):
             sel = (f >= edges[b]) & (f < edges[b + 1]) & mask
-            E[b, j] = np.sqrt(np.mean(M[sel, j] ** 2)) if sel.any() else 0
+            E[b, j] = 1.2 * np.median(M[sel, j]) if sel.any() else 0   # median: stray lines cannot inflate it
     E = gaussian_filter(E, (0.7, 1.0))
 
     # ---- reduce to curves: pitch on knots, harmonic log-amplitudes rank 2 and pchip through the same knots
     cs = np.arange(on, off + 1)
-    kn = np.unique(np.round(np.r_[on, on + 6, on + 14, np.linspace(on + 24, off - 12, NK - 6), off - 8, off - 4, off]).astype(int))
+    forced = {on, on + 6, on + 14, off - 8, off - 4, off}
+    for j in steps:                                   # a step is two neighbouring knots
+        forced |= {max(j - 1, on), j, j + 1, min(j + 2, off)}
+    kn = sorted(forced)
+    while len(kn) < 70:                               # add a knot where the curve is worst until within 1.2 percent
+        cur_c = PchipInterpolator(kn, f0s[kn])(cs)
+        err = np.abs(cur_c - f0s[on:off + 1]) / f0s[on:off + 1]
+        if err.max() < 0.012:
+            break
+        kn = sorted(set(kn) | {int(cs[np.argmax(err)])})
+    kn = np.array(kn)
+    print('knots', len(kn), 'steps', len(steps))
     f0s[on:off + 1] = PchipInterpolator(kn, f0s[kn])(cs)
     L = np.log(H[:, on:off + 1] + 1e-6)
     mu = L.mean(1, keepdims=True)
@@ -173,7 +206,8 @@ def main(rec, T0, T1, CS, CE, out):
     B = 20 * np.log10(np.abs(Zb[fl:fh, :m]) + 1e-9)
     top = A.max()
     A, B = (gaussian_filter(np.maximum(v, top - 70), (1.5, 3)) for v in (A, B))
-    print('look score %.3f' % np.corrcoef(A.ravel(), B.ravel())[0, 1])
+    score = float(np.corrcoef(A.ravel(), B.ravel())[0, 1])
+    print('look score %.3f' % score)
     import os
     os.makedirs(out, exist_ok=True)
     wavfile.write(os.path.join(out, 'real.wav'), sr, (np.clip(ref, -1, 1) * 32767).astype(np.int16))
@@ -188,6 +222,8 @@ def main(rec, T0, T1, CS, CE, out):
         a.set_title(nm)
     plt.tight_layout()
     plt.savefig(os.path.join(out, 'compare.png'), dpi=70)
+    plt.close(fig)
+    return score
 
 
 if __name__ == '__main__':

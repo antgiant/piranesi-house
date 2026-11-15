@@ -39,6 +39,32 @@ Approach (from the owner's brief): behaviour drives a parametric source plus noi
 - Owner's ear (round 1): noise overpowered the clear "halftone" lines in the onset. Those lines (about 650, 1850, 3100, 4300 Hz) are odd multiples of f0/2: a period-doubled second voice, not a ridge at 1.5 f0 with its own multiples. Modelled as lines at 0.5, 1.5 ... 5.5 times f0, and the onset noise (first 70 ms) halved: the lines now show as in the real call. The look score falls slightly (0.957 to 0.952) because it does not reward them; trust the picture.
 - Not yet done: judged again by the owner's ear; onset is softer than the real 5 ms attack; noise bed is a little smeared; only one recording (one bird) and one call kind; no VoiceProfile, no behaviour, no TypeScript port, nothing in the engine.
 
+## Second attempt, step 2: the same model on three more recordings (m1, m3, m4; 108 isolated alarm calls)
+Run with `scripts/birds/gull_batch.py REC.wav OUTDIR` (finds the calls, runs `gull_resynth.py` on each, prints a table). Look scores:
+m3 37 calls, median 0.961, all 0.91 or more; m1 23 calls, median 0.907, none under 0.86; m4 48 calls, median 0.895, four under 0.75
+(two are another call kind, see below). Together: 72 of 108 at 0.9 or more, 32 at 0.75 to 0.9, 4 under 0.75. The owner has judged the
+first m2 call (and the version with the halftone lines) by ear: "excellent reproductions, can barely tell them apart".
+- **The owner's steer:** individual gulls sound very similar, so do not spend effort on per-bird voice variation for gulls (it is for
+  later species). A mix of call types and call variants should be enough for gulls.
+- **Bugs that were not the model:** (a) `para()` (parabolic peak) blew up to 1e36 on a flat peak: clamp it; (b) the call detector
+  converted envelope indices with 5 ms instead of the real hop (220 samples = 4.99 ms): 0.1 s drift at 46 s, so late calls were cut
+  in the wrong place and scored 0.6 to 0.7. Always check the time axis before blaming the synthesis.
+- **Model changes that mattered:** pitch tracked by Viterbi over the harmonic-sum salience with a small gliding cost and a flat jump
+  cost, so a two-note call's pitch step is followed (single-peak tracking cannot jump); steps kept as two neighbouring knots and
+  smoothing never crosses one; knots chosen where the curve is worst until it is within 1.2% (8 to 14 for a simple call, 20 to 38
+  for steps or a wave, 36 knots for five vibrato-like cycles); noise estimated as 1.2 times the band median so stray lines cannot
+  inflate it.
+- **Call types seen:** a single falling note (m3, most of m4); two notes with an abrupt pitch step (most of m1, a third of m4); trains
+  of short rising-falling pulses (m1); a wave (about five slow cycles of pitch, m1); and a dense, squealing call with a pitch below
+  750 Hz (end of m4, not handled: calls 45 and 47 of m4, 0.64 and 0.67).
+- **Known flaws:** after a pitch step the synthesis switches about 35 ms earlier than the real call in at least one m1 call (not yet
+  explained: the step tracker reads the change in the frame before the picture shows it); a patch of noise haze at the second note
+  of some two-note calls where the real has a shorter burst; less onset noise scores lower (0.5 of the measured level is kept), even
+  though the owner liked the clear halftone lines.
+- **Not done:** the other call kinds (long call, mew, choking train, begging), the order and spacing of calls in a series, the
+  procedural grammar that produces these curves from a call kind and a mood (so far each call is analysed from a recording,
+  not generated), the TypeScript port and the engine.
+
 ## Ideas for the second attempt
 - Start from ONE clean bird and one call type and make the spectrogram match (look score above 0.9), then widen. Use the four clean recordings (m1 to m4) as the test set from the start.
 - Model what the real calls show: a call as a few notes, each with a pitch contour that may step, a loudness contour that holds then drops, a rough or clean voice (a noise-dominated squeal needs a noise source, not harmonics plus noise), an optional second voice, no added flutter.

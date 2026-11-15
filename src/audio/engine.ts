@@ -172,7 +172,18 @@ export class AudioEngine {
    * Elsewhere the older "ambient" (mixes with other audio) is kept.
    */
   private applySessionType(): void {
-    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = wantsMediaElement() ? 'playback' : 'ambient'; } catch { /* unsupported */ }
+    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = wantsMediaElement() && !this.mixWithOthers ? 'playback' : 'ambient'; } catch { /* unsupported */ }
+  }
+
+  /**
+   * Let other apps' audio (music) keep playing under the House. On iOS that is the "ambient" session type, which mixes but may
+   * not be allowed to play with the screen locked (not known: the setting is there so it can be tried on a phone).
+   */
+  private mixWithOthers = false;
+  setMixWithOthers(on: boolean): void {
+    if (on === this.mixWithOthers) return;
+    this.mixWithOthers = on;
+    this.applySessionType();
   }
 
   /** The hidden <audio> element the sound goes through on iOS so it can keep playing in the background (see background.ts). */

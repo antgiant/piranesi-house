@@ -93,6 +93,10 @@ The owner wants the ambient sound to carry on with the screen locked or another 
   `playback` (iOS 16.4+; it also plays with the silent switch on, but it does not mix, so music stops while the House plays);
   `src/web/mediasession.ts` sets the lock-screen title ("The House") and icons and the play and pause handlers. If the element will not
   play, the engine falls back to playing straight to the speakers.
+- **Mixing with music (a setting, off by default):** the web audio-session API has no "play in the background and mix with other audio" option: `playback`
+  keeps going when the screen locks but does not mix; `ambient` mixes but may not be allowed to play with the screen locked. Settings has a box ("let music from
+  other apps keep playing under the House") that switches the session to `ambient` while keeping the audio-element route, so which of the two happens can be tried on a
+  phone. Result not yet known: the owner will test.
 - **Pause and play:** the lock-screen pause suspends the engine and sets `pausedByUser`, so the engine's usual "ask the phone for the sound
   back" (`resume()`) does not undo it; play, or the listener touching the page (`start()`), clears it. A pause that is not ours (a call,
   headphones unplugged) is treated as the listener's as well.

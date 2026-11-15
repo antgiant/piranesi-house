@@ -37,6 +37,8 @@ interface Settings {
   /** The visitor's own quiet muttering, heard through the hall's acoustics. */
   mutter: boolean;
   mutterCaptions: boolean;
+  /** iPhone and iPad: let music from other apps keep playing under the House (it may then stop when the screen locks). */
+  mixWithMusic: boolean;
   /** Which kinds of sound are heard: all of them, unless some are turned off. */
   elements: Elements;
   /** Reading comfort: text scale (1 normal), a plain spaced face, more contrast. */
@@ -60,7 +62,7 @@ interface Settings {
   /** Walking speed in km/h: from the book's pace up to a two-hour marathon. */
   speedKmh: number;
 }
-const DEFAULTS: Settings = { volume: 80, units: 'auto', muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, elements: allOn(), voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
+const DEFAULTS: Settings = { volume: 80, units: 'auto', muted: false, timeScale: 1, showDead: true, diary: false, relics: true, outside: true, mutter: true, mutterCaptions: true, mixWithMusic: false, textScale: 1, plainFont: false, contrast: false, announce: true, shortcuts: true, map: false, narrate: 'play', muteAmbient: true, muteNarration: true, elements: allOn(), voiceURI: '', narrateRate: 0.9, seed: 'the-house', speedKmh: Math.round(BOOK_KMH * 10) / 10 };
 
 function speedNote(kmh: number): string {
   const g = gait(paceFromKmh(kmh));
@@ -353,6 +355,7 @@ async function enter(): Promise<void> {
   $('bar').hidden = false;
   $('cmd').hidden = false;
   engine.setVolume(settings.volume / 100);
+  engine.setMixWithOthers(settings.mixWithMusic);
   engine.setElements(settings.elements);
   applyMute();
   startGame(true);
@@ -682,6 +685,7 @@ function fillSettings(): void {
   $<HTMLInputElement>('s-shortcuts').checked = settings.shortcuts;
   $<HTMLInputElement>('s-mutter').checked = settings.mutter;
   $<HTMLInputElement>('s-mutter-captions').checked = settings.mutterCaptions;
+  $<HTMLInputElement>('s-mix').checked = settings.mixWithMusic;
   fillElements();
   fillVoices();
   $<HTMLInputElement>('s-rate').value = String(settings.narrateRate);
@@ -722,6 +726,7 @@ $('s-save').addEventListener('click', (e) => {
     shortcuts: $<HTMLInputElement>('s-shortcuts').checked,
     mutter: $<HTMLInputElement>('s-mutter').checked,
     mutterCaptions: $<HTMLInputElement>('s-mutter-captions').checked,
+    mixWithMusic: $<HTMLInputElement>('s-mix').checked,
     elements: readElements(),
     voiceURI: $<HTMLSelectElement>('s-voice').value,
     narrateRate: Number($<HTMLInputElement>('s-rate').value) || 1,
@@ -735,6 +740,7 @@ $('s-save').addEventListener('click', (e) => {
   settings = next;
   saveSettings(settings);
   engine.setVolume(settings.volume / 100);
+  engine.setMixWithOthers(settings.mixWithMusic);
   engine.setElements(settings.elements);
   applyMute();
   paintMute();

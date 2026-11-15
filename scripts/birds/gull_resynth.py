@@ -7,13 +7,18 @@ usage: python3 -I scripts/birds/gull_resynth.py REC.wav T0 T1 CS CE OUTDIR
 Writes OUTDIR/real.wav, synth.wav, compare.png and prints the look score (correlation of blurred spectrograms,
 150 Hz to 6 kHz; 0.82 to 0.96 matched the eye in earlier work, under 0.75 was visibly wrong).
 
-Model (source plus noise, no neural part):
-  f0(t)         knots chosen where needed (about 8 for a simple call, 40 for a wavy one), pchip; steps kept; held through the noisy onset; the last 20 frames re-tracked so the end flick survives
-  harmonics     k = 1..8 at k*f0: log amplitudes reduced to rank 2 over the call, then pchip through the same knots
-  second voice  a period-doubled voice at f0/2 (lines at 0.5, 1.5 ... 5.5 times f0), only while its 1.5*f0 line stands out
-  residual      noise in 27 log-spaced bands from what is left once the harmonic and second-voice lines are masked out,
-                times NOISE (the measured level was too hazy through the body of the call)
-  gate          2 ms attack, 4 ms release (real calls stop within a few ms)
+Model (source plus noise, no neural part). Two time scales: a slow one (23 ms window) for pitch and spectrum shape, and a fine
+one (5.8 ms window, 0.7 ms hop) for loudness and noise, so a rasp, a pop and a closing click are events, not blur.
+  f0(t)         knots chosen where needed (about 8 for a simple call, 40 for a wavy one), pchip; steps kept; the pitch is found by
+                Viterbi over harmonic-sum salience (jumps allowed at a cost); the last 20 frames re-tracked so the end dive survives
+  harmonics     k = 1..12 at k*f0 (to 12 kHz: the real lines go that high): log amplitudes reduced to rank 3, then pchip through the knots
+  second voice  a period-doubled voice at f0/2 (lines at 0.5, 1.5 ... 9.5 times f0), only while its 1.5*f0 line stands out
+  line level    a gain (real line level / synth line level, measured every 0.7 ms) stored as a few dB knots with straight lines
+                between them: this is what keeps the pop to full level (about 2 ms) and the collapse at the end
+  noise         per 0.7 ms frame, 24 bands from 250 Hz to 12 kHz, from what is left once the lines (and, while the pitch moves, their
+                smear) are masked out; a low percentile, so leakage cannot inflate it. Units are true amplitudes: no fudge factor,
+                the final level correction comes out at 0.94 to 1.08
+  gate          2 ms attack; the noise may run 30 ms past the call end (the closing sound)
 """
 import sys
 import numpy as np
@@ -23,8 +28,11 @@ from scipy.ndimage import gaussian_filter, uniform_filter1d, median_filter
 from scipy.interpolate import PchipInterpolator
 
 NF, HOP = 1024, 128
-K, NK, RANK, NOISE = 8, 12, 2, 0.4
-ONSET_NOISE = float(__import__('os').environ.get('ONSET_NOISE', '0.5'))   # extra factor on the noise in the first 70 ms
+K, NK, NOISE = 12, 12, 1.0
+RANK = int(__import__('os').environ.get('RANK', '3'))
+HOLD = int(__import__('os').environ.get('HOLD', '12'))      # onset frames (2.9 ms each) where f0 is held instead of tracked
+SUB = float(__import__('os').environ.get('SUB', '2.0'))   # how many noise-medians a line peak must exceed to count as tone
+NF2, HOP2 = 256, 32                                          # the fine analysis: 5.8 ms window, 0.7 ms hop
 
 
 def para(m, i):
@@ -60,7 +68,7 @@ def main(rec, T0, T1, CS, CE, out):
     S = np.array([sum(np.log(np.interp(cand * k, f, M[:, j]) + 1e-6) * (1.0 if k < 3 else 0.7) for k in (1, 2, 3, 4))
                   for j in range(len(t))]).T
     f0 = np.zeros(len(t))
-    j0 = on + 12                                      # the onset is noise: start where the lines are clear
+    j0 = on + HOLD                                      # the onset is noise: start where the lines are clear
     idx_c = np.arange(len(cand))
     LAM, JUMP = 0.04, 14.0                             # cost per candidate step (2 Hz) when gliding; flat cost of a jump
     D = -S[:, j0].copy()
@@ -82,7 +90,7 @@ def main(rec, T0, T1, CS, CE, out):
     for q in range(off - j0, -1, -1):
         f0[j0 + q] = cand[cur]
         cur = back[q, cur]
-    f0[on:on + 12] = f0[on + 12]                      # the onset is noise: hold the first reliable value
+    f0[on:on + HOLD] = f0[on + HOLD]                      # the onset is noise: hold the first reliable value
     f0[:on] = f0[on]
     f0[off + 1:] = f0[off]
     cur = int(round(f0[off - 20] / df))               # end of the call: follow the peak itself, it flicks down
@@ -105,7 +113,7 @@ def main(rec, T0, T1, CS, CE, out):
     for j in range(on, off + 1):
         for k in range(1, K + 1):
             fc = k * f0s[j]
-            if fc >= 8000:
+            if fc >= 12000:
                 continue
             i = int(round(fc / df))
             w = max(2, int(0.025 * fc / df))
@@ -115,7 +123,7 @@ def main(rec, T0, T1, CS, CE, out):
 
     # ---- second voice: a period-doubled voice at f0/2, i.e. lines at 0.5, 1.5, 2.5 ... times f0 (the "halftone" lines
     #      that stand out clearly in the onset). Measured only in frames where the 1.5*f0 line clearly stands out.
-    NS = 6
+    NS = 10
     R = np.zeros(len(t), bool)
     RH = np.zeros((NS, len(t)))
     for j in range(max(on - 2, 0), off + 1):
@@ -130,23 +138,8 @@ def main(rec, T0, T1, CS, CE, out):
                 i2 = int(round(fc / df))
                 w2 = max(2, int(0.02 * fc / df))
                 a2 = max(i2 - w2, 0)
-                RH[m, j] = para(M[:, j], a2 + int(np.argmax(M[a2:i2 + w2 + 1, j])))[1] if fc < 8000 else 0
+                RH[m, j] = para(M[:, j], a2 + int(np.argmax(M[a2:i2 + w2 + 1, j])))[1] if fc < 12000 else 0
     RH = gaussian_filter(RH, (0, 1.5))
-
-    # ---- residual noise envelope: what is left once the lines are masked out
-    edges = np.geomspace(200, 7500, 28)
-    cent = np.sqrt(edges[:-1] * edges[1:])
-    E = np.zeros((len(cent), len(t)))
-    for j in range(max(on - 6, 0), min(off + 7, len(t))):
-        c0 = f0s[min(max(j, on), off)]
-        mask = np.ones(len(f), bool)
-        for k in range(1, 12):
-            for r in ((k, k - 0.5) if R[j] else (k,)):
-                mask &= ~(np.abs(f - r * c0) < 0.05 * r * c0 + df)
-        for b in range(len(cent)):
-            sel = (f >= edges[b]) & (f < edges[b + 1]) & mask
-            E[b, j] = 1.2 * np.median(M[sel, j]) if sel.any() else 0   # median: stray lines cannot inflate it
-    E = gaussian_filter(E, (0.7, 1.0))
 
     # ---- reduce to curves: pitch on knots, harmonic log-amplitudes rank 2 and pchip through the same knots
     cs = np.arange(on, off + 1)
@@ -163,7 +156,7 @@ def main(rec, T0, T1, CS, CE, out):
     kn = np.array(kn)
     print('knots', len(kn), 'steps', len(steps))
     f0s[on:off + 1] = PchipInterpolator(kn, f0s[kn])(cs)
-    L = np.log(H[:, on:off + 1] + 1e-6)
+    L = np.log(H[:, on:off + 1] + 1e-4 * H.max())
     mu = L.mean(1, keepdims=True)
     U, Sv, Vt = np.linalg.svd(L - mu, full_matrices=False)
     Hr = H.copy()
@@ -181,22 +174,88 @@ def main(rec, T0, T1, CS, CE, out):
     F0 = track(f0s)
     ph = 2 * np.pi * np.cumsum(F0) / sr
     y = np.zeros(n)
-    for k in range(1, K + 1):                          # a Hann STFT shows a sine of amplitude A as A*NF/4
-        y += track(H[k - 1]) * 4 / NF * (k * F0 < sr / 2) * np.sin(k * ph + 0.3 * k)
+    for k in range(1, K + 1):                          # scipy's STFT shows a sine of amplitude A as A/2
+        y += track(H[k - 1]) * 2 * (k * F0 < sr / 2) * np.sin(k * ph + 0.3 * k)
     for m in range(NS):                                # lines at (m+0.5)*f0: phase is half the f0 phase times (2m+1)
-        y += track(RH[m]) * 4 / NF * ((m + 0.5) * F0 < sr / 2) * np.sin((m + 0.5) * ph + 0.7 * (m + 1))
+        y += track(RH[m]) * 2 * ((m + 0.5) * F0 < sr / 2) * np.sin((m + 0.5) * ph + 0.7 * (m + 1))
+    # ---- fine layer 1: loudness of the lines at 0.7 ms (the long window smears a pop over 30 ms). Gain = real / synth line level
+    def spec2(sig):
+        return stft(sig, sr, window='hann', nperseg=NF2, noverlap=NF2 - HOP2, boundary=None, padded=False)
+
+    f2, t2, Z2 = spec2(ref)
+    M2 = np.abs(Z2)
+    df2 = f2[1]
+    f0_2 = np.interp(t2, t, f0s)
+    j_on, j_off = int(np.argmin(abs(t2 - (CS - T0 - 0.004)))), int(np.argmin(abs(t2 - (CE - T0 + 0.004))))
+    R2 = np.interp(t2, t, R.astype(float)) > 0.5
+    slope = np.abs(np.gradient(f0_2, t2)) * (NF2 / sr)     # Hz the pitch moves during one analysis window
+
+    def line_level(M2x, subtract_noise):
+        lev = np.zeros(len(t2))
+        for j in range(j_on, j_off + 1):
+            tot = 0.0
+            for k in range(1, K + 1):
+                fc = k * f0_2[j]
+                if fc >= 12000:
+                    break
+                i = int(round(fc / df2))
+                pk = M2x[max(i - 1, 0):i + 2, j].max()
+                if subtract_noise:
+                    lo_, hi_ = int(max(fc - 0.45 * f0_2[j], 0) / df2), int((fc + 0.45 * f0_2[j]) / df2) + 1
+                    nb = np.r_[M2x[lo_:max(i - 2, lo_), j], M2x[i + 3:hi_, j]]
+                    nz_ = 1.55 * np.percentile(nb, 25) if len(nb) else 0.0
+                    pk = np.sqrt(max(pk ** 2 - (SUB * nz_) ** 2, 0.0))
+                tot += pk ** 2
+            lev[j] = np.sqrt(tot)
+        return lev
+
+    Lr = line_level(M2, True)
+    _, _, Zt = spec2(y)
+    Lt = line_level(np.abs(Zt), False)
+    gdb = 20 * np.log10(np.clip(median_filter(Lr, 3) / (Lt + 1e-9), 0.05, 5.0) + 1e-9)
+    seg_ = np.arange(j_on, j_off + 1)
+    gk = [seg_[0], seg_[-1]]                           # the level correction as a few knots (dB, straight lines between)
+    while len(gk) < 80:
+        err = np.abs(np.interp(seg_, gk, gdb[gk]) - gdb[seg_])
+        if err.max() < 1.5:
+            break
+        gk = sorted(set(gk) | {int(seg_[np.argmax(err)])})
+    print('level knots', len(gk))
+    gain = np.zeros(len(t2))
+    gain[j_on:j_off + 1] = 10 ** (np.interp(seg_, gk, gdb[gk]) / 20)
+    y = y * np.interp(tt, t2, gain)
+
+    # ---- fine layer 2: noise (the rasp before the pop, the click at the end) from what is left once the lines are masked
+    edges = np.geomspace(250, 12000, 25)
+    cent = np.sqrt(edges[:-1] * edges[1:])
+    n0, n1 = int(np.argmin(abs(t2 - (CS - T0 - 0.01)))), int(np.argmin(abs(t2 - (CE - T0 + 0.03))))
+    E2 = np.zeros((len(cent), len(t2)))
+    for j in range(n0, n1 + 1):
+        c0 = f0_2[min(max(j, j_on), j_off)]
+        mask = np.ones(len(f2), bool)
+        for k in range(1, 30):
+            for r in ((k, k - 0.5) if R2[j] else (k,)):
+                mask &= ~(np.abs(f2 - r * c0) < max(2.2 * df2, min(0.08 * r * c0 + r * slope[j], 0.22 * c0)))   # never wider than the gap between halftone lines
+        v = np.full(len(cent), np.nan)
+        for b in range(len(cent)):
+            sel = (f2 >= edges[b]) & (f2 < edges[b + 1]) & mask
+            if sel.any():
+                v[b] = 1.55 * np.percentile(M2[sel, j], 25)   # low percentile: smeared line leakage cannot inflate it
+        ok_ = ~np.isnan(v)
+        E2[:, j] = np.interp(np.log(cent), np.log(cent[ok_]), v[ok_]) if ok_.sum() > 1 else 0
     g = np.random.default_rng(2).standard_normal(n)
-    _, _, G = spec(g)
-    for j in range(min(G.shape[1], E.shape[1])):
-        G[:, j] *= np.interp(f, cent, E[:, j], left=0, right=0) / np.sqrt(NF / 2 * 0.375 * 0.5) * NOISE
-    G[:, E.shape[1]:] = 0
-    _, nz = istft(G, sr, window='hann', nperseg=NF, noverlap=NF - HOP, boundary=False)
+    _, _, Gn = spec2(g)
+    rms_g = np.sqrt(np.mean(np.abs(Gn) ** 2))             # unit white noise: every bin has this rms
+    for j in range(min(Gn.shape[1], E2.shape[1])):
+        Gn[:, j] *= np.interp(np.log(np.maximum(f2, 1)), np.log(cent), E2[:, j], left=0, right=0) / rms_g * NOISE
+    _, nz = istft(Gn, sr, window='hann', nperseg=NF2, noverlap=NF2 - HOP2, boundary=False)
     nz = np.pad(nz, (0, max(0, n - len(nz))))[:n]
-    gate = np.clip((tt + T0 - CS) / 0.002, 0, 1) * np.clip((CE - (tt + T0)) / 0.004, 0, 1)
-    nz = nz * np.where(tt + T0 < CS + 0.07, ONSET_NOISE, 1.0)
+    gate = np.clip((tt + T0 - CS) / 0.002, 0, 1) * np.clip((CE + 0.03 - (tt + T0)) / 0.004, 0, 1)
     y = (y + nz) * gate
     body = slice(int((CS - T0) * sr), int((CE - T0) * sr))
-    y *= np.sqrt(np.mean(ref[body] ** 2) / np.mean(y[body] ** 2))
+    lvl = np.sqrt(np.mean(ref[body] ** 2) / np.mean(y[body] ** 2))
+    print('level correction %.2f' % lvl)
+    y *= lvl
 
     # ---- look score and a contact sheet
     _, _, Zb = spec(y)

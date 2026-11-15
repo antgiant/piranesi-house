@@ -65,6 +65,31 @@ first m2 call (and the version with the halftone lines) by ear: "excellent repro
   procedural grammar that produces these curves from a call kind and a mood (so far each call is analysed from a recording,
   not generated), the TypeScript port and the engine.
 
+## Second attempt, step 3: the rasp, the pop and the closing click (owner's ear, round 2)
+Owner on m3_9 (and the others): the biggest audible difference is the start and the end. The real call has a noisy rasp (throat) and
+then an immediate pop to full level on the lines; at the end the tone stops suddenly as the pitch dives, and a quick closing sound
+follows. The synth blurred all of that together and so sounded gentler and less abrasive.
+- **Why:** loudness and noise were measured through a 23 ms window and smoothed, so a 2 ms pop became a 30 ms ramp and the click had no
+  place to live. The harmonics also stopped at 8 kHz; the real lines go past 9 kHz (the 6 to 12 kHz band was about 9 dB too quiet).
+- **What the real call does (m3_9, 14.19 to 14.46 s):** rasp 14.19 to 14.23 (low, pulsed noise, tone 10 dB down); at 14.231 the line level
+  jumps about 11 dB in 2 ms (with a dip just before it); full level to 14.37; the level collapses around 14.395 as the pitch dives from
+  1.4 to 0.9 kHz; a short broadband click at about 14.445; finished by 14.46.
+- **Fix:** a second, fine analysis (5.8 ms window, 0.7 ms hop): a gain (real line level over synth line level) stored as a few dB
+  knots (5 to 36 per call), and the noise bed per fine frame (24 bands, 250 Hz to 12 kHz, low-percentile estimate, lines masked, mask
+  widened while the pitch moves but never wider than the gap between halftone lines). Harmonics to 12 kHz, halftone lines to 9.5 times f0.
+  Units are now true amplitudes: the old tone scale was wrong by a constant that the final level match hid, and the old noise factor
+  of 0.4 was partly compensating for it. The final level correction is now 0.94 to 1.08 on every call.
+- **Fine measure (1 ms level contours against the real call, m3_9, 14.185 to 14.47 s):** RMS error in the f0 line band 16.3 dB before,
+  3.4 dB after; 2 to 4 kHz 20.1 to 4.7 dB; 6 to 12 kHz 12.8 to 6.5 dB. The line reaches -24 dB 26.5 ms after the start in the real call.
+- **The look score falls** (m3 median 0.961 to 0.916, m1 0.907 to 0.843, m4 0.895 to 0.861) because it blurs 23 ms, cannot see a 2 ms pop,
+  and punishes noise whose random detail cannot match the real. Trust the 1 ms contours and the 5.8 ms spectrograms for this; do not
+  tune the look score back up. (`scripts/birds/gull_resynth.py` prints both; the fine plot was a scratch script.)
+- **Mistakes on the way:** a noise estimate taken near the lines was inflated by halftone lines (tone too quiet in the rasp of m2);
+  a mask that grew with harmonic number covered the whole spectrum where halftone lines are only half an f0 apart (a hole above 8 kHz);
+  and line smear during the end dive read as a false click. Always check the original (m2) call after changing the noise.
+- **Still different on m3_9:** the first 50 ms after the pop is about 5 dB brighter above 6 kHz in the real call; from 14.32 to 14.39 the
+  line band is about 2 dB too loud. m2: the f0 line in its rasp is 5 to 8 dB too quiet and a faint haze trails 25 ms after the end.
+
 ## Ideas for the second attempt
 - Start from ONE clean bird and one call type and make the spectrogram match (look score above 0.9), then widen. Use the four clean recordings (m1 to m4) as the test set from the start.
 - Model what the real calls show: a call as a few notes, each with a pitch contour that may step, a loudness contour that holds then drops, a rough or clean voice (a noise-dominated squeal needs a noise source, not harmonics plus noise), an optional second voice, no added flutter.

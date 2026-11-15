@@ -171,3 +171,12 @@ The median templates (one averaged call per kind) are replaced, for the gull mew
   What fails is dropped (gull mew 63 of 84 pass, gull notes 41 of 46, rook 36 of 72, sparrow 50 of 72, blackbird 34 of 54, buzzard 42 of 50). The final library: 13 + 8 + 7 + 11 + 6 + 10 voices, `src/audio/birdlib.ts` (about 15 KB gzipped).
 - **Use**: a calling episode is one bird: it takes one voice and each note is one of that voice's real calls (rendered once, kept). The old medians stay for what has no library (the chick's begging, the albatross, the owl, and the timing of notes).
 - The barn owl's screech is a rough hiss without a clear pitch: one call in eight came back from the round trip, so the owl is left as it was.
+
+## Version 11: the owl, the chick and the albatross from real calls too
+- **Owl** (20 barn owl recordings, Belgium, France, the Netherlands, Britain, Denmark): a narrow search (1.5 to 2.8 kHz, 0.4 to 2.4 s) finds a harmonic ridge near 1.7 to 2.2 kHz in 12 recordings, one screech each; seven pass the
+  round trip: seven voices. (The earlier try, with a wide pitch range, found one call in eight: the screech is not toneless, the search was too wide.)
+- **Chick** (24 recordings of begging herring gulls, juveniles of all ages, Britain, Ireland, France, the Netherlands, Estonia): the pulsing is measured for each call (`template.am_of`, rate 6 to 90 a second and depth) and played back
+  (`libTemplate` sets `am`); 58 of 72 calls pass the round trip, twelve voices. These are fledglings and young birds; downy chicks peep higher and shorter, and there is no recording of one that is clean enough.
+- **Albatross whirr**: pulsed or tonal calls of 14 recordings (Laysan, black-footed, wandering), 17 of 22 pass: nine voices. **Claps**: three birds' claps each (Midway, Clarion, Hawaii) and the combined one. The other
+  recordings' apparent claps 0.1 s apart are the pulses of a whirr (an automatic search for clicks found them), so the claps stay at 0.3 to 0.45 s from the three clean recordings.
+- A pulsing call needs its pulsing in the round trip: the first QA run dropped most chick and whirr calls because the synthesis lacked it; with it in, they pass.

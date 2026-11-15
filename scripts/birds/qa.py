@@ -6,21 +6,25 @@
 import sys, os, json, numpy as np
 sys.path.insert(0, os.path.dirname(__file__))
 import template as T
+from scipy.io import wavfile
 qd, lib_path, out = sys.argv[1:4]
-RANGES = {'gullMew': (900, 2800, 0.05, 0.9), 'gullNote': (600, 2200, 0.04, 0.3), 'rookCaw': (220, 750, 0.1, 1.0), 'sparrowChirp': (2200, 7000, 0.03, 0.3), 'blackbirdTink': (1200, 3500, 0.02, 0.15), 'buzzardMew': (1800, 4000, 0.2, 1.0), 'owlScreech': (900, 4000, 0.4, 2.6)}
-MINV = {'owlScreech': 1}
+RANGES = {'gullMew': (900, 2800, 0.05, 0.9), 'gullNote': (600, 2200, 0.04, 0.3), 'rookCaw': (220, 750, 0.1, 1.0), 'sparrowChirp': (2200, 7000, 0.03, 0.3), 'blackbirdTink': (1200, 3500, 0.02, 0.15), 'buzzardMew': (1800, 4000, 0.2, 1.0), 'owlScreech': (1500, 2800, 0.3, 2.6), 'gullBeg': (1100, 3000, 0.05, 0.9), 'albatrossWhirr': (1800, 4200, 0.4, 2.8)}
+MINV = {'owlScreech': 1, 'albatrossWhirr': 1}
 lib = json.load(open(lib_path)); res = {}
 for kind, spec in lib.items():
     idx = json.load(open(f'{qd}/{kind}.json')); lo, hi, dmin, dmax = RANGES[kind]; wav = f'{qd}/{kind}.wav'
+    sr_, x_ = wavfile.read(wav); x_ = x_.astype(float) / 32768
     keep = {}; tot = 0; ok = 0; why = {'none': 0, 'pitch': 0, 'rough': 0, 'spectrum': 0}
     for e in idx:
         v = spec['voices'][e['voice']]; c = v['calls'][e['call']]; tot += 1
-        got = T.analyse(f"{wav}:{max(0, e['t'] - 0.1)}:{e['dur'] + 0.2}", lo, hi, 0.0, 3.0, 12.0, 0.6)
+        st = max(0, e['t'] - 0.1)
+        got = T.analyse(f"{wav}:{st}:{e['dur'] + 0.2}", lo, hi, 0.0, 3.0, 12.0, 0.6)
         if not got: why['none'] += 1; continue
-        g = max(got, key=lambda x: x['dur'])
+        g = max(got, key=lambda x: x['dur']); g['am'] = T.am_of(x_, sr_, st + g['a'], g['dur'])
         r = float(np.median(g['f0'])) / float(np.median(c['f0']))
         if abs(np.log2(r)) > 0.12: why['pitch'] += 1; continue
         if abs(g['hnr'] - c['hnr']) > 12: why['rough'] += 1; continue
+        if c.get('am') and g.get('am') is not None and abs(g['am'][0] / c['am'][0] - 1) > 0.35: why['rough'] += 1; continue
         gH = np.array(g['H']); gH = gH - gH.max(); H = np.array(v['H'], float); both = (gH > -50) & (H > -50)
         if both.sum() >= 3 and float(np.mean(np.abs(gH[both] - H[both]))) > 9: why['spectrum'] += 1; continue
         keep.setdefault(e['voice'], []).append(e['call']); ok += 1

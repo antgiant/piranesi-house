@@ -18,6 +18,7 @@ for k, v in T.items():
     if v.get('click'):
         c = v['click']; cl = f", click: {{ modes: [{', '.join('[' + str(m[0]) + ', ' + str(m[1]) + ']' for m in c['modes'])}], ringTau: {c['ringTau']}, impulseTau: {c['impulseTau']} }}"
     lines.append(f"    gap: {arr(v['gap'], 2) if v.get('gap') else 'null'}, bout: {arr(v['bout']) if v.get('bout') else 'null'}" + (f", am: {arr(v['am'], 2)}" if v.get('am') else '') + cl + ' },')
-lines += ['} satisfies Record<string, MeasuredCall>;', '', 'export type CallName = keyof typeof CALLS;', '']
+claps = [k for k in T if k.startswith('albatrossClap')]
+lines += ['} satisfies Record<string, MeasuredCall>;', '', 'export type CallName = keyof typeof CALLS;', '', '/** One bird\'s clap each (and the combined one): a greeting is made in the clap of one of them. */', 'export const CLAP_VOICES: CallName[] = [' + ', '.join("'" + k + "'" for k in claps) + '];', '']
 open(os.path.join(here, '../../src/audio/birdcalls.ts'), 'w').write('\n'.join(lines))
 print('wrote src/audio/birdcalls.ts', sum(len(l) for l in lines), 'bytes')

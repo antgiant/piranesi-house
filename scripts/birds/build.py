@@ -18,7 +18,9 @@ SPECS = {
   'blackbirdTink':(1200, 3500, 0.02, 0.12, ['904743:1.4:2.2', '904743:7.3:1.2', '904743:14:1.5']),
 }
 # very short sharp sounds (clicks), and long calls with an amplitude modulation (a whirr)
-CLICKS = {'albatrossClap': ['730154:0:5.2', '862222:0:9'], 'sparrowTick': ['791783:0:12']}
+CLICKS = {'albatrossClap': ['730154:0:5.2', '862222:0:9'], 'sparrowTick': ['791783:0:12'],
+          # each of three birds' claps alone (the clack, and its ring, differ a little from bird to bird; the other recordings' "claps" at 0.1 s are the pulses of a whirr)
+          'albatrossClap_730154': ['730154:0:9.7'], 'albatrossClap_862222': ['862222:0:9'], 'albatrossClap_209430': ['209430:0:7']}
 MODS = {'albatrossWhirr': (1500, 4000, 0.8, 3.0, ['730154:9.7:2.4'], 12, 0.6)}
 SPECS.update({k: v for k, v in MODS.items()})
 # Individual gulls: one template for each recording (a different bird each), so a colony is made of birds that do not all sound alike.

@@ -1,7 +1,7 @@
 // What each bird says, and in what order: the plan of one calling episode, made of notes taken from the measured templates (birdcalls.ts). The shapes, lengths and gaps are the
 // measured ones (design/birds.md); how often each is used, by place and season, is the behaviour (the scene). Pure, so it can be tested.
 
-import { CALLS, type CallName } from './birdcalls';
+import { CALLS, CLAP_VOICES, type CallName } from './birdcalls';
 import { LIB, type LibKind } from './birdlib';
 
 export type Rng = () => number;
@@ -93,13 +93,14 @@ function planOf(who: Voice, ctx: Context, r: Rng): PlannedNote[] {
       // (a run of seven to eleven), a slightly longer gap now and then (0.6 s), a pause of two seconds or more between runs. What is said is never the same twice: the tempo of the
       // run, its length, where the longer gaps fall (they make the groups, a rhythm like code), the pauses between runs, and whether it ends in a whirr, all differ.
       const notes: PlannedNote[] = []; let t = 0;
+      const clap: CallName = CLAP_VOICES[Math.floor(r() * CLAP_VOICES.length)] ?? 'albatrossClap'; // this bird's own clap
       const runs = pick(r, [1, 2, 3] as const, [0.45, 0.4, 0.15]);
       for (let k = 0; k < runs; k++) {
         const tempo = between(r, 0.31, 0.5), n = Math.round(between(r, 3, 12));
         // cut the run into groups of two to five by lengthening some gaps
         let left = 0;
         for (let i = 0; i < n; i++) {
-          notes.push({ dt: t, call: 'albatrossClap', pitch: between(r, 0.95, 1.05), gain: between(r, 0.6, 1) });
+          notes.push({ dt: t, call: clap, pitch: between(r, 0.95, 1.05), gain: between(r, 0.6, 1) });
           left--;
           let gap = tempo * between(r, 0.85, 1.18);
           if (left <= 0) { left = Math.round(between(r, 2, 5)); if (i < n - 1) gap *= between(r, 1.3, 2.0); }

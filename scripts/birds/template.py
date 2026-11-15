@@ -107,6 +107,16 @@ def analyse(item, fmin, fmax, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25):
         calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': warp(seg), 'env': warp(np.maximum(env, -50)), 'apex': ap / max(1, len(seg) - 1), 'hnr': hnr, 'H': Ht, 'N': Nt, 'a': a * 0.005})
     return calls
 
+def am_of(x, sr, a, dur):
+    """The pulsing of a call's loudness: its rate (6 to 90 a second) and depth 0..1, or None when it does not pulse (or the call is too short to tell)."""
+    seg = x[int(a * sr): int((a + dur) * sr)]
+    if len(seg) < int(0.15 * sr): return None
+    y = signal.sosfilt(signal.butter(4, [800, 6000], 'bandpass', fs=sr, output='sos'), seg); e = np.abs(signal.hilbert(y)); e = signal.sosfilt(signal.butter(2, 120, 'low', fs=sr, output='sos'), e)
+    e = e[int(0.02 * sr): -int(0.02 * sr)]; e = e / (e.mean() + 1e-12); F = np.abs(np.fft.rfft((e - e.mean()) * np.hanning(len(e)))); fr = np.fft.rfftfreq(len(e), 1 / sr); sel = (fr > 6) & (fr < 90)
+    if not sel.any(): return None
+    k = int(np.argmax(F[sel])); depth = float(np.sqrt(2) * np.sqrt(np.mean((e - e.mean()) ** 2)))
+    return [round(float(fr[sel][k]), 1), round(min(1.0, depth), 2)]
+
 def build_click(name, items, lo=2500.0, hi=12000.0):
     """A very short sharp sound (a bill clap, a tick): its envelope (dB across about 12 ms), its spectrum (third octaves), and the intervals between one and the next."""
     envs = []; specs = []; gaps = []; bouts = []

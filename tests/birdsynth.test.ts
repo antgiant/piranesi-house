@@ -64,7 +64,7 @@ describe('what the birds say', () => {
   });
   it('gives the albatross its clacking and then a whirr, and the gull colony its alarm run and its laughing long call', () => {
     const alb = plan('albatross', 'greeting', seeded(2));
-    expect(alb.filter((n) => n.call === 'albatrossClap').length).toBeGreaterThanOrEqual(5); expect(alb[alb.length - 1]!.call).toBe('albatrossWhirr');
+    expect(alb.filter((n) => n.call.startsWith('albatrossClap')).length).toBeGreaterThanOrEqual(5); expect(alb[alb.length - 1]!.call).toBe('albatrossWhirr');
     let long = 0, alarm = 0;
     for (let i = 0; i < 100; i++) { const p = plan('gull', 'colony', seeded(i + 11)); if (p.filter((n) => n.call === 'gullNote').length >= 9) long++; else if (p.length >= 3 && p.every((n) => n.call.startsWith('gullMew'))) alarm++; }
     expect(long).toBeGreaterThan(5); expect(alarm).toBeGreaterThan(20);

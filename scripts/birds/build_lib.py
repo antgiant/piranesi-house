@@ -13,7 +13,9 @@ KINDS = {
   'sparrowChirp':  ('sparrow',   lambda c, f0: 0.05 <= c['dur'] <= 0.26 and 2600 <= f0 <= 5200 and 14 <= c['hnr'] <= 50, 6, 6, 12),
   'blackbirdTink': ('blackbird', lambda c, f0: 0.02 <= c['dur'] <= 0.12 and c['hnr'] >= 8, 6, 6, 10),
   'buzzardMew':    ('buzzard',   lambda c, f0: 0.3 <= c['dur'] <= 0.9 and 2000 <= f0 <= 3300 and c['hnr'] >= 15, 3, 5, 10),
-  # (the owl's screech is a rough hiss with no clear pitch: the round-trip check passed one call in eight, so the owl keeps its two-recording template, birdcalls.ts)
+  'owlScreech':    ('owl',       lambda c, f0: 0.4 <= c['dur'] <= 2.4 and 1500 <= f0 <= 2700, 1, 1, 12),
+  'gullBeg':       ('beg',       lambda c, f0: 0.08 <= c['dur'] <= 0.8 and 1200 <= f0 <= 2800 and c['hnr'] >= 5 and c.get('am') is not None, 4, 6, 12),
+  'albatrossWhirr': ('albwhirr', lambda c, f0: 0.5 <= c['dur'] <= 2.6 and c.get('am') is not None and c['am'][1] >= 0.3 and 8 <= c['am'][0] <= 70, 1, 3, 10),
 }
 res = {}
 for kind, (pk, ok, minc, keep, vmax) in KINDS.items():
@@ -29,7 +31,7 @@ for kind, (pk, ok, minc, keep, vmax) in KINDS.items():
         for u, v in zip(ts, ts[1:]):
             if v - u < 3.0: gaps.append(v - u)
         voices.append({'id': rid, 'n': len(good), 'H': H.round(0).astype(int).tolist(), 'N': N.round(0).astype(int).tolist(), 'gaps': gaps,
-                       'calls': [{'dur': round(c['dur'], 3), 'apex': round(float(c['apex']), 2), 'hnr': round(float(c['hnr']), 1), 'f0': [int(round(v)) for v in c['f0']], 'env': [round(float(v), 1) for v in c['env']]} for c in sel]})
+                       'calls': [{'dur': round(c['dur'], 3), 'apex': round(float(c['apex']), 2), 'hnr': round(float(c['hnr']), 1), **({'am': c['am']} if c.get('am') else {}), 'f0': [int(round(v)) for v in c['f0']], 'env': [round(float(v), 1) for v in c['env']]} for c in sel]})
     voices.sort(key=lambda v: -v['n']); voices = voices[:vmax]
     gaps = [g for v in voices for g in v['gaps']]
     res[kind] = {'gap': [round(float(np.percentile(gaps, q)), 2) for q in (10, 50, 90)] if len(gaps) >= 5 else None, 'voices': [{k: v[k] for k in ('id', 'H', 'N', 'calls')} for v in voices]}

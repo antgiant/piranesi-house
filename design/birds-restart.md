@@ -90,6 +90,29 @@ follows. The synth blurred all of that together and so sounded gentler and less 
 - **Still different on m3_9:** the first 50 ms after the pop is about 5 dB brighter above 6 kHz in the real call; from 14.32 to 14.39 the
   line band is about 2 dB too loud. m2: the f0 line in its rasp is 5 to 8 dB too quiet and a faint haze trails 25 ms after the end.
 
+## Second attempt, step 4: m1_16, the two-note call (the owner approved m3_9 and the m2 call as "perfect")
+- **Pitch step 50 ms early (the long-standing m1 flaw, found).** Where the old note is fading and the new one is not yet there, the old
+  and the new pitch score alike and the Viterbi path jumps at the earliest tie. The fine window shows the truth (the new line rises from
+  0.01 to 0.06 within 12 ms at 32.308 s; the tracker said 32.254). Fix: after the Viterbi, put each step where the lines of the new pitch
+  overtake the old at 0.7 ms resolution. **Only for a real step**: steady pitch on both sides (peak-to-peak under 3% over 6 frames,
+  sampled 3 to 14 frames away from the jump). The first version applied it to every large jump and flattened a real glide (m4 call 35:
+  a 1550 to 1100 Hz glide became two plateaus; mean score fell 0.015). A glide is not a step.
+- **Onset sweep.** Real onsets can sweep: m1_16 rises from about 1030 to 1250 Hz over 31.845 to 31.885 s, then drops to the body pitch
+  1076 Hz at 31.897 s. The 23 ms window cannot see that and the 5.8 ms one cannot resolve the lines: the first 55 ms are tracked on an
+  11.6 ms window (smooth path, no jumps) instead of holding the first value. Neutral to slightly positive on the scores (+0.003).
+- **Noise floor 10 dB too high between the lines (the big one).** The 5.8 ms window leaks energy from strong lines into the gaps, and that
+  was counted as noise: red all over the body in the synth minus real plot. In the steady body the long window's estimate is now a ceiling
+  on the fine one; the fine estimate stays for the onset rasp (first 70 ms) and the end (last 50 ms). Raised every score: m1_16 0.884 to
+  0.929, m3_9 0.913 to 0.967, m2 first call 0.922 to 0.964. (So most of the "look score falls" in step 3 was this haze, not the fine events.)
+- **Totals (108 calls of m1, m3, m4):** m3 median 0.964 (36 of 37 at 0.9 or more), m1 0.897 (11 of 23), m4 0.907 (29 of 48); 76 of 108 at 0.9
+  or more, 2 under 0.75 (the dense squealing calls). No failures; final level correction 0.45 to 1.35 (the extremes are the squeals).
+- **Still different on m1_16:** the onset sweep is a few crisp lines in the real call and a hazier fan in the synth; the first line
+  in the second note dips 15 dB mid-note in the real call and stays level in the synth (the rank-3 shape cannot do a single line's own
+  dynamics); the step itself is a 3 ms glide in the synth and an instant change in the real.
+- **Biphonation in some m4 calls** (m4 call 35, 40.47 to 40.60 s): two independent voices, a line at 1550 Hz and another at 2200 Hz
+  with their sum (3750 Hz) and 2 times the higher one: not a harmonic series. The model fakes it with harmonics of one pitch plus
+  the halftone lines; a true two-source model is needed if it is audible.
+
 ## Ideas for the second attempt
 - Start from ONE clean bird and one call type and make the spectrogram match (look score above 0.9), then widen. Use the four clean recordings (m1 to m4) as the test set from the start.
 - Model what the real calls show: a call as a few notes, each with a pitch contour that may step, a loudness contour that holds then drops, a rough or clean voice (a noise-dominated squeal needs a noise source, not harmonics plus noise), an optional second voice, no added flutter.

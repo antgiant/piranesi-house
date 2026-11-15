@@ -30,7 +30,8 @@ from scipy.interpolate import PchipInterpolator
 NF, HOP = 1024, 128
 K, NK, NOISE = 12, 12, 1.0
 RANK = int(__import__('os').environ.get('RANK', '3'))
-HOLD = int(__import__('os').environ.get('HOLD', '12'))      # onset frames (2.9 ms each) where f0 is held instead of tracked
+STEP_REFINE = __import__('os').environ.get('STEP_REFINE', '1') == '1'  # place each pitch step where the new lines overtake the old (fine analysis)
+ONSET_TRACK = __import__('os').environ.get('ONSET_TRACK', '1') == '1'   # follow the pitch through the first 65 ms on the fine analysis
 SUB = float(__import__('os').environ.get('SUB', '2.0'))   # how many noise-medians a line peak must exceed to count as tone
 NF2, HOP2 = 256, 32                                          # the fine analysis: 5.8 ms window, 0.7 ms hop
 
@@ -61,36 +62,61 @@ def main(rec, T0, T1, CS, CE, out):
     f, t, Z = spec(ref)
     M = np.abs(Z)
     df = f[1]
+
+    def spec2(sig):                                   # the fine analysis: 5.8 ms window, 0.7 ms hop
+        return stft(sig, sr, window='hann', nperseg=NF2, noverlap=NF2 - HOP2, boundary=None, padded=False)
+
+    f2, t2, Z2 = spec2(ref)
+    M2 = np.abs(Z2)
+    df2 = f2[1]
     on, off = int(np.argmin(abs(t - (CS - T0)))), int(np.argmin(abs(t - (CE - T0))))
 
     # ---- f0: harmonic-sum salience over h1..h4, followed outward from the middle of the call
     cand = np.arange(750, 1700, 2.0)
+    LAM, JUMP = 0.04, 14.0                             # cost per candidate step (2 Hz) when gliding; flat cost of a jump
     S = np.array([sum(np.log(np.interp(cand * k, f, M[:, j]) + 1e-6) * (1.0 if k < 3 else 0.7) for k in (1, 2, 3, 4))
                   for j in range(len(t))]).T
+    def viterbi(Sx, lam, jump):
+        """Best path through a salience matrix (candidates x frames): gliding costs lam per candidate step, a jump a flat cost."""
+        ic = np.arange(Sx.shape[0])
+        nc = len(ic)
+        D = -Sx[:, 0].copy()
+        back = np.zeros(Sx.shape, int)
+        for q in range(1, Sx.shape[1]):
+            fw = np.minimum.accumulate(D - lam * ic) + lam * ic                      # best predecessor at or below i
+            fwi = np.maximum.accumulate(np.where(D - lam * ic <= fw, ic, 0))
+            bw = (np.minimum.accumulate((D + lam * ic)[::-1])[::-1]) - lam * ic     # at or above i
+            bwi = np.minimum.accumulate(np.where((D + lam * ic) <= (bw + lam * ic), ic, nc - 1)[::-1])[::-1]
+            use_f = fw <= bw
+            glide, gi = np.where(use_f, fw, bw), np.where(use_f, fwi, bwi)
+            am = int(np.argmin(D))
+            take_j = D[am] + jump < glide
+            D = -Sx[:, q] + np.where(take_j, D[am] + jump, glide)
+            back[:, q] = np.where(take_j, am, gi)
+        path = np.zeros(Sx.shape[1], int)
+        path[-1] = int(np.argmin(D))
+        for q in range(Sx.shape[1] - 1, 0, -1):
+            path[q - 1] = back[path[q], q]
+        return path
+
+    # the onset (first ONSET s): a smooth glide, no jumps, on a middle window (11.6 ms); the 23 ms window cannot see a
+    # 50 ms sweep and the 5.8 ms one cannot resolve the lines
+    ONSET = 0.055
+    j0 = int(np.argmin(abs(t - (t[on] + ONSET))))
+    f3, t3, Z3 = stft(ref, sr, window='hann', nperseg=512, noverlap=512 - 64, boundary=None, padded=False)
+    M3 = np.abs(Z3)
+    w0, w1 = int(np.argmin(abs(t3 - t[on]))), int(np.argmin(abs(t3 - t[j0])))
+    cand2 = np.arange(800, 1500, 4.0)
+    wts = (1.0, 1.0, 0.8, 0.6)
+    S2 = np.array([sum(w * np.log(np.interp(cand2 * k, f3, M3[:, q]) + 1e-6) for k, w in enumerate(wts, 1))
+                   for q in range(w0, w1 + 1)]).T
+    f0_onset = cand2[viterbi(S2, 0.05, 1e9)]
     f0 = np.zeros(len(t))
-    j0 = on + HOLD                                      # the onset is noise: start where the lines are clear
-    idx_c = np.arange(len(cand))
-    LAM, JUMP = 0.04, 14.0                             # cost per candidate step (2 Hz) when gliding; flat cost of a jump
-    D = -S[:, j0].copy()
-    back = np.zeros((off - j0 + 1, len(cand)), int)
-    for q, j in enumerate(range(j0 + 1, off + 1), 1):
-        fw = np.minimum.accumulate(D - LAM * idx_c) + LAM * idx_c              # best predecessor at or below i
-        fwi = np.maximum.accumulate(np.where(D - LAM * idx_c <= fw, idx_c, 0))
-        bw = (np.minimum.accumulate((D + LAM * idx_c)[::-1])[::-1]) - LAM * idx_c   # at or above i
-        bwi = np.minimum.accumulate(np.where((D + LAM * idx_c) <= (bw + LAM * idx_c), idx_c, len(cand) - 1)[::-1])[::-1]
-        use_f = fw <= bw
-        glide = np.where(use_f, fw, bw)
-        gi = np.where(use_f, fwi, bwi)
-        am = int(np.argmin(D))
-        jump = D[am] + JUMP
-        take_j = jump < glide
-        D = -S[:, j] + np.where(take_j, jump, glide)
-        back[q] = np.where(take_j, am, gi)
-    cur = int(np.argmin(D))
-    for q in range(off - j0, -1, -1):
-        f0[j0 + q] = cand[cur]
-        cur = back[q, cur]
-    f0[on:on + HOLD] = f0[on + HOLD]                      # the onset is noise: hold the first reliable value
+    pth = viterbi(S[:, j0:off + 1], LAM, JUMP)
+    f0[j0:off + 1] = cand[pth]
+    f0[on:j0] = np.interp(t[on:j0], t3[w0:w1 + 1], f0_onset)
+    if not ONSET_TRACK:                                # the older behaviour: hold the first reliable value
+        f0[on:j0] = f0[j0]
     f0[:on] = f0[on]
     f0[off + 1:] = f0[off]
     cur = int(round(f0[off - 20] / df))               # end of the call: follow the peak itself, it flicks down
@@ -98,6 +124,36 @@ def main(rec, T0, T1, CS, CE, out):
         a = cur - (2 if j < off - 14 else 5)
         cur = a + int(np.argmax(M[a:cur + (3 if j < off - 14 else 6), j]))
         f0[j] = para(M[:, j], cur)[0] * df
+    # a step's time: the Viterbi path may jump anywhere the old and new pitch score alike (the old note fading, the new not yet
+    # there). Put it where, at 0.7 ms resolution, the lines of the new pitch overtake those of the old one.
+    def lines_at(fp, jj):
+        return sum(M2[max(int(round(k * fp / df2)) - 1, 0):int(round(k * fp / df2)) + 2, jj].max() for k in (1, 2, 3, 4))
+
+    raw = median_filter(f0, 3)
+    jumps = [j for j in range(j0 + 2, off - 1) if abs(raw[j + 1] - raw[j]) > 0.06 * raw[j]]   # after the onset
+    done_until = -1
+    for j in (jumps if STEP_REFINE else []):
+        if j <= done_until:
+            continue
+        before, after = f0[max(j - 10, on):max(j - 3, on + 1)], f0[j + 8:min(j + 14, off + 1)]
+        if len(before) == 0 or len(after) == 0:       # a step right at the end of the call (the end dive): leave it to the tracker
+            continue
+        fa, fb = float(np.median(before)), float(np.median(after))
+        if abs(fb - fa) < 0.06 * fa:
+            continue
+        if np.ptp(before) > 0.03 * fa or np.ptp(after) > 0.03 * fb:   # not steady on both sides: a glide, not a step
+            continue
+        tj = t[j]
+        w0, w1 = int(np.argmin(abs(t2 - (tj - 0.09)))), int(np.argmin(abs(t2 - (tj + 0.09))))
+        d = np.array([lines_at(fb, q) - lines_at(fa, q) for q in range(w0, w1)])
+        k_ = next((q for q in range(4, len(d) - 4) if (d[q:q + 4] > 0).all() and (d[q - 4:q] < 0).all()), None)   # old dominates, then new
+        if k_ is not None:
+            tstar = t2[w0 + k_]
+            lo_j, hi_j = int(np.argmin(abs(t - (tj - 0.09)))), int(np.argmin(abs(t - (tj + 0.09))))
+            for q in range(lo_j, hi_j + 1):
+                f0[q] = fa if t[q] < tstar else fb
+            done_until = hi_j
+            print('step at %.3f s (the tracker had %.3f): %.0f -> %.0f Hz' % (tstar + T0, tj + T0, fa, fb))
     f0 = median_filter(f0, 3)
     f0s = f0.copy()                                   # smooth within each stretch, never across a step
     steps = [j for j in range(on, off) if abs(f0[j + 1] - f0[j]) > 0.06 * f0[j]]
@@ -179,12 +235,6 @@ def main(rec, T0, T1, CS, CE, out):
     for m in range(NS):                                # lines at (m+0.5)*f0: phase is half the f0 phase times (2m+1)
         y += track(RH[m]) * 2 * ((m + 0.5) * F0 < sr / 2) * np.sin((m + 0.5) * ph + 0.7 * (m + 1))
     # ---- fine layer 1: loudness of the lines at 0.7 ms (the long window smears a pop over 30 ms). Gain = real / synth line level
-    def spec2(sig):
-        return stft(sig, sr, window='hann', nperseg=NF2, noverlap=NF2 - HOP2, boundary=None, padded=False)
-
-    f2, t2, Z2 = spec2(ref)
-    M2 = np.abs(Z2)
-    df2 = f2[1]
     f0_2 = np.interp(t2, t, f0s)
     j_on, j_off = int(np.argmin(abs(t2 - (CS - T0 - 0.004)))), int(np.argmin(abs(t2 - (CE - T0 + 0.004))))
     R2 = np.interp(t2, t, R.astype(float)) > 0.5
@@ -243,6 +293,25 @@ def main(rec, T0, T1, CS, CE, out):
                 v[b] = 1.55 * np.percentile(M2[sel, j], 25)   # low percentile: smeared line leakage cannot inflate it
         ok_ = ~np.isnan(v)
         E2[:, j] = np.interp(np.log(cent), np.log(cent[ok_]), v[ok_]) if ok_.sum() > 1 else 0
+    # the 5.8 ms window leaks energy from strong lines into the gaps between them, which reads as a noise floor 10 dB too high
+    # where the real call is clean. In the steady body use the long window (better isolation) as a ceiling; keep the fine
+    # estimate for the onset rasp and the end sound, where its time resolution is the point.
+    E1 = np.zeros((len(cent), len(t)))
+    for j in range(max(on - 2, 0), min(off + 3, len(t))):
+        c0 = f0s[min(max(j, on), off)]
+        mask = np.ones(len(f), bool)
+        for k in range(1, 30):
+            for r in ((k, k - 0.5) if R[j] else (k,)):
+                mask &= ~(np.abs(f - r * c0) < max(3 * df, min(0.04 * r * c0, 0.2 * c0)))
+        for b in range(len(cent)):
+            sel = (f >= edges[b]) & (f < edges[b + 1]) & mask
+            E1[b, j] = 1.55 * np.percentile(M[sel, j], 25) if sel.any() else np.nan
+    body = (t2 > CS - T0 + 0.07) & (t2 < CE - T0 - 0.05)
+    for b in range(len(cent)):
+        ok_ = ~np.isnan(E1[b])
+        if ok_.sum() > 1:
+            ceil = np.sqrt(NF / NF2) * 1.3 * np.interp(t2, t[ok_], E1[b][ok_])      # long-window magnitudes are smaller by sqrt(NF2/NF)
+            E2[b] = np.where(body, np.minimum(E2[b], ceil), E2[b])
     g = np.random.default_rng(2).standard_normal(n)
     _, _, Gn = spec2(g)
     rms_g = np.sqrt(np.mean(np.abs(Gn) ** 2))             # unit white noise: every bin has this rms

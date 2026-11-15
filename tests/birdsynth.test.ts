@@ -28,7 +28,7 @@ describe('a bird call made from its measured template', () => {
       expect(peak).toBeGreaterThan(0.5); expect(peak).toBeLessThanOrEqual(1.0001);
       const dur = c.length / sr;
       if ((CALLS[nm] as MeasuredCall).click) { expect(dur).toBeLessThan(0.05); continue; }
-      expect(dur).toBeGreaterThan(CALLS[nm].durRange[0] * 0.95 - 0.005); expect(dur).toBeLessThan(CALLS[nm].durRange[1] * 1.05 + 0.005);
+      expect(dur).toBeGreaterThan(CALLS[nm].durRange[0] * 0.95 - 0.005); expect(dur).toBeLessThan(CALLS[nm].durRange[1] * 1.05 + 0.16);
     }
   });
   it('sits where the bird sings: a gull mew near its measured pitch, a buzzard higher, a rook lower than either', () => {

@@ -23,7 +23,7 @@ for kind, spec in lib.items():
         g = max(got, key=lambda x: x['dur']); g['am'] = T.am_of(x_, sr_, st + g['a'], g['dur'])
         r = float(np.median(g['f0'])) / float(np.median(c['f0']))
         if abs(np.log2(r)) > 0.12: why['pitch'] += 1; continue
-        if g['hnr'] - c['hnr'] < -8 or g['hnr'] - c['hnr'] > 16: why['rough'] += 1; continue  # (a call that comes back noisier than its source by more than 8 dB sounds blown out)
+        if g['hnr'] - c['hnr'] < -5 or g['hnr'] - c['hnr'] > 16: why['rough'] += 1; continue  # (a call that comes back noisier than its source by more than 5 dB sounds blown out)
         if c.get('am') and g.get('am') is not None and abs(g['am'][0] / c['am'][0] - 1) > 0.35: why['rough'] += 1; continue
         gH = np.array(g['H']); gH = gH - gH.max(); H = np.array(v['H'], float); both = (gH > -50) & (H > -50)
         if both.sum() >= 3 and float(np.mean(np.abs(gH[both] - H[both]))) > 9: why['spectrum'] += 1; continue

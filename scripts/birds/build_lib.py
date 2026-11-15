@@ -17,10 +17,10 @@ KINDS = {
   # the low, rough calls that make much of a colony (labelled alarm and flight calls on Xeno-canto): a pitch of 550 to 1300 Hz and a roughness of 5 dB and more. A first library left them out (a filter of 900 Hz and 22 dB, meant to drop what the tracker
   # gets wrong) and the colony had none of its most common calls.
   # (the four 'm' recordings are very clean single birds at one metre with a shotgun microphone, Cornell Macaulay Library, from the owner's own copies: they come first)
-  'gullAlarm':     (('galarm', 'mac'), lambda c, f0: 0.05 <= c['dur'] <= 0.6 and 550 <= f0 <= 1900 and 5 <= c['hnr'] <= 50, 6, 6, 14),
-  'gullFlight':    ('gflight',   lambda c, f0: 0.05 <= c['dur'] <= 0.45 and 550 <= f0 <= 1300 and 5 <= c['hnr'] <= 45, 6, 6, 14),
+  'gullAlarm':     (('galarm', 'mac'), lambda c, f0: 0.05 <= c['dur'] <= 0.6 and 550 <= f0 <= 1900 and 8 <= c['hnr'] <= 50, 6, 6, 14),
+  'gullFlight':    ('gflight',   lambda c, f0: 0.05 <= c['dur'] <= 0.45 and 550 <= f0 <= 1300 and 8 <= c['hnr'] <= 45, 6, 6, 14),
   # the rhythmic low clucking ("choking"): the pulses of regular trains (4 to 5 a second, five to twelve long, 0.085 s each, near 650 Hz) found in recordings tagged duet, displaying, domination and the like
-  'gullChoke':     ('choke',     lambda c, f0: 0.04 <= c['dur'] <= 0.3 and 450 <= f0 <= 1500 and c['hnr'] >= 5, 4, 5, 12),
+  'gullChoke':     ('choke',     lambda c, f0: 0.04 <= c['dur'] <= 0.3 and 450 <= f0 <= 1500 and c['hnr'] >= 8, 4, 5, 12),
   # the thin, high, pure call (3.2 to 5.6 kHz) that begging young give, strong and lower in juveniles: the stand-alone high tones of a winter flock with first-winter birds (ML547765491, not the harmonics of the clucking calls) and of the begging recordings
   'gullThin':      (('f6solo', 'beghi'), lambda c, f0: 0.08 <= c['dur'] <= 0.9 and 3200 <= f0 <= 5600 and c['hnr'] >= 13, 4, 6, 12),
   'rookCaw':       ('rook',      lambda c, f0: 0.15 <= c['dur'] <= 0.9 and 250 <= f0 <= 700 and c['hnr'] >= 2, 5, 6, 12),

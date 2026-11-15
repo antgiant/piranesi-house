@@ -242,3 +242,12 @@ The owner heard calls fading too hard and fast and so cut short, calls with a vi
 ## Version 17: the pitch in 24 points
 Side by side with the clean originals, a call's pitch steps (two-part calls: an abrupt step of a few hundred cents between notes) came back as glides, because the pitch was stored at 12 points. It is now 24 points, uniformly in time, and played straight; the steps stay steps. Pitch of the synthesis against the real contour (analysed the same way):
 median error 29 to 44 cents (the worst tenth, 65 to 190, at the steps). Calls tracked at the wrong octave (the second harmonic taken for the pitch: the first call of recording m1 steps the wrong way) are still a risk; the library keeps ten voices of two calls each to stay under the JS budget (166.5 KB gzipped).
+
+## Version 18: the budget raised, and the known faults
+- **Budget** (`scripts/check-budget.mjs`), raised at the owner's request for the real-call library: JS 300 KB (was 170), total 380 KB (was 230), any one file 300 KB (was 150), gzipped. Now JS 180 KB, total about 218 KB.
+  The library is no longer trimmed to ten voices of two calls: up to 14 voices of 6 calls a kind (13 + 8 + 11 + 11 + 12 + 9 + 8 + 12 + 7 + 6 + 8 + 11 + 9 voices, 600-odd calls).
+- **The wrong-way step in the first clean recording.** It was not a tracker octave error: that bird's calls have a strong fundamental near 2.1 kHz with a weak subharmonic line half way (an alternating-period voice), and the search range (700 to 2400 Hz) let the
+  tracker slip down to the subharmonic. Each of the four clean recordings is now searched in its own range (the first 1.2 to 2.5 kHz, the others 0.9 to 1.9 kHz). The step now goes the right way.
+- **Haze of noise.** The round trip rejects a call that comes back more than 5 dB noisier than its source (was 8). The very rough calls (under 8 dB) are left out of the gull kinds, as a harmonic voice with noise cannot make a call that is mostly noise (the squeal): they want a noise-based
+  synthesis, not done.
+- Measured against the clean originals: pitch contour error median 26 to 64 cents; roughness within 6 dB (median 0 to +2). Known remaining: some two-part calls have a short spike at the step, and noise-dominated squeals are missing.

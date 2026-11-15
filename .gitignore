@@ -15,3 +15,4 @@ node_modules/
 dist/
 coverage/
 __pycache__/
+scripts/birds/library.json

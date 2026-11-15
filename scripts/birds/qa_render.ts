@@ -9,7 +9,7 @@ let seed = 11; const rng = (): number => { seed = (seed * 1664525 + 1013904223) 
 for (const [kind, voices] of Object.entries(LIB)) {
   const parts: Float32Array[] = [], index: { voice: number; call: number; t: number; dur: number }[] = []; let t = 0;
   voices.forEach((v, vi) => v.calls.forEach((c, ci) => {
-    const tpl = libTemplate((CALLS as Record<string, { bands: number[] }>)[kind]!.bands, v, c);
+    const tpl = libTemplate(CALLS.gullMew.bands, v, c);
     const x = renderCall(sr, tpl, rng); parts.push(x, new Float32Array(Math.floor(sr * 0.5))); index.push({ voice: vi, call: ci, t, dur: x.length / sr }); t += x.length / sr + 0.5;
   }));
   const n = parts.reduce((a, p) => a + p.length, 0), b = Buffer.alloc(44 + n * 2);

@@ -180,3 +180,21 @@ The median templates (one averaged call per kind) are replaced, for the gull mew
 - **Albatross whirr**: pulsed or tonal calls of 14 recordings (Laysan, black-footed, wandering), 17 of 22 pass: nine voices. **Claps**: three birds' claps each (Midway, Clarion, Hawaii) and the combined one. The other
   recordings' apparent claps 0.1 s apart are the pulses of a whirr (an automatic search for clicks found them), so the claps stay at 0.3 to 0.45 s from the three clean recordings.
 - A pulsing call needs its pulsing in the round trip: the first QA run dropped most chick and whirr calls because the synthesis lacked it; with it in, they pass.
+
+## Version 12: the call-type mix of a colony, and the lost frequencies
+- **Labelled calls.** No open annotated gull dataset exists (searched: Zenodo, BirdSet, the literature); the labels that do exist are Xeno-canto's own type tags on each recording (alarm call, long call, flight call, begging call, call, song).
+  Metadata of 532 herring gull recordings (A and B quality) were read; recordings whose tags are only one type were measured (alarm 36 recordings / 1,397 calls, flight 30 / 594, long 28 / 671, plain call 30 / 781, begging 23 / 570):
+  | type | length (median) | pitch (median) | roughness |
+  |---|---|---|---|
+  | alarm | 0.10 s | 860 Hz | 17 dB (rough) |
+  | flight | 0.16 s | 790 Hz | 29 dB |
+  | long call | 0.19 s | 1270 Hz | 38 dB |
+  | plain call | 0.20 s | 1120 Hz | 26 dB |
+  | begging | 0.20 s | 1370 Hz | 33 dB |
+  The alarm and flight calls are LOW (about 800 Hz) and rough. The first library dropped everything below 900 Hz or under 22 dB of roughness as pitch-tracker junk, so it held none of the calls that make up much of a colony.
+- **The mix.** The calls of six colony and flock recordings were labelled by nearest neighbour against those groups: about a third flight-like, a sixth to a quarter alarm, a third mews and long-call notes, and 10 to 30% begging where there are young
+  (599932 dawn colony: flight 40%, alarm 25%, plain 18%, begging 12%, long 5%). The colony plan now draws episodes in about those proportions: flight 34%, alarm run 20%, mew 37%, long call 9%; the young add begging.
+  (A rough labelling: the labels are per recording, not per call.) New libraries `gullAlarm` (12 voices) and `gullFlight` (9 voices), through the same filter and round-trip check.
+- **Lost frequencies.** Measured on the rendered calls against the real ones, the synthesis was 35 to 50 dB down under 800 Hz and 15 to 40 dB down above 8 kHz. The calls matched their own measured spectra: the loss was in what was measured. The analysis throws away
+  a band that does not clear the recording's background (10 dB for the tone, 4 dB for the noise), which in a noisy recording removes the call's lows and highs with the background. `fillBands` now fills what is empty (joins a gap, and continues past the last
+  measured band at 4 dB a band for the tone, 2.5 for the noise above and 1.5 below). The shortfall falls to 10 to 20 dB below 800 Hz and 3 to 10 dB above 8 kHz (some of the rest is the real recordings' own background).

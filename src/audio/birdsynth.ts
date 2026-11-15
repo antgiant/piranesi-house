@@ -177,8 +177,26 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
   return out;
 }
 
+/**
+ * Fill the bands of a measured spectrum that came out empty. The analysis drops a band that does not clear the recording's own background (by 10 dB for the tone, 4 dB for the noise), which in a noisy
+ * recording takes the lows and the highs of the call along with the background, and leaves a call with nothing below its pitch and little above 8 kHz: heard as a call that has been processed. A gap
+ * between measured bands is joined across in dB; beyond the last measured band the level falls on (`up` dB a band) and below the first it falls away (`down` dB a band), as the measured calls themselves do.
+ */
+export function fillBands(v: number[], up: number, down: number, floor = -118): number[] {
+  const ok = v.map((x) => x > -100), first = ok.indexOf(true), last = ok.lastIndexOf(true);
+  if (first < 0) return v;
+  const out = v.slice();
+  for (let i = 0; i < v.length; i++) {
+    if (ok[i]) continue;
+    if (i < first) out[i] = down >= 99 ? floor : Math.max(floor, (v[first] as number) - down * (first - i));
+    else if (i > last) out[i] = Math.max(floor, (v[last] as number) - up * (i - last));
+    else { let a = i - 1; while (!ok[a]) a--; let b = i + 1; while (!ok[b]) b++; out[i] = (v[a] as number) + ((v[b] as number) - (v[a] as number)) * ((i - a) / (b - a)); }
+  }
+  return out;
+}
+
 /** A call made by one real bird of the library: its voice's spectrum and one of its measured calls (length, roughness, 12 pitch points, 12 loudness points). */
 export function libTemplate(bands: number[], voice: { H: number[]; N: number[] }, call: number[]): CallTemplate {
   const dur = call[0]!;
-  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: call.slice(15, 27), bands, H: voice.H, N: voice.N, ...(call.length > 28 ? { am: [call[27]!, call[28]!] as [number, number] } : {}) };
+  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: call.slice(15, 27), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), ...(call.length > 28 ? { am: [call[27]!, call[28]!] as [number, number] } : {}) };
 }

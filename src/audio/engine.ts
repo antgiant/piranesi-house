@@ -956,7 +956,7 @@ export class AudioEngine {
       const variants = (this.callCache[key] ??= []);
       let buf: AudioBuffer;
       if (variants.length < (lib ? 2 : 5)) {
-        const tpl = lib ? libTemplate(CALLS[n.call].bands, lib, lib.calls[ci] as number[]) : CALLS[n.call];
+        const tpl = lib ? libTemplate(CALLS.gullMew.bands, lib, lib.calls[ci] as number[]) : CALLS[n.call as CallName];
         const data = renderCall(ctx.sampleRate, tpl, Math.random);
         buf = ctx.createBuffer(1, data.length, ctx.sampleRate); buf.getChannelData(0).set(data); variants.push(buf);
       } else buf = variants[Math.floor(Math.random() * variants.length)] as AudioBuffer;

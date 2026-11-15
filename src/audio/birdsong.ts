@@ -6,31 +6,37 @@ import { LIB, type LibKind } from './birdlib';
 
 export type Rng = () => number;
 /** `voice` is, for a call that has a library of real birds (birdlib.ts), which bird's voice makes it. */
-export interface PlannedNote { dt: number; call: CallName; pitch: number; gain: number; voice?: number }
+export type NoteCall = CallName | LibKind;
+export interface PlannedNote { dt: number; call: NoteCall; pitch: number; gain: number; voice?: number }
 export type Voice = 'gull' | 'rook' | 'sparrow' | 'blackbird' | 'buzzard' | 'owl' | 'albatross' | 'chick';
 export type Context = 'colony' | 'air' | 'roost' | 'rain' | 'flock' | 'greeting' | 'nest';
 
 const between = (r: Rng, lo: number, hi: number): number => lo + r() * (hi - lo);
 const pick = <T>(r: Rng, items: readonly T[], weights: readonly number[]): T => { let x = r() * weights.reduce((a, b) => a + b, 0); for (let i = 0; i < items.length; i++) { x -= weights[i] ?? 0; if (x <= 0) return items[i] as T; } return items[items.length - 1] as T; };
 /** A gap drawn from the measured 10th, 50th and 90th percentiles (a skewed spread through all three). */
-function gapOf(r: Rng, name: CallName, fallback: [number, number, number] = [0.3, 0.6, 1.2]): number {
-  const g = CALLS[name].gap ?? fallback;
+function gapOf(r: Rng, name: NoteCall, fallback: [number, number, number] = [0.3, 0.6, 1.2]): number {
+  const g = (name in CALLS ? CALLS[name as CallName].gap : null) ?? fallback;
   const u = r();
   return u < 0.5 ? g[0] + (g[1] - g[0]) * (u / 0.5) : g[1] + (g[2] - g[1]) * ((u - 0.5) / 0.5);
 }
-const countOf = (r: Rng, name: CallName, lo: number, hi: number): number => {
-  const b = CALLS[name].bout ?? [lo, Math.round((lo + hi) / 2), hi];
+const countOf = (r: Rng, name: NoteCall, lo: number, hi: number): number => {
+  const b = (name in CALLS ? CALLS[name as CallName].bout : null) ?? [lo, Math.round((lo + hi) / 2), hi];
   const u = r(); const v = u < 0.5 ? b[0] + (b[1] - b[0]) * (u / 0.5) : b[1] + (b[2] - b[1]) * ((u - 0.5) / 0.5);
   return Math.max(lo, Math.min(hi, Math.round(v)));
 };
 
-function series(r: Rng, call: CallName, n: number, level: (i: number) => number, pitch: (i: number) => number): PlannedNote[] {
+function series(r: Rng, call: NoteCall, n: number, level: (i: number) => number, pitch: (i: number) => number): PlannedNote[] {
   const out: PlannedNote[] = []; let t = 0;
   for (let i = 0; i < n; i++) { out.push({ dt: t, call, pitch: pitch(i), gain: level(i) }); t += gapOf(r, call); }
   return out;
 }
 
 /** One episode of calling by a bird of this kind, in this situation. */
+/** The notes of a run, spaced by a gap drawn between lo and hi each time (so the times keep their order). */
+function spaced(r: Rng, notes: PlannedNote[], lo: number, hi: number): PlannedNote[] {
+  let t = 0; return notes.map((n) => { const out = { ...n, dt: t }; t += between(r, lo, hi); return out; });
+}
+
 /** One episode of calling by one bird: its notes, each made in the voice of one real bird of the library (the same bird for all its notes of a kind). */
 export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNote[] {
   const notes = planOf(who, ctx, r), mine: Partial<Record<string, number>> = {};
@@ -40,13 +46,16 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
 
 function planOf(who: Voice, ctx: Context, r: Rng): PlannedNote[] {
   const bird = between(r, 0.92, 1.08); // this bird's own pitch
-  const mew: CallName = 'gullMew', chirp: CallName = 'sparrowChirp';
+  const mew: NoteCall = 'gullMew', chirp: NoteCall = 'sparrowChirp';
   switch (who) {
     case 'gull': {
       if (ctx === 'colony') {
-        const kind = pick(r, ['alarm', 'mew', 'long'] as const, [0.4, 0.4, 0.2]);
-        if (kind === 'alarm') return series(r, mew, 3 + Math.floor(r() * 4), (i) => 1 - i * 0.08, (i) => bird * (1 - i * 0.012));
-        if (kind === 'mew') return [{ dt: 0, call: mew, pitch: bird, gain: 1 }];
+        // what a colony says, by how often (nearest-neighbour labels of the calls in six colony and flock recordings against the Xeno-canto-labelled calls of 200 recordings: about a third low rough calls of the flight-call kind,
+        // a sixth alarm calls in runs, a third mews, the rest the long call's laughing notes and begging from the young): see design/birds.md
+        const kind = pick(r, ['flight', 'alarm', 'mew', 'long'] as const, [0.34, 0.2, 0.37, 0.09]);
+        if (kind === 'flight') return spaced(r, series(r, 'gullFlight', 1 + Math.floor(r() * 3), (i) => 1 - i * 0.1, () => bird), 0.25, 0.7);
+        if (kind === 'alarm') return spaced(r, series(r, 'gullAlarm', 3 + Math.floor(r() * 5), (i) => 1 - i * 0.06, (i) => bird * (1 - i * 0.01)), 0.2, 0.42);
+        if (kind === 'mew') return r() < 0.8 ? [{ dt: 0, call: mew, pitch: bird, gain: 1 }] : series(r, mew, 2, (i) => 1 - i * 0.15, () => bird);
         // the long call: a few slow notes, then the laugh: a run of short notes about a quarter of a second apart, dropping a little in pitch
         const n = 9 + Math.floor(r() * 6), notes: PlannedNote[] = [{ dt: 0, call: mew, pitch: bird * 0.82, gain: 0.8 }];
         let t = 0.7;

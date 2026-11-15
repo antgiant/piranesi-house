@@ -9,6 +9,10 @@ d, out = sys.argv[1], sys.argv[2]
 KINDS = {
   'gullMew':       ('gull',      lambda c, f0: 0.12 <= c['dur'] <= 0.7 and 900 <= f0 <= 1800 and 22 <= c['hnr'] <= 58, 5, 6, 14),
   'gullNote':      ('gull',      lambda c, f0: 0.05 <= c['dur'] < 0.12 and 850 <= f0 <= 1500 and 22 <= c['hnr'] <= 58, 5, 6, 8),
+  # the low, rough calls that make much of a colony (labelled alarm and flight calls on Xeno-canto): a pitch of 550 to 1300 Hz and a roughness of 5 dB and more. A first library left them out (a filter of 900 Hz and 22 dB, meant to drop what the tracker
+  # gets wrong) and the colony had none of its most common calls.
+  'gullAlarm':     ('galarm',    lambda c, f0: 0.05 <= c['dur'] <= 0.45 and 550 <= f0 <= 1300 and 5 <= c['hnr'] <= 40, 6, 6, 14),
+  'gullFlight':    ('gflight',   lambda c, f0: 0.05 <= c['dur'] <= 0.45 and 550 <= f0 <= 1300 and 5 <= c['hnr'] <= 45, 6, 6, 14),
   'rookCaw':       ('rook',      lambda c, f0: 0.15 <= c['dur'] <= 0.9 and 250 <= f0 <= 700 and c['hnr'] >= 2, 5, 6, 12),
   'sparrowChirp':  ('sparrow',   lambda c, f0: 0.05 <= c['dur'] <= 0.26 and 2600 <= f0 <= 5200 and 14 <= c['hnr'] <= 50, 6, 6, 12),
   'blackbirdTink': ('blackbird', lambda c, f0: 0.02 <= c['dur'] <= 0.12 and c['hnr'] >= 8, 6, 6, 10),

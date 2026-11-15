@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CALLS, type CallName, type MeasuredCall } from '../src/audio/birdcalls';
+import { LIB } from '../src/audio/birdlib';
 import { renderCall } from '../src/audio/birdsynth';
 import { plan, type Voice } from '../src/audio/birdsong';
 
@@ -56,7 +57,7 @@ describe('what the birds say', () => {
       const p = plan(who, ctx, seeded(i * 7 + 1));
       expect(p.length).toBeGreaterThan(0); expect(p.length).toBeLessThan(80);
       for (let k = 0; k < p.length; k++) {
-        const n = p[k]!; expect(CALLS[n.call]).toBeDefined(); expect(n.dt).toBeGreaterThanOrEqual(0); expect(n.gain).toBeGreaterThan(0); expect(n.pitch).toBeGreaterThan(0.6); expect(n.pitch).toBeLessThan(1.4);
+        const n = p[k]!; expect(n.call in CALLS || n.call in LIB).toBe(true); expect(n.dt).toBeGreaterThanOrEqual(0); expect(n.gain).toBeGreaterThan(0); expect(n.pitch).toBeGreaterThan(0.6); expect(n.pitch).toBeLessThan(1.4);
         if (k > 0) expect(n.dt).toBeGreaterThanOrEqual(p[k - 1]!.dt);
       }
       expect(p[p.length - 1]!.dt).toBeLessThan(30);
@@ -66,7 +67,7 @@ describe('what the birds say', () => {
     const alb = plan('albatross', 'greeting', seeded(2));
     expect(alb.filter((n) => n.call.startsWith('albatrossClap')).length).toBeGreaterThanOrEqual(5); expect(alb[alb.length - 1]!.call).toBe('albatrossWhirr');
     let long = 0, alarm = 0;
-    for (let i = 0; i < 100; i++) { const p = plan('gull', 'colony', seeded(i + 11)); if (p.filter((n) => n.call === 'gullNote').length >= 9) long++; else if (p.length >= 3 && p.every((n) => n.call.startsWith('gullMew'))) alarm++; }
+    for (let i = 0; i < 100; i++) { const p = plan('gull', 'colony', seeded(i + 11)); if (p.filter((n) => n.call === 'gullNote').length >= 9) long++; else if (p.length >= 3 && p.every((n) => n.call === 'gullAlarm')) alarm++; }
     expect(long).toBeGreaterThan(5); expect(alarm).toBeGreaterThan(20);
   });
   it('spaces the notes as the recordings did', () => {

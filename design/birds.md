@@ -238,3 +238,7 @@ The owner heard calls fading too hard and fast and so cut short, calls with a vi
   carries the end on. The synthesised median now follows the real one to within 6 dB all along it (a longer tail, tried first, rang on as a held tone after each call).
 - **Blown out**: some resynthesised calls came back much noisier than their source (the achieved roughness 13 to 29 dB below the target, in 5 of 32): the octave error of the pitch tracker (the second harmonic taken for the pitch) spoils the roughness measure and the noise level. The analysis now tries half the pitch
   as well and keeps it when the voice is much cleaner there; the round-trip check rejects a call that comes back more than 8 dB noisier than its source.
+
+## Version 17: the pitch in 24 points
+Side by side with the clean originals, a call's pitch steps (two-part calls: an abrupt step of a few hundred cents between notes) came back as glides, because the pitch was stored at 12 points. It is now 24 points, uniformly in time, and played straight; the steps stay steps. Pitch of the synthesis against the real contour (analysed the same way):
+median error 29 to 44 cents (the worst tenth, 65 to 190, at the steps). Calls tracked at the wrong octave (the second harmonic taken for the pitch: the first call of recording m1 steps the wrong way) are still a risk; the library keeps ten voices of two calls each to stay under the JS budget (166.5 KB gzipped).

@@ -4,6 +4,11 @@
 # Only calls that pass the filters of that kind are kept: filters that remove what the pitch tracker gets wrong (a call at half or double the true pitch, or noise it took for a call).
 #   build_lib.py <pkl_dir> <out.json>
 import sys, os, json, pickle, numpy as np
+
+def unwarp(v, ap):
+    """The analysis spreads the rise to the pitch's apex over four points and the fall over eight (so that medians keep a sharp peak). One real call is better kept in its own time: put the twelve points back at their true places and resample evenly."""
+    ap = min(0.95, max(0.05, float(ap))); t = [ap * i / 4 for i in range(4)] + [ap + (1 - ap) * j / 7 for j in range(8)]
+    return np.interp(np.linspace(0, 1, 12), t, v)
 d, out = sys.argv[1], sys.argv[2]
 # kind: (pickle, test for one call, min calls for a voice, calls kept for a voice, voices kept)
 KINDS = {
@@ -41,7 +46,7 @@ for kind, (pk, ok, minc, keep, vmax) in KINDS.items():
         for u, v in zip(ts, ts[1:]):
             if v - u < 3.0: gaps.append(v - u)
         voices.append({'id': rid, 'n': len(good) + (1000 if str(rid).startswith('m') and str(rid)[1:].isdigit() else 0), 'H': H.round(0).astype(int).tolist(), 'N': N.round(0).astype(int).tolist(), 'gaps': gaps,
-                       'calls': [{'dur': round(c['dur'], 3), 'apex': round(float(c['apex']), 2), 'hnr': round(float(c['hnr']), 1), 'bright': c.get('bright', [0, 0, 0]), **({'am': c['am']} if c.get('am') else {}), 'f0': [int(round(v)) for v in c['f0']], 'env': [round(float(v), 1) for v in c['env']]} for c in sel]})
+                       'calls': [{'dur': round(c['dur'], 3), 'apex': 0.364, 'hnr': round(float(c['hnr']), 1), 'bright': c.get('bright', [0, 0, 0]), **({'am': c['am']} if c.get('am') else {}), 'f0': [int(round(v)) for v in unwarp(c['f0'], c['apex'])], 'env': [round(float(v), 1) for v in unwarp(c['env'], c['apex'])]} for c in sel]})
     voices.sort(key=lambda v: -v['n']); voices = voices[:vmax]
     gaps = [g for v in voices for g in v['gaps']]
     res[kind] = {'gap': [round(float(np.percentile(gaps, q)), 2) for q in (10, 50, 90)] if len(gaps) >= 5 else None, 'voices': [{k: v[k] for k in ('id', 'H', 'N', 'calls')} for v in voices]}

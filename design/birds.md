@@ -209,3 +209,14 @@ The median templates (one averaged call per kind) are replaced, for the gull mew
   (10 voices, from the trains' pulses), played in trains at that pace, slowing a little, in 7% of colony episodes.
 - **Size.** The JS budget (170 KB gzipped) now holds the library trimmed to 10 voices of four calls each (`trim_lib.py`; the full, checked library is made by `build_lib.py` and `qa.py`).
 - **Not done**: the long sustained "wail" of a pair's duet (a flat tone, 0.6 to 1.5 s); a closer look at the long call itself (the book of the colony's most obvious call); downy chick peeping.
+
+## Version 14: clean single-bird recordings (Cornell Macaulay Library, from the owner's own copies, used for measuring only)
+Four very clean recordings of herring gull alarm calls at one metre with a shotgun microphone (Appledore and Smuttynose Islands, Maine, June 2011; "yow" and "kek-kek"; Microtrack 2 recorder, Sennheiser MKH 416-T; the spoken notes at the end were read with a speech-to-text model), and a feeding flock (American Herring Gull, Suffolk NY, 2020, ML278198681).
+- **Round trip on clean data.** Each clean call was measured, resynthesised from its own numbers and compared band by band over 125 Hz to 12.7 kHz: the mean difference is within 8 dB everywhere (0 to -8). So with a clean source the
+  synthesis does not lose frequencies: the 35 to 50 dB shortfall seen earlier was the recordings' own background, and what was measured of it.
+- **What the comparison did show** (real and resynthesised spectrograms side by side): (1) the contour glitches: where the pitch tracker changed octave (a jump of nearly two between neighbouring frames) a call was resynthesised with a V in its pitch. Calls with such a jump are now left out of the library;
+  (2) the apex warp used to build medians stretched a short onset glide over a third of the call (a swoop). Each real call is now kept in its own time (`unwarp`); (3) real calls lose their high harmonics before they end and their lines ripple: a brightness change through the call (3 numbers, measured) and a flutter of each of the
+  first twelve harmonics (about 1 dB, 22 to 62 Hz) and of the pitch (0.2 to 0.25%) are now in the synthesis.
+- The four clean recordings are the first voices of the alarm kind (`gullAlarm`).
+- **Feeding flock**: the close recording shows a bursty flock (36 gaps of over a second in 100, none over six; calls bunched; 50 dB of level swing; median pitch 1.67 kHz against 1.27 for a colony; much brighter, broadband squeals, wingbeats).
+  The feeding mode now alternates spells (4 to 12 s at 1.8 times the rate) and lulls (1.5 to 5 s at a tenth), and pitches calls 12 to 45% higher. Wingbeats and squeals are not done.

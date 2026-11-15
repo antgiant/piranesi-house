@@ -10,7 +10,7 @@ Writes OUTDIR/real.wav, synth.wav, compare.png and prints the look score (correl
 Model (source plus noise, no neural part):
   f0(t)         12 knots, pchip; held through the noisy onset; the last 20 frames re-tracked so the end flick survives
   harmonics     k = 1..8 at k*f0: log amplitudes reduced to rank 2 over the call, then pchip through the same knots
-  second voice  a non-harmonic ridge near 1.5*f0, four harmonics of it, only while it is really present
+  second voice  a period-doubled voice at f0/2 (lines at 0.5, 1.5 ... 5.5 times f0), only while its 1.5*f0 line stands out
   residual      noise in 27 log-spaced bands from what is left once the harmonic and second-voice lines are masked out,
                 times NOISE (the measured level was too hazy through the body of the call)
   gate          2 ms attack, 4 ms release (real calls stop within a few ms)
@@ -24,6 +24,7 @@ from scipy.interpolate import PchipInterpolator
 
 NF, HOP = 1024, 128
 K, NK, RANK, NOISE = 8, 12, 2, 0.4
+ONSET_NOISE = float(__import__('os').environ.get('ONSET_NOISE', '0.5'))   # extra factor on the noise in the first 70 ms
 
 
 def para(m, i):
@@ -90,29 +91,24 @@ def main(rec, T0, T1, CS, CE, out):
             H[k - 1, j] = para(M[:, j], a + int(np.argmax(M[a:i + w + 1, j])))[1]
     H = uniform_filter1d(H, 3, axis=1)
 
-    # ---- second voice: a ridge near 1.5 * f0, only where it clearly stands out
-    R = np.zeros(len(t))
-    RH = np.zeros((4, len(t)))
-    ratio = 1.5
-    for j in range(on, off + 1):
-        c = ratio * f0s[j]
+    # ---- second voice: a period-doubled voice at f0/2, i.e. lines at 0.5, 1.5, 2.5 ... times f0 (the "halftone" lines
+    #      that stand out clearly in the onset). Measured only in frames where the 1.5*f0 line clearly stands out.
+    NS = 6
+    R = np.zeros(len(t), bool)
+    RH = np.zeros((NS, len(t)))
+    for j in range(max(on - 2, 0), off + 1):
+        c = 1.5 * f0s[j]
         i = int(round(c / df))
         w = int(0.1 * c / df)
-        a = i - w
-        seg = M[a:i + w + 1, j]
-        ii = a + int(np.argmax(seg))
-        if M[ii, j] > 5 * np.median(seg) and abs(ii * df / f0s[j] - ratio) < 0.15:
-            ratio = 0.8 * ratio + 0.2 * ii * df / f0s[j]
-            R[j] = ii * df / f0s[j]
-            for k in range(1, 5):
-                fc = k * R[j] * f0s[j]
+        seg = M[i - w:i + w + 1, j]
+        if seg.max() > 5 * np.median(seg) and abs((i - w + int(np.argmax(seg))) * df / c - 1) < 0.04:
+            R[j] = True
+            for m in range(NS):
+                fc = (m + 0.5) * f0s[j]
                 i2 = int(round(fc / df))
                 w2 = max(2, int(0.02 * fc / df))
-                a2 = i2 - w2
-                RH[k - 1, j] = para(M[:, j], a2 + int(np.argmax(M[a2:i2 + w2 + 1, j])))[1]
-    idx = np.arange(len(t))
-    ok = R > 0
-    Rf = np.interp(idx, idx[ok], R[ok]) if ok.any() else np.full(len(t), 1.5)
+                a2 = max(i2 - w2, 0)
+                RH[m, j] = para(M[:, j], a2 + int(np.argmax(M[a2:i2 + w2 + 1, j])))[1] if fc < 8000 else 0
     RH = gaussian_filter(RH, (0, 1.5))
 
     # ---- residual noise envelope: what is left once the lines are masked out
@@ -123,8 +119,8 @@ def main(rec, T0, T1, CS, CE, out):
         c0 = f0s[min(max(j, on), off)]
         mask = np.ones(len(f), bool)
         for k in range(1, 12):
-            for r in ((1.0, Rf[j]) if R[j] else (1.0,)):
-                mask &= ~(np.abs(f - k * r * c0) < 0.07 * k * r * c0 + df)
+            for r in ((k, k - 0.5) if R[j] else (k,)):
+                mask &= ~(np.abs(f - r * c0) < 0.05 * r * c0 + df)
         for b in range(len(cent)):
             sel = (f >= edges[b]) & (f < edges[b + 1]) & mask
             E[b, j] = np.sqrt(np.mean(M[sel, j] ** 2)) if sel.any() else 0
@@ -154,10 +150,8 @@ def main(rec, T0, T1, CS, CE, out):
     y = np.zeros(n)
     for k in range(1, K + 1):                          # a Hann STFT shows a sine of amplitude A as A*NF/4
         y += track(H[k - 1]) * 4 / NF * (k * F0 < sr / 2) * np.sin(k * ph + 0.3 * k)
-    RR = track(Rf)
-    phr = 2 * np.pi * np.cumsum(RR * F0) / sr
-    for k in range(1, 5):
-        y += track(RH[k - 1]) * 4 / NF * (k * RR * F0 < sr / 2) * np.sin(k * phr + 0.7 * k)
+    for m in range(NS):                                # lines at (m+0.5)*f0: phase is half the f0 phase times (2m+1)
+        y += track(RH[m]) * 4 / NF * ((m + 0.5) * F0 < sr / 2) * np.sin((m + 0.5) * ph + 0.7 * (m + 1))
     g = np.random.default_rng(2).standard_normal(n)
     _, _, G = spec(g)
     for j in range(min(G.shape[1], E.shape[1])):
@@ -166,6 +160,7 @@ def main(rec, T0, T1, CS, CE, out):
     _, nz = istft(G, sr, window='hann', nperseg=NF, noverlap=NF - HOP, boundary=False)
     nz = np.pad(nz, (0, max(0, n - len(nz))))[:n]
     gate = np.clip((tt + T0 - CS) / 0.002, 0, 1) * np.clip((CE - (tt + T0)) / 0.004, 0, 1)
+    nz = nz * np.where(tt + T0 < CS + 0.07, ONSET_NOISE, 1.0)
     y = (y + nz) * gate
     body = slice(int((CS - T0) * sr), int((CE - T0) * sr))
     y *= np.sqrt(np.mean(ref[body] ** 2) / np.mean(y[body] ** 2))

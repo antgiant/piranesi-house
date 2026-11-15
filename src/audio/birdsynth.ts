@@ -225,5 +225,7 @@ export function shapeEnds(env: number[]): number[] {
 /** A call made by one real bird of the library: its voice's spectrum and one of its measured calls (length, roughness, 12 pitch points, 12 loudness points). */
 export function libTemplate(bands: number[], voice: { H: number[]; N: number[] }, call: number[]): CallTemplate {
   const dur = call[0]!;
-  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: shapeEnds(call.slice(15, 27)), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[27] ?? 0, call[28] ?? 0, call[29] ?? 0], vib: [call[30] ?? 0, call[31] ?? 0], ...(call.length > 32 ? { am: [call[32]!, call[33]!] as [number, number] } : {}) };
+  // two layouts: the pitch in 24 points (44 numbers, or 46 with a pulse rate and depth) and the older 12 (32 or 34)
+  const wide = call.length >= 44, nf = wide ? 24 : 12, o = 3 + nf + 12;
+  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 3 + nf), f0Spread: 0.015, env: shapeEnds(call.slice(3 + nf, 3 + nf + 12)), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[o] ?? 0, call[o + 1] ?? 0, call[o + 2] ?? 0], vib: [call[o + 3] ?? 0, call[o + 4] ?? 0], ...(call.length > o + 5 ? { am: [call[o + 5]!, call[o + 6]!] as [number, number] } : {}) };
 }

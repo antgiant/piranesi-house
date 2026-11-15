@@ -147,7 +147,7 @@ def analyse(item, fmin, fmax, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25):
                 vib = [round(float(fr_[sel_][np.argmax(F[sel_])]), 1), round(float(100 * np.sqrt(2) * np.sqrt(np.mean(r_ ** 2))), 2)]
         except Exception:
             vib = [0.0, 0.0]
-        calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': warp(seg), 'env': warp(np.maximum(env, -50)), 'apex': ap / max(1, len(seg) - 1), 'hnr': hnr, 'H': Ht, 'N': Nt, 'a': a * 0.005, 'bright': bright, 'jump': jump, 'vib': vib, 'octave': octave})
+        calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': warp(seg), 'env': warp(np.maximum(env, -50)), 'apex': ap / max(1, len(seg) - 1), 'hnr': hnr, 'H': Ht, 'N': Nt, 'a': a * 0.005, 'bright': bright, 'jump': jump, 'vib': vib, 'octave': octave, 'f0r': np.interp(np.linspace(0, len(seg) - 1, 24), np.arange(len(seg)), seg)})
     return calls
 
 def am_of(x, sr, a, dur):

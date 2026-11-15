@@ -351,13 +351,10 @@ standing in the same hall hear the same ambience.
   the world (for example, the weather and tides of the real place, or walking in the world by walking in life). Needs a permission prompt on iOS, a fallback
   to tapping and typing, and care over privacy: nothing leaves the device.
 
-* **Low priority: wording and command slips seen in play** (from a transcript the owner pasted; nothing fixed yet; read the exact lines before changing anything).
+* **Low priority: two slips seen in play** (from a transcript the owner pasted; nothing fixed yet; read the exact lines before changing anything).
   * "walk the labyrinth" answers "You do not know of a place called "labyrinth"" although the room's own description names a labyrinth in the floor
     (`src/game/game.ts` near line 1121, the unknown-place reply). Features the room describes (the labyrinth, the waves) could be understood by
     `walk`, `look at` and `examine`, or at least answered in the House's voice (a labyrinth in the floor is something to walk, with a centre to reach).
-  * The mutter line shows a doubled word: "You murmur: I i will want stone." (`src/web/main.ts` near line 1008 prints it; the text is made elsewhere).
   * A statue is described with "head tipped back" twice in one sentence ("laughing with head thrown back, holding a staff topped with a star, head tipped back;
     crusted with shellfish, ..."): the pose list (`src/data/catalogue.ts` near line 217) can repeat or clash with the figure's own pose. Pick one, or drop a
     pose that repeats a word already used.
-  * "Through the north door, to your left, comes rustling birds." does not agree (plural subject, singular verb); `src/game/narrator.ts` near line 408 supplies the
-    phrase "rustling birds". Say "come" for plural sounds, or "there is a rustling of birds".

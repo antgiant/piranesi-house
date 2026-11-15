@@ -31,6 +31,8 @@ export interface CallTemplate {
    * (0..1 of the call). Measured on 250 gull calls: about half have a ridge that is not a harmonic of the pitch, at 1.4 to 1.5 times it, 9 to 11 dB down, in a fifth to a quarter of the call.
    */
   second?: { ratio: number; db: number; from: number; to: number };
+  /** How the brightness changes through the call (dB, in the first, middle and last third, from the harmonics above the third): a real call loses its high harmonics before it ends. */
+  bright?: [number, number, number];
   /** A sharp sound (a bill clap, a tick): not a call with a contour but a broadband impulse that rings: the resonances (Hz, dB) and how fast they and the impulse die (seconds). */
   click?: { modes: [number, number][]; ringTau: number; impulseTau: number };
 }
@@ -142,11 +144,13 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
   const amPhase = rng() * 6.28;
   const noise = shapedNoise(sr, n, tpl, rng, scale);
   let phi = 0, phi2 = 0;
+  const br = tpl.bright, flutRate = Array.from({ length: 12 }, () => 2 * Math.PI * (22 + rng() * 40)), flutPh = Array.from({ length: 12 }, () => rng() * 6.28);
+  const jit1 = 0.0025 * (rng() - 0.5) * 2, jit2 = 0.0018 * (rng() - 0.5) * 2, jp1 = rng() * 6.28, jp2 = rng() * 6.28;
   for (let i = 0; i < n; i++) {
     const ul = i / (n - 1);
     // time on the contour's own axis: its fifth point of twelve is the apex (4/11 of the way along)
     const ap = Math.min(0.9, Math.max(0.05, tpl.apex ?? 4 / 11)), u = ul < ap ? (4 / 11) * (ul / ap) : 4 / 11 + (7 / 11) * ((ul - ap) / (1 - ap));
-    const f0 = interp(tpl.f0, u) * scale * (1 + w1 * Math.sin(ph + 9 * u) + w2 * (u - 0.5));
+    const f0 = interp(tpl.f0, u) * scale * (1 + w1 * Math.sin(ph + 9 * u) + w2 * (u - 0.5)) * (1 + jit1 * Math.sin(2 * Math.PI * 37 * (i / sr) + jp1) + jit2 * Math.sin(2 * Math.PI * 83 * (i / sr) + jp2));
     f0s[i] = f0;
     let e = Math.pow(10, interp(tpl.env, u) / 20);
     if (tpl.am) e *= 1 - tpl.am[1] * 0.5 * (1 - Math.cos(2 * Math.PI * tpl.am[0] * (i / sr) + amPhase));
@@ -162,9 +166,12 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
       }
       for (let k = 1; k <= 40; k++) {
         const hz = k * f0; if (hz > sr * 0.45) break;
-        const db = levelAt(tpl.H, tpl.bands, hz / scale);
+        let db = levelAt(tpl.H, tpl.bands, hz / scale);
         if (db <= -60) continue;
-        s += Math.pow(10, db / 20) * Math.sin(k * phi + phases[k - 1]!);
+        if (br && k >= 3) db += ul < 0.5 ? br[0] + (br[1] - br[0]) * (ul / 0.5) : br[1] + (br[2] - br[1]) * ((ul - 0.5) / 0.5);
+        // a living voice is never perfectly steady: each harmonic's level wavers by a decibel or so, at its own rate (the lines of a real call are rippled; a synthetic one is smooth)
+        const flutter = k <= 12 ? 1 + 0.11 * Math.sin(flutRate[k - 1]! * i / sr + flutPh[k - 1]!) : 1;
+        s += Math.pow(10, db / 20) * flutter * Math.sin(k * phi + phases[k - 1]!);
       }
     }
     tone[i] = s;
@@ -209,5 +216,5 @@ export function fillBands(v: number[], up: number, down: number, floor = -118): 
 /** A call made by one real bird of the library: its voice's spectrum and one of its measured calls (length, roughness, 12 pitch points, 12 loudness points). */
 export function libTemplate(bands: number[], voice: { H: number[]; N: number[] }, call: number[]): CallTemplate {
   const dur = call[0]!;
-  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: call.slice(15, 27), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), ...(call.length > 28 ? { am: [call[27]!, call[28]!] as [number, number] } : {}) };
+  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: call.slice(15, 27), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[27] ?? 0, call[28] ?? 0, call[29] ?? 0], ...(call.length > 30 ? { am: [call[30]!, call[31]!] as [number, number] } : {}) };
 }

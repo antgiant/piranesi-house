@@ -104,7 +104,14 @@ def analyse(item, fmin, fmax, dmin=0.0, dmax=9.0, minsnr=28.0, edgeok=0.25):
             up = np.interp(np.linspace(0, ap, rise_n, endpoint=False), np.arange(len(v)), v) if ap > 0 else np.full(rise_n, v[0])
             dn = np.interp(np.linspace(ap, len(v) - 1, fall_n + 1), np.arange(len(v)), v)
             return np.concatenate([up, dn])
-        calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': warp(seg), 'env': warp(np.maximum(env, -50)), 'apex': ap / max(1, len(seg) - 1), 'hnr': hnr, 'H': Ht, 'N': Nt, 'a': a * 0.005})
+        # how the call's brightness changes through it: the energy well above the pitch (from the third harmonic up to 10 kHz) against the energy around it (from just under the pitch to the third harmonic), in dB, in the first, middle and
+        # last thirds, each less the call's own mean: a real call loses its high harmonics before it ends, and a synthesis with one fixed spectrum keeps them to the end
+        hf = []; lf = []
+        for k in range(frames.shape[1]):
+            f0k = max(seg[k], 1.0); lo = (f >= 0.8 * f0k) & (f < 2.6 * f0k); hi = (f >= 2.6 * f0k) & (f < min(10000, sr * 0.45)); lf.append(frames[lo, k].sum()); hf.append(frames[hi, k].sum() if hi.any() else 0.0)
+        br = 10 * np.log10((np.array(hf) + 1e-14) / (np.array(lf) + 1e-14)); th = np.array_split(br, 3); bright = [float(np.mean(t_)) for t_ in th]; bm = float(np.mean(bright)); bright = [round(float(np.clip(v - bm, -30, 30)), 1) for v in bright]
+        jump = float(np.max(np.maximum(seg[1:] / seg[:-1], seg[:-1] / seg[1:]))) if len(seg) > 1 else 1.0
+        calls.append({'dur': (b - a) * 0.005, 'file': item, 'f0': warp(seg), 'env': warp(np.maximum(env, -50)), 'apex': ap / max(1, len(seg) - 1), 'hnr': hnr, 'H': Ht, 'N': Nt, 'a': a * 0.005, 'bright': bright, 'jump': jump})
     return calls
 
 def am_of(x, sr, a, dur):

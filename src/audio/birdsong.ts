@@ -52,7 +52,9 @@ function planOf(who: Voice, ctx: Context, r: Rng): PlannedNote[] {
       if (ctx === 'colony') {
         // what a colony says, by how often (nearest-neighbour labels of the calls in six colony and flock recordings against the Xeno-canto-labelled calls of 200 recordings: about a third low rough calls of the flight-call kind,
         // a sixth alarm calls in runs, a third mews, the rest the long call's laughing notes and begging from the young): see design/birds.md
-        const kind = pick(r, ['flight', 'alarm', 'mew', 'long'] as const, [0.34, 0.2, 0.37, 0.09]);
+        const kind = pick(r, ['flight', 'alarm', 'mew', 'long', 'choke'] as const, [0.32, 0.18, 0.35, 0.08, 0.07]);
+        // the clucking train ("choking"): measured in 21 regular trains of 16 recordings: 5 to 12 pulses, 3 to 5.5 a second, the pace easing a little
+        if (kind === 'choke') { const n = 5 + Math.floor(r() * 8), rate = between(r, 3.2, 5.5), out: PlannedNote[] = []; let t = 0; for (let i = 0; i < n; i++) { out.push({ dt: t, call: 'gullChoke', pitch: bird, gain: 0.8 - 0.015 * i }); t += (1 / rate) * (1 + 0.02 * i) * between(r, 0.92, 1.08); } return out; }
         if (kind === 'flight') return spaced(r, series(r, 'gullFlight', 1 + Math.floor(r() * 3), (i) => 1 - i * 0.1, () => bird), 0.25, 0.7);
         if (kind === 'alarm') return spaced(r, series(r, 'gullAlarm', 3 + Math.floor(r() * 5), (i) => 1 - i * 0.06, (i) => bird * (1 - i * 0.01)), 0.2, 0.42);
         if (kind === 'mew') return r() < 0.8 ? [{ dt: 0, call: mew, pitch: bird, gain: 1 }] : series(r, mew, 2, (i) => 1 - i * 0.15, () => bird);

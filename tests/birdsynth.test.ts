@@ -68,7 +68,7 @@ describe('what the birds say', () => {
     expect(alb.filter((n) => n.call.startsWith('albatrossClap')).length).toBeGreaterThanOrEqual(5); expect(alb[alb.length - 1]!.call).toBe('albatrossWhirr');
     let long = 0, alarm = 0;
     for (let i = 0; i < 100; i++) { const p = plan('gull', 'colony', seeded(i + 11)); if (p.filter((n) => n.call === 'gullNote').length >= 9) long++; else if (p.length >= 3 && p.every((n) => n.call === 'gullAlarm')) alarm++; }
-    expect(long).toBeGreaterThan(5); expect(alarm).toBeGreaterThan(20);
+    expect(long).toBeGreaterThan(5); expect(alarm).toBeGreaterThan(10);
   });
   it('spaces the notes as the recordings did', () => {
     const p = plan('gull', 'colony', seeded(5)).filter((n) => n.call === 'gullNote');

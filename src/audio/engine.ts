@@ -13,7 +13,7 @@ import { ColonyBed } from './colonybed';
 import { Wind } from './wind';
 import { allOn, maskScene, type Elements } from './elements';
 import { buildImpulse } from './room';
-import { libTemplate, renderCall } from './birdsynth';
+import { libTemplate, renderCall, type CallTemplate } from './birdsynth';
 import { CALLS, type CallName } from './birdcalls';
 import { LIB, type LibKind } from './birdlib';
 import { plan as birdPlan, type Context as BirdContext, type Voice as BirdVoice } from './birdsong';
@@ -956,7 +956,9 @@ export class AudioEngine {
       const variants = (this.callCache[key] ??= []);
       let buf: AudioBuffer;
       if (variants.length < (lib ? 2 : 5)) {
-        const tpl = lib ? libTemplate(CALLS.gullMew.bands, lib, lib.calls[ci] as number[]) : CALLS[n.call as CallName];
+        const tpl: CallTemplate = lib ? libTemplate(CALLS.gullMew.bands, lib, lib.calls[ci] as number[]) : CALLS[n.call as CallName];
+        // about half of a gull's calls have a second voice sounding in part of them (birdsynth.ts `second`)
+        if (lib && String(n.call).startsWith('gull') && n.call !== 'gullChoke' && Math.random() < 0.5) { const len = 0.25 + Math.random() * 0.35, from = Math.random() * (1 - len); tpl.second = { ratio: 1.3 + Math.random() * 0.3, db: -12 + Math.random() * 5, from, to: from + len }; }
         const data = renderCall(ctx.sampleRate, tpl, Math.random);
         buf = ctx.createBuffer(1, data.length, ctx.sampleRate); buf.getChannelData(0).set(data); variants.push(buf);
       } else buf = variants[Math.floor(Math.random() * variants.length)] as AudioBuffer;

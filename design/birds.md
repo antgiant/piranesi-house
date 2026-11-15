@@ -198,3 +198,14 @@ The median templates (one averaged call per kind) are replaced, for the gull mew
 - **Lost frequencies.** Measured on the rendered calls against the real ones, the synthesis was 35 to 50 dB down under 800 Hz and 15 to 40 dB down above 8 kHz. The calls matched their own measured spectra: the loss was in what was measured. The analysis throws away
   a band that does not clear the recording's background (10 dB for the tone, 4 dB for the noise), which in a noisy recording removes the call's lows and highs with the background. `fillBands` now fills what is empty (joins a gap, and continues past the last
   measured band at 4 dB a band for the tone, 2.5 for the noise above and 1.5 below). The shortfall falls to 10 to 20 dB below 800 Hz and 3 to 10 dB above 8 kHz (some of the rest is the real recordings' own background).
+
+## Version 13: biphonation, and the calls that were missing
+- **Biphonation.** Looked at closely (250 gull calls of five kinds, a second tracker on what the first leaves), about half of the calls have a ridge that is not a harmonic of the pitch: at 1.4 to 1.5 times it (the odd half-harmonic of a
+  period-doubled voice), 9 to 11 dB below it, present in a fifth to a quarter of the call, anywhere in it (alarm 53% of calls, plain call 53%, flight 50%, begging 44%, long call 36%). `CallTemplate.second` renders it: a second
+  set of four harmonics at 1.3 to 1.6 times the pitch, 7 to 12 dB down, swelling in and out over a quarter to six-tenths of the call; the game gives it to half of the gull calls at random. (A mask of 5% around each harmonic had counted the
+  skirts of the main ridge as a second voice and found 90%: the mask is 13%.)
+- **Choking.** Xeno-canto has no tag for it, and its remarks name it once. The recordings tagged duet, displaying, domination, excitement call, mobbing, courtship and copulation (55 recordings of six gull species) were searched for regular trains of
+  pulses: 21 trains in 16 recordings, 5 to 12 pulses, 3.2 to 5.5 a second (median 4.5), each pulse 0.085 s, near 650 Hz and fairly clean (32 dB). That is the "rhythmic, deep, guttural clucking" described, so it is `gullChoke`
+  (10 voices, from the trains' pulses), played in trains at that pace, slowing a little, in 7% of colony episodes.
+- **Size.** The JS budget (170 KB gzipped) now holds the library trimmed to 10 voices of four calls each (`trim_lib.py`; the full, checked library is made by `build_lib.py` and `qa.py`).
+- **Not done**: the long sustained "wail" of a pair's duet (a flat tone, 0.6 to 1.5 s); a closer look at the long call itself (the book of the colony's most obvious call); downy chick peeping.

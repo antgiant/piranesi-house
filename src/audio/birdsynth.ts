@@ -26,6 +26,11 @@ export interface CallTemplate {
   N: number[];
   /** Amplitude modulation, as rate in Hz and depth 0..1 (a whirr), if the call has it. */
   am?: [number, number];
+  /**
+   * A second voice (biphonation: the two sides of a gull's syrinx sounding at once): a second set of harmonics near `ratio` times the pitch, `db` below the first, between `from` and `to`
+   * (0..1 of the call). Measured on 250 gull calls: about half have a ridge that is not a harmonic of the pitch, at 1.4 to 1.5 times it, 9 to 11 dB down, in a fifth to a quarter of the call.
+   */
+  second?: { ratio: number; db: number; from: number; to: number };
   /** A sharp sound (a bill clap, a tick): not a call with a contour but a broadband impulse that rings: the resonances (Hz, dB) and how fast they and the impulse die (seconds). */
   click?: { modes: [number, number][]; ringTau: number; impulseTau: number };
 }
@@ -136,7 +141,7 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
   const phases = new Float64Array(40);
   const amPhase = rng() * 6.28;
   const noise = shapedNoise(sr, n, tpl, rng, scale);
-  let phi = 0;
+  let phi = 0, phi2 = 0;
   for (let i = 0; i < n; i++) {
     const ul = i / (n - 1);
     // time on the contour's own axis: its fifth point of twelve is the apex (4/11 of the way along)
@@ -149,6 +154,12 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
     let s = 0;
     if (hasTone && f0 > 0) {
       phi += (2 * Math.PI * f0) / sr;
+      if (tpl.second) {
+        const sc = tpl.second, w = sc.to - sc.from;
+        const g = ul < sc.from || ul > sc.to ? 0 : Math.sin((Math.PI * (ul - sc.from)) / Math.max(1e-3, w)) ** 2; // swells in and out
+        phi2 += (2 * Math.PI * f0 * sc.ratio * (1 + 0.03 * Math.sin(40 * ul + ph))) / sr;
+        if (g > 0) for (let k = 1; k <= 4; k++) { const hz = k * f0 * sc.ratio; if (hz > sr * 0.45) break; const db = levelAt(tpl.H, tpl.bands, hz / scale); if (db > -60) s += g * Math.pow(10, (db + sc.db) / 20) * Math.sin(k * phi2); }
+      }
       for (let k = 1; k <= 40; k++) {
         const hz = k * f0; if (hz > sr * 0.45) break;
         const db = levelAt(tpl.H, tpl.bands, hz / scale);

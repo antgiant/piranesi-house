@@ -16,6 +16,7 @@ import { journeyNote } from './words';
 import { applySave, exportText, importText, toCode, toSave, type JournalEntry } from '../game/save';
 import { eraseJournal, eraseSave, readJournal, readLegacy, readSave, readSettingsObject, summary, writeJournal, writeSave, writeSettingsObject } from './store';
 import { ScreenWake } from './wakelock';
+import { installMediaSession } from './mediasession';
 import { mutterAllowed, mutterDelayS, mutterLine } from '../game/mutter';
 import { chooseWander, dwellMs } from '../game/wander';
 import { Playlist } from './playlist';
@@ -99,6 +100,8 @@ const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) 
 const logEl = $<HTMLElement>('log');
 const input = $<HTMLInputElement>('input');
 const engine = new AudioEngine();
+// lock screen and Control Centre: what is playing, and play and pause (the sound itself carries on in the background, see src/audio/background.ts)
+engine.onPlayState = installMediaSession({ play: () => engine.playByUser(), pause: () => engine.pauseByUser() }).state;
 const narrator = new Narrator();
 narrator.onSpeaking = () => engine.yieldToSpeech(true);
 narrator.onSilent = () => engine.yieldToSpeech(false);
@@ -952,9 +955,9 @@ function skipForward(): void {
 $('wander').addEventListener('click', () => setWandering(!wandering));
 $('prev').addEventListener('click', skipBack);
 $('next').addEventListener('click', skipForward);
-// The House is heard with the page in front, and the screen kept awake while it plays (the wake lock below). A page that has gone
-// to the background cannot be controlled (browsers, iPhones above all, let speech run on with no way to stop it), so going to the
-// background pauses: nothing is spoken that cannot be paused.
+// The House's sound carries on in the background (on iPhones through a hidden audio element with lock-screen play and pause, see
+// src/audio/background.ts). Wandering and the spoken voice do not: a page that has gone to the background cannot be controlled (browsers,
+// iPhones above all, let speech run on with no way to stop it), so going to the background stops them: nothing is spoken that cannot be paused.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'hidden') return;
   if (wandering) setWandering(false);

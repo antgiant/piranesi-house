@@ -20,6 +20,7 @@ import { StairsWater } from './stairs';
 import { Through } from './through';
 import { Sea } from './sea';
 import type { AudioScene, Bearing, Bed, Leak, Portal, Surface } from './director';
+import { wantsMediaElement } from './background';
 import type { BirdSeason } from '../sim/seasons';
 import { REF_DISTANCE, airCutoffHz, bearingPosition, distanceOf, dopplerRatio, flybyPath, perchPosition, polar, positionAt, stageCell, toPolar, velocityOf, type Flyby, type Vec3 } from './spatial';
 
@@ -165,9 +166,59 @@ export class AudioEngine {
   }
   private downCount = 0;
 
-  /** iOS 16.4+ Audio Session API: "ambient" lets the House's sounds mix with other audio instead of being interrupted by it. */
+  /**
+   * iOS 16.4+ Audio Session API. "playback" is what lets the House carry on with the screen locked or another app in front, and with
+   * the silent switch on, and gives it the lock-screen controls; it does not mix with other audio (music stops while the House plays).
+   * Elsewhere the older "ambient" (mixes with other audio) is kept.
+   */
   private applySessionType(): void {
-    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = 'ambient'; } catch { /* unsupported */ }
+    try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s) s.type = wantsMediaElement() ? 'playback' : 'ambient'; } catch { /* unsupported */ }
+  }
+
+  /** The hidden <audio> element the sound goes through on iOS so it can keep playing in the background (see background.ts). */
+  private bgEl: HTMLAudioElement | null = null;
+  /** The listener has paused the House (lock screen or Control Centre); the engine must not take the sound back by itself. */
+  pausedByUser = false;
+  /** Told when playing starts or stops, for the lock screen. */
+  onPlayState: ((playing: boolean) => void) | null = null;
+
+  /** Where the sound comes out: the speakers, or on iOS a media stream played by an <audio> element (so it survives the screen locking). */
+  private routeOutput(ctx: AudioContext): void {
+    const direct = (): void => { this.analyser.connect(ctx.destination); };
+    if (!wantsMediaElement() || typeof ctx.createMediaStreamDestination !== 'function') { direct(); return; }
+    try {
+      const dest = ctx.createMediaStreamDestination();
+      const el = new Audio();
+      el.srcObject = dest.stream;
+      el.setAttribute('playsinline', '');
+      el.addEventListener('play', () => { this.pausedByUser = false; this.onPlayState?.(true); });
+      // a pause that is not ours (the lock screen, headphones unplugged, a call) is the listener's: do not undo it by ourselves
+      el.addEventListener('pause', () => { this.pausedByUser = true; this.onPlayState?.(false); });
+      this.analyser.connect(dest);
+      this.bgEl = el;
+      void el.play().catch(() => {          // not allowed: play straight to the speakers after all
+        try { this.analyser.disconnect(dest); } catch { /* already apart */ }
+        this.bgEl = null;
+        direct();
+      });
+    } catch { direct(); }
+  }
+
+  /** The lock-screen pause button. */
+  pauseByUser(): void {
+    this.pausedByUser = true;
+    this.bgEl?.pause();
+    void this.ctx?.suspend().catch(() => undefined);
+    this.onPlayState?.(false);
+  }
+
+  /** The lock-screen play button, or the listener coming back and touching the page. */
+  playByUser(): void {
+    this.pausedByUser = false;
+    if (this.bgEl?.paused) void this.bgEl.play().catch(() => undefined);
+    const c = this.ctx;
+    if (c && c.state !== 'running' && c.state !== 'closed') void c.resume().catch(() => undefined);
+    this.onPlayState?.(true);
   }
 
   /**
@@ -185,7 +236,7 @@ export class AudioEngine {
   }
 
   resume(): void {
-    if (this.yielding) return;
+    if (this.yielding || this.pausedByUser) return;
     const c = this.ctx;
     if (c && c.state !== 'running' && c.state !== 'closed') void c.resume().catch(() => undefined);
   }
@@ -193,6 +244,7 @@ export class AudioEngine {
   /** Must be called from a user gesture (browsers refuse to make sound otherwise). */
   async start(): Promise<void> {
     if (this.ctx) {
+      this.playByUser();
       if (this.ctx.state === 'suspended') await this.ctx.resume();
       return;
     }
@@ -227,7 +279,7 @@ export class AudioEngine {
     this.bassTrim.gain.value = DEEP_BASS.trim;
     this.lowpass.connect(this.bassHp).connect(this.bassHp2).connect(this.bassShelf).connect(this.bassTrim).connect(this.master);
     this.master.connect(this.analyser);
-    this.analyser.connect(ctx.destination);
+    this.routeOutput(ctx);
     this.noise = this.makeNoise(4, 'white');
     this.brown = this.makeNoise(8, 'brown');
     this.buildBeds();
@@ -239,6 +291,7 @@ export class AudioEngine {
   }
 
   stop(): void {
+    if (this.bgEl) { this.bgEl.srcObject = null; this.bgEl = null; }
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     void this.ctx?.close();

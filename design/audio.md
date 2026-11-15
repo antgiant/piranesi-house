@@ -84,3 +84,23 @@ rook's caw; albatross's clatter and low groan; starling's chatter (with the murm
 roosting); and the rustle of wings. Which are heard depends on where: sparrows, blackbirds and doves in the middle halls by day;
 gulls and swifts above the upper halls; gulls and waders on lower pavements at low tide; rooks in their hall; gulls on their
 nests; a starling flock at the murmuration; an owl, very rarely, at night.
+
+## Listening in the background (iPhone and iPad)
+The owner wants the ambient sound to carry on with the screen locked or another app in front, with iOS's own play and pause.
+- **How:** a web page's Web Audio sound stops on iOS when the page goes to the background, but a playing media element does not (and gets the
+  lock-screen controls). So on iOS only (`src/audio/background.ts`: iPhone, iPad, or an iPad posing as a Mac) the master output goes
+  through `createMediaStreamDestination()` into a hidden `<audio>` element (`AudioEngine.routeOutput`); the audio session type is set to
+  `playback` (iOS 16.4+; it also plays with the silent switch on, but it does not mix, so music stops while the House plays);
+  `src/web/mediasession.ts` sets the lock-screen title ("The House") and icons and the play and pause handlers. If the element will not
+  play, the engine falls back to playing straight to the speakers.
+- **Pause and play:** the lock-screen pause suspends the engine and sets `pausedByUser`, so the engine's usual "ask the phone for the sound
+  back" (`resume()`) does not undo it; play, or the listener touching the page (`start()`), clears it. A pause that is not ours (a call,
+  headphones unplugged) is treated as the listener's as well.
+- **What stops in the background on purpose:** wandering and the spoken voice (`visibilitychange` in `src/web/main.ts`), because a backgrounded page
+  cannot control speech. The ambient sound, the weather, the birds and the rest carry on.
+- **Installing as an app:** Add to Home Screen (Share, Add to Home Screen) opens the House in its own window from the manifest; the same
+  background rules apply. Not known whether iOS plays the sound longer in the installed app than in Safari; the owner can say.
+- **Untested on a real iPhone** (checked only by emulating an iPhone user agent in Chromium: the audio element plays and the lock-screen
+  state is set; desktop is unchanged). To check: start the House, lock the screen, listen; use the lock-screen pause and play; switch app.
+  Things that may need a second look: timers (`tickEvents`, every 200 ms) may be slowed in the background so events such as birds and
+  drips could be sparser; an incoming call or Siri may pause it for good until play is pressed.

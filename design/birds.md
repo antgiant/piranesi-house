@@ -251,3 +251,12 @@ median error 29 to 44 cents (the worst tenth, 65 to 190, at the steps). Calls tr
 - **Haze of noise.** The round trip rejects a call that comes back more than 5 dB noisier than its source (was 8). The very rough calls (under 8 dB) are left out of the gull kinds, as a harmonic voice with noise cannot make a call that is mostly noise (the squeal): they want a noise-based
   synthesis, not done.
 - Measured against the clean originals: pitch contour error median 26 to 64 cents; roughness within 6 dB (median 0 to +2). Known remaining: some two-part calls have a short spike at the step, and noise-dominated squeals are missing.
+
+## Version 19: a look test against the real recording, and an honest count
+The owner's complaint: sounds that were clearly off on the spectrogram were still being sent. The checks so far compared the synthesis with numbers taken from the same analysis (round trip), never with the real call itself, and a handful of side-by-side panels chosen by eye hid the bad ones.
+- **Look score** (`scripts/birds/qa.py`, `look`): the correlation of the real call's spectrogram (150 Hz to 6 kHz, from its start, blurred so that a small shift does not count) with its synthesis: a misplaced ridge, a missing step or a haze of noise lowers it. Calibrated on a contact sheet of
+  all 32 sampled calls of the four clean recordings: the calls that look right score 0.82 to 0.96, the visibly wrong ones 0.0 to 0.75.
+- **The count.** Only 7 of 32 clean calls (22%) pass 0.75 (m2: 3 of 8, m3: 3 of 8, m4: 1 of 8, m1: 0 of 8). The failures are of known kinds: a bird whose voice alternates its period (recording 1, strong subharmonics), two-part calls with steps, rough or noisy calls (squeals), and the first frames of some calls (a start streak, now reduced
+  by `steadyOnset`). A per-harmonic amplitude profile (`CallTemplate.harm`) was tried and moved the score little: the missing piece is the noise, the steps and the second voice, not the smooth spectrum.
+- **The library is now verified**: every library call (with a source recording) must score 0.75 or more against its own real call. Voices left: gull mew 8, notes 5, alarm 5, flight 5, choke 5, rook 6, sparrow 8, blackbird 5, owl 6, whirr 5. Where fewer than five voices survive (the thin call, the buzzard, the begging) the earlier,
+  looser library is kept and is UNVERIFIED (`gullThin`, `buzzardMew`, `gullBeg`): these are the least trustworthy sounds.

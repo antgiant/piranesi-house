@@ -35,6 +35,10 @@ export interface CallTemplate {
   bright?: [number, number, number];
   /** The wavering of the pitch, measured on the real call: rate (Hz) and depth (peak, percent of the pitch). Gull calls waver slowly (6 to 13 a second); the depth measured (1 to 4%) includes the tracker's own error, so a quarter of it, at most 0.6%, is played: the full depth looked and sounded far wavier than the real lines, and a fast flutter sounds like a vibrating plate. */
   vib?: [number, number];
+  /** The level (dB, re the strongest) of each of the first harmonics as measured on the call itself, one by one: real calls are not smooth in this (the second harmonic may be the strongest, or every other one weak); beyond them the band spectrum carries on. */
+  harm?: number[];
+  /** What to add to the measured harmonics' levels to put them on the band spectrum's scale (the first strongest harmonic, set by the band spectrum). */
+  harmOff?: number;
   /** A sharp sound (a bill clap, a tick): not a call with a contour but a broadband impulse that rings: the resonances (Hz, dB) and how fast they and the impulse die (seconds). */
   click?: { modes: [number, number][]; ringTau: number; impulseTau: number };
 }
@@ -169,7 +173,7 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
       }
       for (let k = 1; k <= 40; k++) {
         const hz = k * f0; if (hz > sr * 0.45) break;
-        let db = levelAt(tpl.H, tpl.bands, hz / scale);
+        let db = tpl.harm && k <= tpl.harm.length ? tpl.harm[k - 1]! + (tpl.harmOff ?? 0) : levelAt(tpl.H, tpl.bands, hz / scale);
         if (db <= -60) continue;
         if (br && k >= 3) db += ul < 0.5 ? br[0] + (br[1] - br[0]) * (ul / 0.5) : br[1] + (br[2] - br[1]) * ((ul - 0.5) / 0.5);
         s += Math.pow(10, db / 20) * Math.sin(k * phi + phases[k - 1]!);
@@ -218,6 +222,16 @@ export function fillBands(v: number[], up: number, down: number, floor = -118): 
  * The ends of a measured loudness contour. The analysis keeps the frames within 18 dB of the peak, so its first point is not as loud as a real call's start nor its last as quiet as its stop: on 32 clean calls the level
  * is -6 dB at the start (median), holds near -2 to -4 through the body, is -26 dB at 0.8 of the call and -43 at 0.9. The first point is raised to -6 and the last two lowered to -16 and -24.
  */
+/**
+ * The first frames of a call are where the pitch tracker is least sure (the onset is noisy and the harmonics not yet settled): its first points often start far below or above where the call then sits,
+ * and a synthesis plays that as a streak across the spectrum at the start of the call (in some 12 of 32 clean calls) that the real call does not have. The first two points are set to the third unless they agree with it.
+ */
+export function steadyOnset(f0: number[]): number[] {
+  const f = f0.slice(), ref = f[2] ?? f[0] ?? 0;
+  for (let i = 0; i < 2; i++) if (ref > 0 && Math.abs((f[i] ?? ref) / ref - 1) > 0.08) f[i] = ref;
+  return f;
+}
+
 export function shapeEnds(env: number[]): number[] {
   const e = env.slice(); e[0] = Math.max(e[0]!, -6); e[10] = Math.min(e[10]!, -16); e[11] = Math.min(e[11]!, -24); return e;
 }
@@ -227,5 +241,5 @@ export function libTemplate(bands: number[], voice: { H: number[]; N: number[] }
   const dur = call[0]!;
   // two layouts: the pitch in 24 points (44 numbers, or 46 with a pulse rate and depth) and the older 12 (32 or 34)
   const wide = call.length >= 44, nf = wide ? 24 : 12, o = 3 + nf + 12;
-  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 3 + nf), f0Spread: 0.015, env: shapeEnds(call.slice(3 + nf, 3 + nf + 12)), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[o] ?? 0, call[o + 1] ?? 0, call[o + 2] ?? 0], vib: [call[o + 3] ?? 0, call[o + 4] ?? 0], ...(call.length > o + 5 ? { am: [call[o + 5]!, call[o + 6]!] as [number, number] } : {}) };
+  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: wide ? steadyOnset(call.slice(3, 3 + nf)) : call.slice(3, 3 + nf), f0Spread: 0.015, env: shapeEnds(call.slice(3 + nf, 3 + nf + 12)), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[o] ?? 0, call[o + 1] ?? 0, call[o + 2] ?? 0], vib: [call[o + 3] ?? 0, call[o + 4] ?? 0], ...(call.length > o + 5 ? { am: [call[o + 5]!, call[o + 6]!] as [number, number] } : {}) };
 }

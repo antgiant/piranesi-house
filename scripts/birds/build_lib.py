@@ -48,7 +48,7 @@ for kind, (pk, ok, minc, keep, vmax) in KINDS.items():
         for u, v in zip(ts, ts[1:]):
             if v - u < 3.0: gaps.append(v - u)
         voices.append({'id': rid, 'n': len(good) + (1000 if str(rid).startswith('m') and str(rid)[1:].isdigit() else 0), 'H': H.round(0).astype(int).tolist(), 'N': N.round(0).astype(int).tolist(), 'gaps': gaps,
-                       'calls': [{'dur': round(c['dur'], 3), 'apex': 0.364, 'hnr': round(float(c['hnr']), 1), 'bright': c.get('bright', [0, 0, 0]), 'vib': c.get('vib', [0, 0]), **({'am': c['am']} if c.get('am') else {}), 'f0': [int(round(v)) for v in (c['f0r'] if 'f0r' in c else np.interp(np.linspace(0, 1, 24), np.linspace(0, 1, 12), unwarp(c['f0'], c['apex'])))], 'env': [round(float(v), 1) for v in unwarp(c['env'], c['apex'])]} for c in sel]})
+                       'calls': [{'src': [c['file'].split(':')[0], round(float(c['a']), 3), round(float(c['dur']), 3)], 'dur': round(c['dur'], 3), 'apex': 0.364, 'hnr': round(float(c['hnr']), 1), 'bright': c.get('bright', [0, 0, 0]), 'vib': c.get('vib', [0, 0]), **({'am': c['am']} if c.get('am') else {}), 'f0': [int(round(v)) for v in (c['f0r'] if 'f0r' in c else np.interp(np.linspace(0, 1, 24), np.linspace(0, 1, 12), unwarp(c['f0'], c['apex'])))], 'env': [round(float(v), 1) for v in unwarp(c['env'], c['apex'])]} for c in sel]})
     voices.sort(key=lambda v: -v['n']); voices = voices[:vmax]
     gaps = [g for v in voices for g in v['gaps']]
     res[kind] = {'gap': [round(float(np.percentile(gaps, q)), 2) for q in (10, 50, 90)] if len(gaps) >= 5 else None, 'voices': [{k: v[k] for k in ('id', 'H', 'N', 'calls')} for v in voices]}

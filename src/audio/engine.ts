@@ -815,7 +815,14 @@ export class AudioEngine {
       if (a.birds.mode === 'roosting' && Math.random() > 0.125) { this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6); } else
       this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, FLYING_MODES.has(a.birds.mode) ? 'fly' : undefined, a.birds.mode);
       // a breeding colony is a continuous bed of overlapping voices (measured on colony recordings: 90 to 220 call onsets a minute, the level moving only a few decibels)
-      this.nextBird = t + (60 / (a.birds.perMinute * (a.birds.mode === 'nesting' ? 4 : a.birds.mode === 'feeding' ? 2.5 : 1))) * rand(0.5, 1.6);
+      // a feeding flock comes in bursts (measured on a close recording of a flock at food: 36 gaps of over a second in 100, none over six, calls bunched in 3 to 14 a ten seconds, the level moving over 50 dB):
+      // a spell of excitement, then a lull
+      let burst = 1;
+      if (a.birds.mode === 'feeding') {
+        if (t >= this.flockPhaseEnd) { this.flockActive = !this.flockActive; this.flockPhaseEnd = t + (this.flockActive ? rand(4, 12) : rand(1.5, 5)); }
+        burst = this.flockActive ? 1.8 : 0.1;
+      }
+      this.nextBird = t + (60 / (a.birds.perMinute * burst * (a.birds.mode === 'nesting' ? 4 : a.birds.mode === 'feeding' ? 2.5 : 1))) * rand(0.5, 1.6);
     }
   }
 
@@ -916,6 +923,8 @@ export class AudioEngine {
    * random path, or on the path or point given. The flock is the exception: it is scattered over the sky, burst by burst.
    */
   private colonyBed: ColonyBed | null = null;
+  private flockActive = true;
+  private flockPhaseEnd = 0;
   private answerDepth = 0;
   private bird(sp: Species, t: number, loud: number, out?: AudioNode, where?: 'fly' | Vec3 | Flyby, mode?: AudioScene['birds']['mode']): void {
     this.calls++;

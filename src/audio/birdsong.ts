@@ -47,6 +47,7 @@ export function plan(who: Voice, ctx: Context, r: Rng = Math.random): PlannedNot
 function planOf(who: Voice, ctx: Context, r: Rng): PlannedNote[] {
   const bird = between(r, 0.92, 1.08); // this bird's own pitch
   const mew: NoteCall = 'gullMew', chirp: NoteCall = 'sparrowChirp';
+  const flockPitch = bird * between(r, 1.12, 1.45);
   switch (who) {
     case 'gull': {
       if (ctx === 'colony') {
@@ -65,6 +66,7 @@ function planOf(who: Voice, ctx: Context, r: Rng): PlannedNote[] {
         return notes;
       }
       if (ctx === 'flock') {
+        const bird = flockPitch; // a flock at food is higher than a colony: median pitch 1.67 kHz against 1.27 (young birds, and excitement)
         // a flock over food: short runs of mews (two to five, quick), single mews, and now and then a bout of the short laughing notes; birds join in all the time
         const kind = pick(r, ['run', 'mew', 'laugh'] as const, [0.5, 0.35, 0.15]);
         if (kind === 'mew') return [{ dt: 0, call: mew, pitch: bird, gain: 1 }];

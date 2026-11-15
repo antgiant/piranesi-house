@@ -229,3 +229,12 @@ Four very clean recordings of herring gull alarm calls at one metre with a shotg
   The owner's observation: chicks give a thin high call that is stronger and lower in juveniles and lower still in adults (the mew). That fits the measured tones (3.3 to 4.7 kHz for first-winter birds against the mew's 1.2 to 1.6 kHz), but this recording has no
   downy chicks, so the highest, thinnest call of the smallest chicks is not measured. That the kek trains hide the call is a hypothesis: here the stand-alone thin calls fall inside the trains only rarely (8 of 239 detections), but the trains' own arched harmonics fill the same 4 to 10 kHz band.
 - The library trimmed to ten voices of three calls to stay under the JS budget (167.7 KB gzipped).
+
+## Version 16: what the owner heard in the first resynthesis of the clean recordings, and what was wrong
+The owner heard calls fading too hard and fast and so cut short, calls with a vibrato made to sound like a vibrating plate, smooth calls that seemed to be muted at a regular rate, and some calls "blown out" and flat. Measured against the clean originals (the real call, aligned by its start, in 20 ms frames):
+- **Muting and the vibrating plate**: the 22 to 62 Hz flutter of the harmonics and the 37 and 83 Hz wobble of the pitch that version 14 added are removed. Real vibrato (measured on the pitch of the clean calls): 6 to 13 a second; the depth measured, 1 to 4%, includes the tracker's own error and was far
+  wavier than the real lines when played, so a quarter of it, at most 0.6%, is played.
+- **Fading**: the real loudness contour is about -6 dB at the start, -2 to -4 through the body, -16 at 0.7 of the call, -26 at 0.8, -43 at 0.9 and then the call has stopped. The measured contours (frames within 18 dB of the peak) start too low and end too high; `shapeEnds` fixes the ends, and a 50 ms tail
+  carries the end on. The synthesised median now follows the real one to within 6 dB all along it (a longer tail, tried first, rang on as a held tone after each call).
+- **Blown out**: some resynthesised calls came back much noisier than their source (the achieved roughness 13 to 29 dB below the target, in 5 of 32): the octave error of the pitch tracker (the second harmonic taken for the pitch) spoils the roughness measure and the noise level. The analysis now tries half the pitch
+  as well and keeps it when the voice is much cleaner there; the round-trip check rejects a call that comes back more than 8 dB noisier than its source.

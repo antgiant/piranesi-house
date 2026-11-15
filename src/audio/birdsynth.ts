@@ -33,7 +33,7 @@ export interface CallTemplate {
   second?: { ratio: number; db: number; from: number; to: number };
   /** How the brightness changes through the call (dB, in the first, middle and last third, from the harmonics above the third): a real call loses its high harmonics before it ends. */
   bright?: [number, number, number];
-  /** The wavering of the pitch, measured on the real call: rate (Hz) and depth (peak, percent of the pitch). Gull calls waver slowly (6 to 13 a second, 1 to 4%); a fast flutter sounds like a vibrating plate. */
+  /** The wavering of the pitch, measured on the real call: rate (Hz) and depth (peak, percent of the pitch). Gull calls waver slowly (6 to 13 a second); the depth measured (1 to 4%) includes the tracker's own error, so a quarter of it, at most 0.6%, is played: the full depth looked and sounded far wavier than the real lines, and a fast flutter sounds like a vibrating plate. */
   vib?: [number, number];
   /** A sharp sound (a bill clap, a tick): not a call with a contour but a broadband impulse that rings: the resonances (Hz, dB) and how fast they and the impulse die (seconds). */
   click?: { modes: [number, number][]; ringTau: number; impulseTau: number };
@@ -136,9 +136,9 @@ function renderClick(sr: number, tpl: CallTemplate & { click: NonNullable<CallTe
 export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random, opts: { duration?: number; pitch?: number } = {}): Float32Array {
   if (tpl.click) return renderClick(sr, tpl as CallTemplate & { click: NonNullable<CallTemplate['click']> }, rng, opts.pitch ?? 1);
   const dur = opts.duration ?? Math.min(tpl.durRange[1], Math.max(tpl.durRange[0], tpl.dur * Math.exp(0.18 * gauss(rng))));
-  // the call itself, then its tail: the analysis keeps the frames within 18 dB of the peak, so a measured call stops while the real one is still dying away (the real fall from the peak to -30 dB is about 0.28 s against 0.17 s
-  // in a synthesis without a tail): the end falls on, at 40 dB across a third of the call's length (0.04 to 0.15 s)
-  const nBody = Math.max(64, Math.floor(dur * sr)), nTail = Math.floor(Math.min(0.15, Math.max(0.04, 0.3 * dur)) * sr), n = nBody + nTail;
+  // the call itself, then a short tail: a real call holds its level to near the end, falls 10 to 15 dB in the last tenth of a second and stops (measured on 32 clean calls: -10, -10, -16, -25, then -58 in 20 ms steps),
+  // and a synthesis that ends at the last measured point stops a little early: the end falls on for 50 ms (45 dB). (A longer tail, tried at first, rang on as a held tone after each call.)
+  const nBody = Math.max(64, Math.floor(dur * sr)), nTail = Math.floor(0.05 * sr), n = nBody + nTail;
   const scale = (opts.pitch ?? 1) * Math.exp(Math.min(2, Math.max(-2, gauss(rng))) * tpl.f0Spread);
   // a slow wobble of the contour, different for each call
   const w1 = tpl.vib ? 0 : (rng() - 0.5) * 0.08, w2 = tpl.vib ? 0 : (rng() - 0.5) * 0.06, ph = rng() * 6.28;
@@ -148,9 +148,9 @@ export function renderCall(sr: number, tpl: CallTemplate, rng: Rng = Math.random
   const amPhase = rng() * 6.28;
   const noise = shapedNoise(sr, n, tpl, rng, scale);
   let phi = 0, phi2 = 0;
-  const br = tpl.bright, vibRate = tpl.vib ? 2 * Math.PI * tpl.vib[0] : 0, vibDepth = tpl.vib ? tpl.vib[1] / 100 : 0, vibPh = rng() * 6.28;
+  const br = tpl.bright, vibRate = tpl.vib ? 2 * Math.PI * tpl.vib[0] : 0, vibDepth = tpl.vib ? Math.min(0.006, 0.25 * tpl.vib[1] / 100) : 0, vibPh = rng() * 6.28;
   for (let i = 0; i < n; i++) {
-    const ul = Math.min(1, i / (nBody - 1)), tg = i < nBody ? 1 : Math.pow(10, (-40 * ((i - nBody) / nTail)) / 20);
+    const ul = Math.min(1, i / (nBody - 1)), tg = i < nBody ? 1 : Math.pow(10, (-45 * ((i - nBody) / nTail)) / 20);
     // time on the contour's own axis: its fifth point of twelve is the apex (4/11 of the way along)
     const ap = Math.min(0.9, Math.max(0.05, tpl.apex ?? 4 / 11)), u = ul < ap ? (4 / 11) * (ul / ap) : 4 / 11 + (7 / 11) * ((ul - ap) / (1 - ap));
     const f0 = interp(tpl.f0, u) * scale * (1 + w1 * Math.sin(ph + 9 * u) + w2 * (u - 0.5)) * (1 + vibDepth * Math.sin(vibRate * (i / sr) + vibPh));
@@ -214,8 +214,16 @@ export function fillBands(v: number[], up: number, down: number, floor = -118): 
   return out;
 }
 
+/**
+ * The ends of a measured loudness contour. The analysis keeps the frames within 18 dB of the peak, so its first point is not as loud as a real call's start nor its last as quiet as its stop: on 32 clean calls the level
+ * is -6 dB at the start (median), holds near -2 to -4 through the body, is -26 dB at 0.8 of the call and -43 at 0.9. The first point is raised to -6 and the last two lowered to -16 and -24.
+ */
+export function shapeEnds(env: number[]): number[] {
+  const e = env.slice(); e[0] = Math.max(e[0]!, -6); e[10] = Math.min(e[10]!, -16); e[11] = Math.min(e[11]!, -24); return e;
+}
+
 /** A call made by one real bird of the library: its voice's spectrum and one of its measured calls (length, roughness, 12 pitch points, 12 loudness points). */
 export function libTemplate(bands: number[], voice: { H: number[]; N: number[] }, call: number[]): CallTemplate {
   const dur = call[0]!;
-  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: call.slice(15, 27), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[27] ?? 0, call[28] ?? 0, call[29] ?? 0], vib: [call[30] ?? 0, call[31] ?? 0], ...(call.length > 32 ? { am: [call[32]!, call[33]!] as [number, number] } : {}) };
+  return { dur, durRange: [dur * 0.94, dur * 1.06], apex: call[1]!, hnr: call[2]!, f0: call.slice(3, 15), f0Spread: 0.015, env: shapeEnds(call.slice(15, 27)), bands, H: fillBands(voice.H, 4, 99), N: fillBands(voice.N, 2.5, 1.5), bright: [call[27] ?? 0, call[28] ?? 0, call[29] ?? 0], vib: [call[30] ?? 0, call[31] ?? 0], ...(call.length > 32 ? { am: [call[32]!, call[33]!] as [number, number] } : {}) };
 }

@@ -9,14 +9,9 @@ import { babblePlan, type BabbleEvent } from './babble';
 import { DEEP_BASS } from './bass';
 import { Falls } from './falls';
 import { Stream } from './stream';
-import { ColonyBed } from './colonybed';
 import { Wind } from './wind';
 import { allOn, maskScene, type Elements } from './elements';
 import { buildImpulse } from './room';
-import { libTemplate, renderCall, type CallTemplate } from './birdsynth';
-import { CALLS, type CallName } from './birdcalls';
-import { LIB, type LibKind } from './birdlib';
-import { plan as birdPlan, type Context as BirdContext, type Voice as BirdVoice } from './birdsong';
 import { stepPlan, type Hit } from './steps';
 import { CHIRP, bubbleDamping, dripPitch } from './bubbles';
 import { Patter } from './patter';
@@ -61,13 +56,6 @@ const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 
 /** Where a sound comes from. A number is the old -1..1 left/right pan (placed on an arc in front); 0 is "everywhere", unplaced. */
 export type Place = number | Vec3;
-
-/** Species that cross the sky while they call, how long the call is tracked for, and how fast they fly (m/s). */
-const FLIERS: Partial<Record<Species, { dur: number; speed: number; height: [number, number] }>> = {
-  gull: { dur: 1.7, speed: 11, height: [5, 18] },
-};
-/** In these bird scenes the birds that can fly are overhead and moving; in the rest they are perched. */
-const FLYING_MODES: ReadonlySet<AudioScene['birds']['mode']> = new Set(['soaring', 'shore', 'feeding']);
 
 const FEET: Vec3 = { x: 0, y: -1.5, z: -0.4 };
 
@@ -123,7 +111,6 @@ export class AudioEngine {
   private outsideId = '';
   private nextVoice = 0;
   private leftFoot = false;
-  private callCache: Record<string, AudioBuffer[]> = {};
   private elements: Elements = allOn();
   private rawScene: AudioScene | null = null;
   private irKey = '';
@@ -266,8 +253,6 @@ export class AudioEngine {
     this.stream = null;
     this.wind?.dispose();
     this.wind = null;
-    this.colonyBed?.dispose();
-    this.colonyBed = null;
     this.stairs?.dispose();
     this.stairs = null;
     for (const b of this.beds) b.v.dispose();
@@ -747,10 +732,6 @@ export class AudioEngine {
     if (this.wind && !this.rainCoupled) { this.wind.tap.connect(this.rainCouple); this.rainCoupled = true; }
     ease(this.rainCouple.gain, Math.min(1, (a.wind.mps ?? a.wind.gain * 30) / 16) * 1.3);
     this.wind?.set({ gain: a.wind.gain, mps: a.wind.mps ?? a.wind.gain * 30, whistle: a.wind.whistle });
-    // the low murmur of a colony or a flock (colonybed.ts)
-    const crowd = (a.birds.mode === 'nesting' || a.birds.mode === 'feeding') && a.birds.perMinute > 0 ? a.birds.loudness : 0;
-    if (crowd > 0 && !this.colonyBed) this.colonyBed = new ColonyBed({ ctx, spot: (at) => this.spot(at) });
-    this.colonyBed?.set(crowd);
   }
 
   // -------------------------------------------------------------------------------------------------------------
@@ -813,16 +794,9 @@ export class AudioEngine {
     if (a.birds.perMinute > 0 && kinds.length > 0 && t >= this.nextBird) {
       // roosting birds are asleep: the owl is the one voice, and it calls one time in eight
       if (a.birds.mode === 'roosting' && Math.random() > 0.125) { this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6); } else
-      this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, FLYING_MODES.has(a.birds.mode) ? 'fly' : undefined, a.birds.mode);
+      this.bird(kinds[Math.floor(Math.random() * kinds.length)] as Species, t + 0.02, a.birds.loudness, undefined, undefined, a.birds.mode);
       // a breeding colony is a continuous bed of overlapping voices (measured on colony recordings: 90 to 220 call onsets a minute, the level moving only a few decibels)
-      // a feeding flock comes in bursts (measured on a close recording of a flock at food: 36 gaps of over a second in 100, none over six, calls bunched in 3 to 14 a ten seconds, the level moving over 50 dB):
-      // a spell of excitement, then a lull
-      let burst = 1;
-      if (a.birds.mode === 'feeding') {
-        if (t >= this.flockPhaseEnd) { this.flockActive = !this.flockActive; this.flockPhaseEnd = t + (this.flockActive ? rand(4, 12) : rand(1.5, 5)); }
-        burst = this.flockActive ? 1.8 : 0.1;
-      }
-      this.nextBird = t + (60 / (a.birds.perMinute * burst * (a.birds.mode === 'nesting' ? 4 : a.birds.mode === 'feeding' ? 2.5 : 1))) * rand(0.5, 1.6);
+      this.nextBird = t + (60 / a.birds.perMinute) * rand(0.5, 1.6);
     }
   }
 
@@ -918,80 +892,11 @@ export class AudioEngine {
   }
 
   /**
-   * A bird call. Through a doorway it keeps the doorway's own placement (the portal bus places it). In the hall it gets a voice of
-   * its own: perched somewhere around and above you, or, with `where` = 'fly' (and a species that flies), crossing the sky on a
-   * random path, or on the path or point given. The flock is the exception: it is scattered over the sky, burst by burst.
+   * A bird call. None is made: the birds' voices were removed while their model is rebuilt from the beginning (design/birds-restart.md). The scene still says which birds are here and the narrator still describes them;
+   * the scheduling above still calls this, so a new voice has one place to go.
    */
-  private colonyBed: ColonyBed | null = null;
-  private flockActive = true;
-  private flockPhaseEnd = 0;
-  private answerDepth = 0;
-  private bird(sp: Species, t: number, loud: number, out?: AudioNode, where?: 'fly' | Vec3 | Flyby, mode?: AudioScene['birds']['mode']): void {
+  private bird(_sp: Species, _t: number, _loud: number, _out?: AudioNode, _where?: 'fly' | Vec3 | Flyby, _mode?: AudioScene['birds']['mode']): void {
     this.calls++;
-    const out0 = out, loud0 = loud;
-    const pan = 0;
-    const prev = this.doppler;
-    let answer: Voice | null = null;
-    if (!out && sp !== 'flock') {
-      const fl = FLIERS[sp];
-      const flight = (): Flyby => flybyPath(Math.random, { dur: (fl as NonNullable<typeof fl>).dur, speed: (fl as NonNullable<typeof fl>).speed, closest: [3, 12], height: (fl as NonNullable<typeof fl>).height });
-      const at: Vec3 | Flyby = where && where !== 'fly' ? where : where === 'fly' && fl ? flight() : mode === 'nesting' ? (() => { const d = 4 * Math.pow(30, Math.random()); loud *= Math.pow(d / 4, 0.75); return perchPosition(Math.random, [0, 30], [d, d]); })() : perchPosition(Math.random); // a colony fills the cliff: near birds and far ones (4 to 120 m), so the far ones make the diffuse bed
-      const voice = this.voice(t, at);
-      out = voice.input;
-      this.doppler = voice.doppler;
-    }
-    try { this.birdCall(sp, t, loud, out, pan, answer, mode); } finally { this.doppler = prev; }
-    // sparrows answer one another: others, from their own places, take it up before the first has done, and the answer may be answered
-    // gulls in a colony set one another off: a call is taken up by neighbours (each in its own voice and place) and the chorus builds
-    if (sp === 'gull' && (mode === 'nesting' || mode === 'feeding') && !out0 && this.answerDepth < 3 && Math.random() < 0.55 - 0.15 * this.answerDepth) {
-      this.answerDepth++;
-      try { for (let i = 0, n = 1 + Math.floor(Math.random() * 3); i < n; i++) this.bird(sp, t + rand(0.15, 1.4), loud0 * rand(0.7, 1), undefined, where, mode); } finally { this.answerDepth--; }
-    }
-    if (sp === 'sparrow' && !out0 && this.answerDepth < 3 && Math.random() < 0.8 - 0.2 * this.answerDepth) {
-      this.answerDepth++;
-      try { for (let i = 0, n = 1 + Math.floor(Math.random() * 2); i < n; i++) this.bird(sp, t + rand(0.3, 1.8), loud0 * rand(0.6, 0.95), undefined, where, mode); } finally { this.answerDepth--; }
-    }
-  }
-
-  /** What each species is, as a measured voice, and the situation its mode makes (birdsong.ts). Anything not here (the flock's wings, a rustle) is made the old way. */
-  /** Play a plan of notes (birdsong.ts): each note is a call rendered from its measured template (a few variants of each are kept, and a note may be pitched up or down a little). */
-  private playPlan(notes: ReturnType<typeof birdPlan>, t: number, v: number, out?: AudioNode): void {
-    const ctx = this.ctx as AudioContext;
-    for (const n of notes) {
-      // a call of a real bird of the library (one of the voice's measured calls, rendered once and kept), or else the call's own template
-      const lib = n.call in LIB && n.voice !== undefined ? LIB[n.call as LibKind][n.voice] : undefined;
-      const ci = lib ? Math.floor(Math.random() * lib.calls.length) : -1;
-      const key = lib ? `${n.call}/${n.voice}/${ci}` : n.call;
-      const variants = (this.callCache[key] ??= []);
-      let buf: AudioBuffer;
-      if (variants.length < (lib ? 2 : 5)) {
-        const tpl: CallTemplate = lib ? libTemplate(CALLS.gullMew.bands, lib, lib.calls[ci] as number[]) : CALLS[n.call as CallName];
-        // about half of a gull's calls have a second voice sounding in part of them (birdsynth.ts `second`)
-        if (lib && String(n.call).startsWith('gull') && n.call !== 'gullChoke' && Math.random() < 0.5) { const len = 0.25 + Math.random() * 0.35, from = Math.random() * (1 - len); tpl.second = { ratio: 1.3 + Math.random() * 0.3, db: -12 + Math.random() * 5, from, to: from + len }; }
-        const data = renderCall(ctx.sampleRate, tpl, Math.random);
-        buf = ctx.createBuffer(1, data.length, ctx.sampleRate); buf.getChannelData(0).set(data); variants.push(buf);
-      } else buf = variants[Math.floor(Math.random() * variants.length)] as AudioBuffer;
-      const at = t + n.dt, src = ctx.createBufferSource();
-      src.buffer = buf; src.playbackRate.value = n.pitch * (this.doppler?.(at) ?? 1);
-      const g = ctx.createGain(); g.gain.value = v * n.gain * 0.9;
-      src.connect(g).connect(out ?? this.spot(0));
-      src.start(at);
-    }
-  }
-
-  private birdCall(sp: Species, t: number, loud: number, out: AudioNode | undefined, pan: number, answer: Voice | null, mode?: AudioScene['birds']['mode']): void {
-    const v = 0.05 + loud * 0.08;
-    const ctxOf = (m?: AudioScene['birds']['mode']): BirdContext => m === 'nesting' ? 'colony' : m === 'chick' ? 'greeting' : m === 'noisy' || m === 'feeding' ? 'flock' : m === 'sheltering' ? 'rain' : m === 'roosting' ? 'roost' : 'air';
-    const who: BirdVoice | null = sp === 'chick' ? (mode === 'nesting' || mode === undefined ? 'chick' : 'sparrow') : sp === 'gull' || sp === 'rook' || sp === 'sparrow' || sp === 'blackbird' || sp === 'buzzard' || sp === 'owl' || sp === 'albatross' ? sp : null;
-    if (who) { this.playPlan(birdPlan(who, ctxOf(mode)), t, v, out); return; }
-    switch (sp) {
-      case 'flock':
-        for (let i = 0; i < 6; i++) this.burst(t + i * 0.12, 0.5, 'bandpass', rand(2500, 5000), 0.8, v * 0.9, out ? 0 : perchPosition(Math.random, [10, 65], [6, 22]), 0.15, out);
-        break;
-      case 'rustle':
-        this.burst(t, rand(0.1, 0.25), 'highpass', 3500, 0.7, v * 0.7, pan, 0.02, out);
-        break;
-    }
   }
 
   /**

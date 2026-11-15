@@ -29,6 +29,15 @@ A colony that sounds like XC599932 (the Robin Hood's Bay dawn colony) and a floc
 - The owner's originals: `/root/.claude/uploads/f7f8e8d9-11bf-5c49-886c-446dd7505cb2/*ScreenRecording*.m4a`. The four clean alarm calls (ML165926 is the third, with chicks in the background; the first is ML165927; fourth ML165931), a feeding flock (ML278198681), a winter flock (ML547765491): the spoken notes at the end (read with faster-whisper in the scratchpad venv, small.en) give place, time, microphone (Sennheiser MKH 416-T), recorder (Microtrack 2), distance (1 m).
 - Python venv with numpy, scipy, matplotlib, faster-whisper: `.../scratchpad/venv`. Render the real engine offline: `scripts/audition/render.mjs`. Spectrogram montage: it was `scripts/birds/spec.py` (in git history).
 
+## Second attempt, step 1: one call matched (offline prototype, `scripts/birds/gull_resynth.py`)
+Approach (from the owner's brief): behaviour drives a parametric source plus noise synth; recordings are targets, never playback.
+- Target: the alarm call at about 9.0 s in the clean recording m2 (0.5 s, f0 1.25 kHz falling to 0.9 kHz, a quick flick down at the very end).
+- Measured per frame from the spectrogram: f0 by harmonic-sum salience (h1 to h4), eight harmonic amplitudes, a second non-harmonic ridge at 1.5 times f0 (present about a seventh to a quarter of the call), noise left over after masking the lines.
+- Look score: harmonics alone 0.83; plus residual noise and second voice 0.96; after fixing a time shift (scipy `stft` already returns window-centre times) 0.98 with every frame's tracks kept.
+- Reduced to curves: pitch on 12 knots and harmonics as rank-2 log amplitude through the same knots keep 0.95 or better on three different calls of m2 (0.957, 0.957, 0.954). With 8 knots it falls to 0.92: the onset and the end flick need knots of their own.
+- Pitfalls found: (a) the onset is noise, so f0 there is unreliable: hold the first clean value; (b) track the last 20 frames on the peak itself or the end flick is lost; (c) noise scaled to the measured residual was too hazy (0.4 of it scored best); (d) the single-peak f0 tracker failed on call c, harmonic-sum salience did not.
+- Not yet done: judged by the owner's ear; onset is softer than the real 5 ms attack; noise bed is a little smeared; only one recording (one bird) and one call kind; no VoiceProfile, no behaviour, no TypeScript port, nothing in the engine.
+
 ## Ideas for the second attempt
 - Start from ONE clean bird and one call type and make the spectrogram match (look score above 0.9), then widen. Use the four clean recordings (m1 to m4) as the test set from the start.
 - Model what the real calls show: a call as a few notes, each with a pitch contour that may step, a loudness contour that holds then drops, a rough or clean voice (a noise-dominated squeal needs a noise source, not harmonics plus noise), an optional second voice, no added flutter.

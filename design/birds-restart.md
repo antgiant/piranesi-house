@@ -113,6 +113,22 @@ follows. The synth blurred all of that together and so sounded gentler and less 
   with their sum (3750 Hz) and 2 times the higher one: not a harmonic series. The model fakes it with harmonics of one pitch plus
   the halftone lines; a true two-source model is needed if it is audible.
 
+## Second attempt, step 5: m4_28 (notes 1 and 3 match; note 2 is the question)
+- m4_28 (32.77 to 33.23 s): a swoop, note 1 at 1500 Hz, a step to note 2 (32.90 to 32.98, lines at 1450, 2150, 3600, 4300, 5800, 6450,
+  7200 Hz), a step back to a falling note 3 (1450 to 1100 Hz), the end dive and a closing burst. Pop, start peak and closing burst are right at
+  0.7 ms resolution. Look score 0.919.
+- **Note 2 is a pitch-range question.** The lines are the 2nd, 3rd, 5th, 6th, 8th, 9th and 10th of about 718 Hz, below the old search floor of 750 Hz,
+  so the tracker followed the 2nd harmonic (1450 Hz). With `CAND_LO=500 NHARM=6` the tracker finds 718 Hz by itself. But a note-2 reading of
+  "f0 = 2150 with a faint second voice at 1450 Hz and its sums" (3600 = 1450 + 2150, 4300 = 2 x 2150) fits as well: the two readings are the same
+  lines. Which one sounds right is for the ear.
+- **Harmonic shape is now fitted per steady stretch** (between pitch steps), not once per call: after an octave step "harmonic k" is another
+  frequency. Neutral on the scores (m1 0.898, m3 0.964, m4 0.907), more honest; kept.
+- **Pitch-range options** (`CAND_LO`, `NHARM` environment variables; the defaults 750 and 4 are the old behaviour): CAND_LO=500 NHARM=6 over all
+  108 calls: m1 median 0.911 (15 of 23 at 0.9 or more, was 11), m3 0.962 (37 of 37), m4 0.904 (26 of 48, was 30). A wash on the totals (78 against
+  77): left off by default. Calls with an octave-below note (m4_28, m4_35 note 2) are the ones it is for.
+- **Still wrong in m4_28 note 2** with either setting: the 1.1 to 1.8 kHz band is about 25 dB too loud in the synth (real -55 dB, synth -28 dB);
+  probably the halftone second voice firing in that note (its 1.5 x f0 test finds something near 1077 Hz). Not yet checked.
+
 ## Ideas for the second attempt
 - Start from ONE clean bird and one call type and make the spectrogram match (look score above 0.9), then widen. Use the four clean recordings (m1 to m4) as the test set from the start.
 - Model what the real calls show: a call as a few notes, each with a pitch contour that may step, a loudness contour that holds then drops, a rough or clean voice (a noise-dominated squeal needs a noise source, not harmonics plus noise), an optional second voice, no added flutter.

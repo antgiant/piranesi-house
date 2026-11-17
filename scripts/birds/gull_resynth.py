@@ -31,6 +31,8 @@ NF, HOP = 1024, 128
 K, NK, NOISE = 12, 12, 1.0
 RANK = int(__import__('os').environ.get('RANK', '3'))
 STEP_REFINE = __import__('os').environ.get('STEP_REFINE', '1') == '1'  # place each pitch step where the new lines overtake the old (fine analysis)
+CAND_LO = float(__import__('os').environ.get('CAND_LO', '750'))     # lowest pitch searched (Hz)
+NHARM = int(__import__('os').environ.get('NHARM', '4'))             # harmonics in the pitch salience
 ONSET_TRACK = __import__('os').environ.get('ONSET_TRACK', '1') == '1'   # follow the pitch through the first 65 ms on the fine analysis
 SUB = float(__import__('os').environ.get('SUB', '2.0'))   # how many noise-medians a line peak must exceed to count as tone
 NF2, HOP2 = 256, 32                                          # the fine analysis: 5.8 ms window, 0.7 ms hop
@@ -72,9 +74,9 @@ def main(rec, T0, T1, CS, CE, out):
     on, off = int(np.argmin(abs(t - (CS - T0)))), int(np.argmin(abs(t - (CE - T0))))
 
     # ---- f0: harmonic-sum salience over h1..h4, followed outward from the middle of the call
-    cand = np.arange(750, 1700, 2.0)
+    cand = np.arange(CAND_LO, 1700, 2.0)
     LAM, JUMP = 0.04, 14.0                             # cost per candidate step (2 Hz) when gliding; flat cost of a jump
-    S = np.array([sum(np.log(np.interp(cand * k, f, M[:, j]) + 1e-6) * (1.0 if k < 3 else 0.7) for k in (1, 2, 3, 4))
+    S = np.array([sum(np.log(np.interp(cand * k, f, M[:, j]) + 1e-6) * (1.0 if k < 3 else 0.7) for k in range(1, NHARM + 1))
                   for j in range(len(t))]).T
     def viterbi(Sx, lam, jump):
         """Best path through a salience matrix (candidates x frames): gliding costs lam per candidate step, a jump a flat cost."""
@@ -212,11 +214,20 @@ def main(rec, T0, T1, CS, CE, out):
     kn = np.array(kn)
     print('knots', len(kn), 'steps', len(steps))
     f0s[on:off + 1] = PchipInterpolator(kn, f0s[kn])(cs)
-    L = np.log(H[:, on:off + 1] + 1e-4 * H.max())
-    mu = L.mean(1, keepdims=True)
-    U, Sv, Vt = np.linalg.svd(L - mu, full_matrices=False)
+    # the harmonic shape is fitted per steady stretch (between pitch steps): when the pitch jumps by an octave or a fifth, "harmonic
+    # k" is a different frequency, and one shape for the whole call cannot serve both notes
+    floor = 1e-4 * H.max()
     Hr = H.copy()
-    Hr[:, on:off + 1] = np.exp(mu + (U[:, :RANK] * Sv[:RANK]) @ Vt[:RANK])
+    sb = [on] + [j + 1 for j in steps if on < j + 1 <= off] + [off + 1]
+    for u, v in zip(sb[:-1], sb[1:]):
+        L = np.log(H[:, u:v] + floor)
+        mu = L.mean(1, keepdims=True)
+        rk = min(RANK, v - u - 1) if v - u >= 8 else 0
+        if rk > 0:
+            U, Sv, Vt = np.linalg.svd(L - mu, full_matrices=False)
+            Hr[:, u:v] = np.exp(mu + (U[:, :rk] * Sv[:rk]) @ Vt[:rk])
+        else:
+            Hr[:, u:v] = np.exp(mu)
     for k in range(K):
         Hr[k, on:off + 1] = PchipInterpolator(kn, Hr[k, kn])(cs)
     H = Hr
